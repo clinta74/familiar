@@ -24,4 +24,10 @@ public enum Gesture
     Wave = 3,
     Shrug = 4,
     Laugh = 5,
+    Wink = 6,
+    Sigh = 7,
+    Yawn = 8,
+
+    /// <summary>A big happy hop - more than joy's gentle bounce.</summary>
+    Excited = 9,
 }

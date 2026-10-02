@@ -78,6 +78,11 @@ public sealed class ExpressionParserTests
     [InlineData("[nods]", Gesture.Nod)]
     [InlineData("[gesture:shakes head]", Gesture.Shake)]
     [InlineData("[waves]", Gesture.Wave)]
+    [InlineData("[gesture:wink]", Gesture.Wink)]
+    [InlineData("[sighs]", Gesture.Sigh)]
+    [InlineData("[gesture:yawning]", Gesture.Yawn)]
+    [InlineData("[gesture:excited]", Gesture.Excited)]
+    [InlineData("[bounces]", Gesture.Excited)]
     public void Gesture_words_the_model_reaches_for_are_understood(string tag, Gesture gesture) =>
         Assert.Equal(new GestureToken(gesture), ExpressionParser.TryParseTag(tag));
 
@@ -192,6 +197,15 @@ public sealed class TurnRunnerTests
 
         Assert.True(result.Interrupted);
         Assert.Equal("One.", result.Text);
+    }
+
+    [Fact]
+    public async Task Tags_it_cannot_act_out_are_reported_not_spoken()
+    {
+        var (result, events) = await Run(new FakeLlm { Fragments = ["[joy:0.6] Ta-da! [gesture:dance] Fun."] });
+
+        Assert.Equal("Ta-da! Fun.", result.Text);
+        Assert.Contains(new TagIgnored("[gesture:dance]"), events);
     }
 
     [Fact]

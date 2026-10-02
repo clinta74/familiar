@@ -8,7 +8,7 @@ const LINGER_MS = 8000;
 /** What an emotion softens to once it has lingered. */
 const SOFTENED = 0.4;
 
-const GESTURE_MS: Record<Gesture, number> = { nod: 900, shake: 900, tilt: 1600, wave: 1600, shrug: 1000, laugh: 1400 };
+const GESTURE_MS: Record<Gesture, number> = { nod: 900, shake: 900, tilt: 1600, wave: 1600, shrug: 1000, laugh: 1400, wink: 750, sigh: 1700, yawn: 2200, excited: 1300 };
 
 // Feature positions, in viewBox units. The head is centred on the origin; the muzzle sits below,
 // and the neck runs from behind the head down past the bottom of the stage.
@@ -207,6 +207,7 @@ export class PlushLlamaAvatar implements AvatarDriver {
   private blinkAt = performance.now() + 2500;
   private gazeAt = performance.now() + 3000;
   private earTwitchAt = performance.now() + 5000;
+  private yawnAt = performance.now() + 6000;
   private idleGaze = { x: 0, y: 0 };
   private last = performance.now();
   private frame = 0;
@@ -260,6 +261,12 @@ export class PlushLlamaAvatar implements AvatarDriver {
       target.earLift = Math.max(target.earLift, 0.6);
     }
 
+    // A resting familiar yawns now and then.
+    if (this.state === 'resting' && !this.gesture && now > this.yawnAt) {
+      this.playGesture('yawn');
+      this.yawnAt = now + 9000 + Math.random() * 9000;
+    }
+
     if (this.state === 'resting') {
       target.eyeOpen = 0.05;
       target.mouthCurve = 0.2;
@@ -285,6 +292,44 @@ export class PlushLlamaAvatar implements AvatarDriver {
       target.mouthOpen = Math.max(target.mouthOpen, (0.45 + 0.25 * Math.abs(Math.sin(u * Math.PI * 7))) * env);
       target.blush = Math.max(target.blush, env);
       target.earLift = Math.max(target.earLift, 0.6 * env);
+    }
+
+    // The other gestures that change the face, not just the head's movement.
+    if (this.gesture && this.gesture.name !== 'laugh') {
+      const u = Math.min(1, (now - this.gesture.start) / GESTURE_MS[this.gesture.name]);
+      const env = Math.sin(Math.PI * u);
+      switch (this.gesture.name) {
+        case 'wink':
+          // The right eye's lid is closed in render(); here, the grin that goes with it.
+          target.mouthCurve = Math.max(target.mouthCurve, 0.9 * env);
+          target.blush = Math.max(target.blush, 0.4 * env);
+          break;
+        case 'sigh':
+          // Deflating: eyes half-closed, ears sag, a small "haah".
+          target.eyeOpen = Math.min(target.eyeOpen, 1 - 0.5 * env);
+          target.earLift = Math.min(target.earLift, -0.7 * env);
+          target.mouthOpen = Math.max(target.mouthOpen, 0.25 * env);
+          target.mouthWidth = Math.min(target.mouthWidth, 1 - 0.3 * env);
+          target.browTilt = Math.min(target.browTilt, -0.5 * env);
+          break;
+        case 'yawn': {
+          // A slow, enormous yawn: mouth wide and round, eyes squeezed, ears droop.
+          const wide = Math.sin(Math.PI * Math.min(1, u * 1.15)) ** 0.6;
+          target.mouthOpen = Math.max(target.mouthOpen, 1.8 * wide);
+          target.mouthWidth = Math.min(target.mouthWidth, 1 - 0.25 * wide);
+          target.mouthCurve = 0;
+          target.eyeOpen = Math.min(target.eyeOpen, 1 - 0.85 * wide);
+          target.earLift = Math.min(target.earLift, -0.5 * wide);
+          break;
+        }
+        case 'excited':
+          target.eyeOpen = Math.max(target.eyeOpen, 1 + 0.25 * env);
+          target.mouthOpen = Math.max(target.mouthOpen, 0.5 * env);
+          target.mouthCurve = Math.max(target.mouthCurve, env);
+          target.blush = Math.max(target.blush, 0.8 * env);
+          target.earLift = Math.max(target.earLift, env);
+          break;
+      }
     }
 
     this.mouth *= Math.exp(-dt * 9);
@@ -357,6 +402,26 @@ export class PlushLlamaAvatar implements AvatarDriver {
             browBoost = 0.7 * env;
             earWiggle -= 12 * env;
             break;
+          case 'wink':
+            rotate += 6 * env;
+            break;
+          case 'sigh':
+            dy += 7 * env;
+            squash += 0.04 * env;
+            break;
+          case 'yawn':
+            rotate -= 7 * env;
+            dy -= 3 * env;
+            squash -= 0.04 * env;
+            break;
+          case 'excited': {
+            // Two big hops, ears flung up.
+            const hop = Math.abs(Math.sin(u * Math.PI * 2));
+            dy -= hop * 16 * env * motion;
+            squash -= (hop - 0.5) * 0.06 * env * motion;
+            earWiggle += Math.sin(u * Math.PI * 4) * 6 * env * motion;
+            break;
+          }
           case 'laugh': {
             // Quick bouncing chuckles, the head rocking back a little, ears flapping.
             const chuckle = Math.abs(Math.sin(u * Math.PI * 7));
@@ -391,12 +456,16 @@ export class PlushLlamaAvatar implements AvatarDriver {
     const smile = Math.min(1, Math.max(0, face.eyeSmile));
     const gx = face.gazeX * 2.5;
     const gy = face.gazeY * 2;
+    const wink = this.gesture?.name === 'wink'
+      ? Math.sin(Math.PI * Math.min(1, (now - this.gesture.start) / GESTURE_MS.wink)) ** 0.5
+      : 0;
     p.eyes.forEach((eye, i) => {
       const cx = (i === 0 ? -EYE_X : EYE_X);
       const scale = face.eyeOpen > 1 ? 1 + (face.eyeOpen - 1) * 0.35 : 1;
       eye.button.setAttribute('transform', `translate(${f(gx)} ${f(gy)}) translate(${cx} ${EYE_Y}) scale(${f(scale)}) translate(${-cx} ${-EYE_Y})`);
       eye.button.setAttribute('opacity', f(1 - smile));
-      const covered = Math.min(1, Math.max(0, 1 - open)) * (EYE_R * 2 + 1);
+      const eyeOpen = i === 1 ? open * (1 - wink) : open;
+      const covered = Math.min(1, Math.max(0, 1 - eyeOpen)) * (EYE_R * 2 + 1);
       eye.lid.setAttribute('y', f(EYE_Y - EYE_R - 1 - (EYE_R * 2 + 2) + covered));
       eye.happy.setAttribute('opacity', f(smile));
     });

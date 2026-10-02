@@ -56,6 +56,11 @@ internal static partial class ServerLog
     [LoggerMessage(43, LogLevel.Debug, "Reply for account {AccountId} had no emotion tag; used the fallback")]
     public static partial void ReplyUntagged(this ILogger logger, Guid accountId);
 
+    // Information, not Debug: these are the gestures the model wants and doesn't have. Grep for them
+    // after real use to decide what to add next (the way laugh was found).
+    [LoggerMessage(44, LogLevel.Information, "Dropped a tag the familiar can't act out: {Tag}")]
+    public static partial void TagIgnored(this ILogger logger, string tag);
+
     [LoggerMessage(50, LogLevel.Information, "Speech: {Options}")]
     public static partial void SpeechConfigured(this ILogger logger, string options);
 

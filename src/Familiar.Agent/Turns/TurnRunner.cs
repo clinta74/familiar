@@ -14,6 +14,12 @@ public sealed record ExpressionChanged(Emotion Emotion, double Intensity) : Turn
 
 public sealed record GestureMade(Gesture Gesture) : TurnEvent;
 
+/// <summary>
+/// A tag the model wrote that means nothing we can show (an unknown gesture). Dropped from the reply;
+/// reported so the gestures the model keeps reaching for can be added.
+/// </summary>
+public sealed record TagIgnored(string Tag) : TurnEvent;
+
 /// <summary>How a turn ended.</summary>
 /// <param name="Text">Everything that was said, tags removed.</param>
 /// <param name="Emotion">The reply's emotion: its first tag, or the fallback if it had none.</param>
@@ -58,6 +64,9 @@ public sealed class TurnRunner(ILlmClient llm)
                         break;
                     case GestureToken gesture:
                         await emit(new GestureMade(gesture.Gesture));
+                        break;
+                    case IgnoredTag ignored:
+                        await emit(new TagIgnored(ignored.Tag));
                         break;
                 }
             }

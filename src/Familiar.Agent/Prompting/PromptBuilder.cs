@@ -46,7 +46,7 @@ public static class PromptBuilder
         one of joy, sad, angry, surprised, relaxed, neutral, thinking and intensity is between 0 and 1.
         Choose the emotion that fits how you feel about what you're saying, not just the user's mood.
         Where it fits naturally you may add one gesture tag, [gesture:name], with name one of nod,
-        shake, tilt, wave, shrug, laugh. Tags are never read aloud.
+        shake, tilt, wave, shrug, laugh, wink, sigh, yawn, excited. Tags are never read aloud.
         Example: [joy:0.7] That's wonderful news! [gesture:nod] You earned it.
 
         Each user message begins with the current local time in parentheses. It's context for you,

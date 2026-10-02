@@ -206,6 +206,10 @@ public sealed class ConversationTurns(
                     case GestureMade gesture:
                         channel.Publish(EventTypes.Gesture, new GestureEvent(gesture.Gesture));
                         break;
+
+                    case TagIgnored ignored:
+                        logger.TagIgnored(ignored.Tag);
+                        break;
                 }
 
                 return ValueTask.CompletedTask;

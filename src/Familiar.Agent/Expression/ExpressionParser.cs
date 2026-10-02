@@ -174,6 +174,10 @@ public sealed class ExpressionParser
             "wave" or "waves" or "waving" => Gesture.Wave,
             "shrug" or "shrugs" or "shrugging" => Gesture.Shrug,
             "laugh" or "laughs" or "laughing" or "giggle" or "giggles" or "chuckle" or "chuckles" or "haha" => Gesture.Laugh,
+            "wink" or "winks" or "winking" => Gesture.Wink,
+            "sigh" or "sighs" or "sighing" => Gesture.Sigh,
+            "yawn" or "yawns" or "yawning" => Gesture.Yawn,
+            "excited" or "bounce" or "bounces" or "hop" or "hops" or "jump" or "jumps" or "cheer" or "cheers" => Gesture.Excited,
             _ => (Gesture)(-1),
         };
 
