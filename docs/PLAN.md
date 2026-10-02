@@ -138,10 +138,17 @@ Reuse the muwbta Ollama deployment pattern: a **derived model** with `num_ctx` b
 (`tools/ollama/Modelfile.familiar`, built by a `create-models.sh` like muwbta's).
 
 The base needs **native tool calling**. Gemma 3 12B (muwbta's `muwbta-builder` base) is not
-tagged for tools in Ollama — check `ollama show <model>` for `tools` under Capabilities before
-committing. Candidates that fit the 3060's 12 GB at Q4 alongside the speech models: Qwen3 8B/14B,
-or whatever current tool-capable 8–14B model benchmarks best for us. Phase 0 includes a short
-bake-off: tool-call accuracy on our tool set, emotion-tag compliance, tok/s.
+tagged for tools in Ollama.
+
+**Decided by the Phase 0 bake-off (2026-10-01): `gemma4:12b`** — 12/12 tool calls, no tool
+leakage into speech, fitting emotion tags; ~395 ms to first token and ~37 tok/s on the 5070 Ti;
+~8.9 GB VRAM at 8k context. The Qwen models answered tool requests in speech ("I've started a
+timer!") without calling anything once the emotion-tag instruction was present; llama3.1:8b
+called tools perfectly but conversed poorly. Full results: `tools/ollama/README.md`.
+
+Two consequences for phase 1: send `think: false` (gemma4 is a thinking model), and keep the
+system prompt's tag instruction scoped to spoken replies — and re-run the bake-off whenever that
+prompt changes materially, since that's what broke the Qwen models.
 
 ### 4.2 Own Ollama container — **decided**
 
@@ -158,8 +165,8 @@ would evict that cache on every turn. So Familiar gets **its own Ollama containe
 - Generation + embedding model resident (`MAX_LOADED_MODELS=2`).
 
 VRAM is the constraint: two LLMs resident on the NAS 3060 (12 GB) means ~8.4 GB for muwbta's 12B
-plus Familiar's model plus speech won't fit. On the NAS, Familiar uses an **8B-class model**, or
-muwbta's assist moves to CPU/off-hours. The dev box's 16 GB has more room.
+plus Familiar's model plus speech won't fit; §10.3 has the measured numbers and the options. The
+dev box's 16 GB has more room.
 
 ### 4.3 Prompt shape (prefix-cache discipline, from muwbta)
 
@@ -497,14 +504,23 @@ share the card alongside muwbta's ollama — which makes VRAM the real budget:
 | | VRAM |
 |---|---|
 | muwbta-builder (Gemma 3 12B Q4, 16k) | ~8.4 GB |
-| Familiar LLM, 8B Q4 | ~5–6 GB |
+| Familiar LLM, `familiar-chat` (gemma4:12b, 8k) | ~8.9 GB (measured on the dev box) |
 | whisper small/distil + Kokoro | ~1.5 GB |
-| **Total** | **~15 GB on a 12 GB card — does not fit** |
+| **Total** | **~18.8 GB on a 12 GB card — does not fit** |
 
-So the NAS needs one of: muwbta's assist on CPU (it already works there, just slowly), Familiar
-on a ~4B model, STT/TTS on CPU (Kokoro and whisper-small are tolerable on CPU; the LLM isn't), or
-`KEEP_ALIVE` relaxed on the builder so it unloads when idle. Phase 0 measures this on the real
-card; the overlay is written so each service's GPU access can be toggled independently.
+**Decided (2026-10-01): muwbta's Ollama is turned off, and Familiar gets the 3060.** muwbta's
+server already treats the assist as optional (it answers "not configured" with
+`Assist__Enabled=false`), so nothing else in muwbta changes. That leaves:
+
+| | VRAM |
+|---|---|
+| `familiar-chat` (gemma4:12b, 8k) | ~8.9 GB |
+| whisper small/distil + Kokoro | ~1.5 GB |
+| **Total** | **~10.4 GB of ~11.5 GB usable** |
+
+About 1 GB of headroom, so measure on the real card before relying on it; if it's tighter than
+the dev box suggests, speech moves to CPU first (Kokoro and whisper-small are tolerable there; the
+LLM isn't). The overlay is written so each service's GPU access can be toggled independently.
 
 Nothing depends on ollama, stt, or tts being up: the server starts without them and degrades to
 text-only / "the familiar is resting", the same rule muwbta applies to its assist.
@@ -524,9 +540,9 @@ and against the dev box on the LAN during development.
 ## 11. Phases
 
 **Status (2026-10-01):** Phase 0 scaffold is in: solution, auth (browser + device tokens), local
-compose + GPU overlay, Dockerfiles, CI, NAS compose, backup sidecar, bake-off tool. Still open in
-Phase 0: run the bake-off on both machines, measure the NAS VRAM split, first image push and NAS
-deploy.
+compose + GPU overlay, Dockerfiles, CI, NAS compose, backup sidecar, bake-off tool. Images are
+on Docker Hub, and the dev-box bake-off chose `gemma4:12b`. Still open in Phase 0: NAS deploy,
+bake-off and VRAM split on the 3060.
 
 | Phase | Delivers | Done when |
 |---|---|---|
@@ -546,11 +562,12 @@ deploy.
 ## 12. Open decisions
 
 1. ~~Ollama sharing with muwbta~~ — **decided: separate container** (§4.2).
-2. **Model choice** — settle in the Phase 0 bake-off.
+2. ~~Model choice~~ — **decided: `gemma4:12b`** (§4.1). On the NAS, depends on item 5.
 3. **Calendar write provider** — ICS read is first regardless (§6.4); CalDAV or Google API
    for writes depends on which calendars users actually keep.
 4. ~~Deployment target~~ — **decided: local dev + published images on the NAS** (§10).
-5. **NAS VRAM split** — which service gives way on the 3060 (§10.3); measure in Phase 0.
+5. ~~NAS VRAM split~~ — **decided: muwbta's Ollama off, Familiar owns the 3060** (§10.3).
+   Still to measure on the card itself.
 6. **Licence** — no muwbta code is copied (§2.1), so it's an open choice. AGPL-3.0 to match
    muwbta, or something permissive.
 7. ~~Android approach~~ — **decided: native** (MOBILE.md).

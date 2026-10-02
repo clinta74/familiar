@@ -2,15 +2,15 @@
 #
 #     docker compose -f docker-compose.nas.yml -f docker-compose.nas.gpu.yml up -d
 #
-# A reservation isn't exclusive: these services share the card with each other and with muwbta's
-# ollama. VRAM is the real budget, and everything wanted resident doesn't fit (PLAN.md §10.3):
+# A reservation isn't exclusive: these services share the card. muwbta's ollama must be stopped
+# (PLAN.md §10.3) - its 8.4 GB model and this stack don't fit on 12 GB together:
 #
-#     muwbta-builder (Gemma 3 12B Q4, 16k)   ~8.4 GB
-#     Familiar LLM, 8B Q4                    ~5-6 GB
+#     familiar-chat (gemma4:12b, 8k)         ~8.9 GB
 #     whisper small/distil + Kokoro          ~1.5 GB
+#     total                                  ~10.4 GB of ~11.5 GB usable
 #
 # Each service below is self-contained, so one can be kept on the CPU by deleting (or commenting
-# out) its block. Speech is the cheapest to leave on CPU; the LLM is the one that must have the card.
+# out) its block. If the card is tighter than measured, move speech first; the LLM must have it.
 #
 # Verify:
 #     docker exec familiar-ollama nvidia-smi

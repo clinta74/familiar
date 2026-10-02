@@ -6,11 +6,14 @@
 # send it gets the right window rather than Ollama's 4096 default - which truncates silently, so
 # the symptom is a model that "forgets" its persona, not an error.
 #
-# FROM is the default candidate. create-models.sh can override it (BASE=...) so the bake-off can
-# build the same derived model over several bases without editing this file. Once the bake-off
-# settles, the winner goes here.
+# The base is the Phase 0 bake-off winner (README.md, 2026-10-01): the only candidate with perfect
+# tool calls, no tool leakage into speech, and emotion tags that fit the conversation.
+# create-models.sh can still override it (BASE=...) to try another base under the same name.
+#
+# gemma4 is a thinking model. Callers send `think: false`: reasoning before every spoken reply
+# costs seconds a voice turn doesn't have. That is per-request, so it isn't set here.
 
-FROM qwen3:8b
+FROM gemma4:12b
 
 # 8k, from the budget (PLAN.md §4.3):
 #

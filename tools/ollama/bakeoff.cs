@@ -33,11 +33,17 @@ using var http = new HttpClient { BaseAddress = new Uri(url), Timeout = TimeSpan
 const string System = """
     You are Familiar, a warm, upbeat companion who speaks aloud through an animated avatar.
     Replies are spoken, so keep them to one to three short sentences, with no markdown or lists.
-    Begin every reply with exactly one emotion tag of the form [emotion:intensity], where emotion is
-    one of joy, sad, angry, surprised, relaxed, neutral, thinking and intensity is between 0 and 1.
-    Example: [joy:0.6] That sounds wonderful!
-    Use a tool only when the user asks for something a tool does. The current time is 2026-10-01 17:30.
+    When the user asks for something one of your tools does, call the tool; don't just say you will.
+    Otherwise answer in speech, and begin the spoken reply with exactly one emotion tag of the form
+    [emotion:intensity], where emotion is one of joy, sad, angry, surprised, relaxed, neutral,
+    thinking and intensity is between 0 and 1. Example: [joy:0.6] That sounds wonderful!
+    The current time is 2026-10-01 17:30.
     """;
+
+// Found in the first run: "Begin every reply with an emotion tag" made qwen3:8b answer every tool
+// request in speech ("Got it, I'll set a timer!") and never call the tool - the worst failure an
+// assistant can have, because it claims an action it didn't take. The tag instruction has to be
+// scoped to spoken replies, and Familiar's real system prompt (phase 1) must keep that wording.
 
 var tools = JsonNode.Parse("""
     [
@@ -59,6 +65,8 @@ var tools = JsonNode.Parse("""
           "date": { "type": "string", "description": "ISO 8601 date" } } } } }
     ]
     """)!;
+
+var toolNames = tools.AsArray().Select(t => t!["function"]!["name"]!.GetValue<string>()).ToArray();
 
 // (prompt, expected tool or null, argument check)
 Case[] cases =
@@ -136,12 +144,21 @@ foreach (var model in models)
                     toolRight++;
                 }
 
-                verdict = ok ? "ok" : $"MISS (got {name ?? "no call"} {arguments?.ToJsonString()})";
+                verdict = ok
+                    ? "ok"
+                    : name is null
+                        ? $"MISS (no call; said: {Truncate(content, 60)})"
+                        : $"MISS (got {name} {arguments?.ToJsonString()})";
             }
             else
             {
                 quietTotal++;
-                var ok = call is null;
+
+                // A tool call written into the speech ("I'd like to call get_calendar", or raw
+                // {"name": ...} JSON) is a restraint failure too: the avatar would read it aloud.
+                var leaked = toolNames.Any(n => content.Contains(n, StringComparison.Ordinal))
+                    || content.Contains("\"name\"", StringComparison.Ordinal);
+                var ok = call is null && !leaked;
                 if (ok)
                 {
                     quietRight++;
@@ -154,7 +171,7 @@ foreach (var model in models)
                     tagged++;
                 }
 
-                verdict = (ok ? "ok" : $"CALLED {call!["name"]}") + (hasTag ? "" : " no-tag");
+                verdict = (ok ? "ok" : call is null ? "LEAKED" : $"CALLED {call["name"]}") + (hasTag ? "" : " no-tag");
             }
 
             Console.WriteLine($"  {stopwatch.ElapsedMilliseconds,6} ms  {verdict,-12} {c.Prompt}");

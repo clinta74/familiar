@@ -51,7 +51,42 @@ Record the results here with the date and Ollama version, then put the winner in
 
 ### Results
 
-*Not run yet.*
+**2026-10-01, dev box (RTX 5070 Ti 16 GB, WSL2), Ollama 0.35.0, num_ctx 8192, 2 runs × 11 cases.**
+Winner: **`gemma4:12b`**, now the base of `familiar-chat`.
+
+| model | tools | restraint | emotion tag | prompt tok/s | gen tok/s | median ms to first token |
+|---|---|---|---|---|---|---|
+| qwen3:8b | 0/12 | 10/10 | 10/10 | 6946 | 32.9 | 87 |
+| llama3.1:8b | 12/12 | 9/10 | 10/10 | 11523 | 47.9 | 71 |
+| qwen3.5:9b | 4/12 | 10/10 | 10/10 | 2011 | 32.9 | 389 |
+| **gemma4:12b** | **12/12** | **10/10** | **10/10** | 1052 | 37.4 | 395 |
+
+Whole replies took 0.6–2.2 s with gemma4 (non-streaming). Streaming makes the first sentence
+reach TTS well before that, and the 395 ms to first token fits the PLAN.md §3.2 budget.
+
+What the table doesn't show, from reading the replies:
+
+- **The Qwen models pretend to act.** With an emotion-tag instruction in the system prompt they
+  answer tool requests in speech — "Got it! I'll set a timer for ten minutes" (qwen3:8b), "I've
+  started a ten-minute timer for your pasta!" (qwen3.5:9b) — and call nothing. Scoping the tag to
+  spoken replies didn't fix it. Without the tag instruction qwen3:8b calls tools correctly, so it
+  is the *combination* that breaks them, and Familiar needs both. Claiming an action that didn't
+  happen is the worst failure an assistant can have; disqualifying.
+- **llama3.1:8b calls tools perfectly and converses badly.** "I'm not aware of any specific tool
+  that can provide information about octopuses", a reply that was only `[neutral:0.8]`, and raw
+  `{"name": "get_calendar", ...}` JSON written into speech (the restraint miss; the avatar would
+  read it aloud).
+- **gemma4:12b's emotions fit the moment**: `sad` for the sick dog, `thinking` for the camera
+  question, `joy` for the finished painting. qwen3.5 chose `angry` and `relaxed` for the sick dog.
+- **gemma4 and qwen3.5 are thinking models**; the bake-off sends `think: false`, and Familiar's
+  calls must too.
+
+**VRAM:** `familiar-chat` at 8k context uses **~8.9 GB** (nvidia-smi: 10,422 MiB loaded vs
+1,535 MiB idle). `ollama ps` reports 1.1 GB for it on 0.35.0, which is wrong — measure with
+`nvidia-smi` on the host. On the NAS 3060 (12 GB) it fits alone or with speech (~10.4 GB), not
+alongside muwbta's 8.4 GB builder model (PLAN.md §10.3).
+
+Not yet run on the NAS.
 
 ## Building the model
 

@@ -110,8 +110,9 @@ docker compose -f docker-compose.nas.yml -f docker-compose.nas.gpu.yml up -d    
 The client listens on **7280** (HTTPS, self-signed unless a cert is mounted). Phones reach it over
 the VPN. Backups run nightly at 03:00 UTC, each one test-restored before it's kept.
 
-The 3060 can't hold muwbta's model, Familiar's model and the speech models at once; see
-PLAN.md §10.3 and the comments in [deploy/docker-compose.nas.gpu.yml](deploy/docker-compose.nas.gpu.yml).
+**Stop muwbta's Ollama first.** The 3060 holds Familiar's model and the speech models (~10.4 GB)
+but not muwbta's 8.4 GB builder model as well; see PLAN.md §10.3 and the comments in
+[deploy/docker-compose.nas.gpu.yml](deploy/docker-compose.nas.gpu.yml).
 
 ## Layout
 

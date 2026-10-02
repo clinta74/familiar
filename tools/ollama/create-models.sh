@@ -12,6 +12,11 @@
 
 set -e
 
+# Git Bash on Windows rewrites POSIX-looking arguments to native programs, so the container path
+# /tmp/Modelfile.familiar would reach `docker exec` as C:/Users/.../Temp/... and ollama would find
+# nothing there. No effect anywhere else.
+export MSYS_NO_PATHCONV=1
+
 CONTAINER=${CONTAINER:-familiar-ollama}
 MODEL=${MODEL:-familiar-chat}
 EMBED=${EMBED:-nomic-embed-text}
