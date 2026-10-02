@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { characters, lightness } from './appearance';
+import { characters, fromOklch, lightness, mixVivid, toOklch } from './appearance';
 import { spinePath } from './PlushHedgehogAvatar';
-import { blendShape, spotColour, spotPath } from './SpotAvatar';
+import { blendShape, spotColour, spotCore, spotPath } from './SpotAvatar';
 import { emotions, type Emotion } from './types';
 
 const only = (emotion: Emotion, amount = 1): Record<Emotion, number> =>
@@ -49,6 +49,33 @@ describe('the spot', () => {
     const [redSad] = spotColour(base, only('sad')).match(/#(..)(..)(..)/)!.slice(1).map((h) => Number.parseInt(h, 16));
     expect(blueSad!).toBeGreaterThan(redSad!);
     expect(lightness(spotColour(base, only('joy')))).toBeGreaterThan(lightness(base));
+  });
+});
+
+describe('the happy colour', () => {
+  const violet = '#7c5cff';
+
+  it('keeps a violet spot violet - brighter, not the dusty pink an RGB blend with yellow gave', () => {
+    const happy = spotColour(violet, only('joy'));
+    const [l0, , h0] = toOklch(violet);
+    const [l1, , h1] = toOklch(happy);
+    expect(Math.abs(h1 - h0)).toBeLessThan(5);
+    expect(l1).toBeGreaterThan(l0 + 0.08);
+  });
+
+  it('lights it warm from inside', () => {
+    const neutral = toOklch(spotCore(violet, 0, 0.5));
+    const happy = toOklch(spotCore(spotColour(violet, only('joy')), 1, 0.5));
+    // Warm: the core's hue moves from violet (~286) round towards yellow (~95).
+    expect(happy[2]).toBeLessThan(neutral[2] - 100);
+    expect(happy[0]).toBeGreaterThan(neutral[0]);
+  });
+
+  it('round-trips through OKLCH, and blends complementary colours without going grey', () => {
+    for (const c of ['#7c5cff', '#2a9d8f', '#e76f51', '#123456']) expect(fromOklch(...toOklch(c))).toBe(c);
+    const [, rgbChroma] = toOklch('#c49ba2');
+    const [, vividChroma] = toOklch(mixVivid(violet, '#ffcf56', 0.55));
+    expect(vividChroma).toBeGreaterThan(rgbChroma * 2);
   });
 });
 

@@ -130,6 +130,58 @@ export function mix(a: string, b: string, amount: number): string {
   return hex([ar + (br - ar) * amount, ag + (bg - ag) * amount, ab + (bb - ab) * amount]);
 }
 
+// OKLCH: lightness, chroma, hue in a perceptual space. Blending hues here keeps colours vivid where
+// an RGB blend greys out - the spot's violet tinted towards yellow came out a dusty pink.
+
+const toLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+const fromLinear = (c: number) => (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
+
+export function toOklch(colour: string): [l: number, c: number, h: number] {
+  const [r, g, b] = channels(colour).map((v) => toLinear(v / 255)) as [number, number, number];
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  const L = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s;
+  const A = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s;
+  const B = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
+  return [L, Math.hypot(A, B), ((Math.atan2(B, A) * 180) / Math.PI + 360) % 360];
+}
+
+/** Back to #rrggbb, giving up chroma until the colour fits in sRGB. */
+export function fromOklch(L: number, C: number, H: number): string {
+  const rad = (H * Math.PI) / 180;
+  let rgb: [number, number, number] = [0, 0, 0];
+  for (let chroma = C, i = 0; i < 40; i++, chroma *= 0.95) {
+    const a = chroma * Math.cos(rad);
+    const b = chroma * Math.sin(rad);
+    const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+    const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+    const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+    rgb = [
+      4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+      -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+      -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+    ];
+    if (rgb.every((v) => v >= -0.0001 && v <= 1.0001)) break;
+  }
+  return hex(rgb.map((v) => fromLinear(Math.min(1, Math.max(0, v))) * 255) as [number, number, number]);
+}
+
+/** Blend in OKLCH, the short way round the hue circle. A near-grey takes the other colour's hue. */
+export function mixVivid(a: string, b: string, amount: number): string {
+  const [l1, c1, h1Raw] = toOklch(a);
+  const [l2, c2, h2] = toOklch(b);
+  const h1 = c1 < 0.03 ? h2 : h1Raw;
+  const turn = ((h2 - h1 + 540) % 360) - 180;
+  return fromOklch(l1 + (l2 - l1) * amount, c1 + (c2 - c1) * amount, (h1 + turn * amount + 360) % 360);
+}
+
+/** Lighter and more vivid, keeping the hue. */
+export function brighten(colour: string, amount: number): string {
+  const [l, c, h] = toOklch(colour);
+  return fromOklch(Math.min(0.95, l + 0.12 * amount), c * (1 + 0.25 * amount), h);
+}
+
 /** 0 black, 1 white, by perceived brightness. */
 export function lightness(colour: string): number {
   const [r, g, b] = channels(colour);

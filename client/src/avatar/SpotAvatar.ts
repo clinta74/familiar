@@ -1,4 +1,4 @@
-import { lightness, mix } from './appearance';
+import { brighten, lightness, mix, mixVivid } from './appearance';
 import { PlushCharacter, type PlushLook, type Pose } from './plush/engine';
 import { el, f, nextId, VIEWBOX } from './plush/parts';
 import { emotions, type Emotion } from './types';
@@ -37,7 +37,9 @@ export interface SpotSurface {
 /** Each emotion at full strength; the spot blends between them by mood. */
 const SHAPES: Record<Emotion, SpotShape & SpotSurface & { tint: string | null; tintAmount: number }> = {
   neutral: { size: 1, sx: 1, sy: 1, wobble: 0.035, speed: 0.6, spikes: 0, sag: 0, lobe: 0, lobeAngle: 0, jiggle: 0, roughness: 1, gloss: 0.5, glow: 0.3, tint: null, tintAmount: 0 },
-  joy: { size: 1.07, sx: 1.03, sy: 1.0, wobble: 0.06, speed: 1.6, spikes: 0, sag: 0, lobe: 0, lobeAngle: 0, jiggle: 0.01, roughness: 0.5, gloss: 0.9, glow: 0.8, tint: '#ffcf56', tintAmount: 0.55 },
+  // Happy doesn't change hue: tinting towards yellow sends a violet spot through pink and red,
+  // which reads as cross. It brightens instead, and lights up warm from inside (spotCore, spotGlow).
+  joy: { size: 1.07, sx: 1.03, sy: 1.0, wobble: 0.06, speed: 1.6, spikes: 0, sag: 0, lobe: 0, lobeAngle: 0, jiggle: 0.01, roughness: 0.5, gloss: 0.9, glow: 0.9, tint: null, tintAmount: 0 },
   sad: { size: 0.9, sx: 1.12, sy: 0.84, wobble: 0.02, speed: 0.25, spikes: 0, sag: 0.16, lobe: 0, lobeAngle: 0, jiggle: 0, roughness: 0.6, gloss: 0.15, glow: 0.1, tint: '#4f74b8', tintAmount: 0.6 },
   angry: { size: 1.02, sx: 1, sy: 1, wobble: 0.03, speed: 2.4, spikes: 0.16, sag: 0, lobe: 0, lobeAngle: 0, jiggle: 0.015, roughness: 7, gloss: 0.3, glow: 0.6, tint: '#e0413f', tintAmount: 0.65 },
   surprised: { size: 1.16, sx: 0.96, sy: 1.08, wobble: 0.01, speed: 1.0, spikes: 0.03, sag: 0, lobe: 0, lobeAngle: 0, jiggle: 0.005, roughness: 1.5, gloss: 1, glow: 1, tint: '#ffffff', tintAmount: 0.35 },
@@ -81,14 +83,31 @@ export function spotPath(shape: SpotShape, t: number, swirl = 0): string {
   return `${d} Z`;
 }
 
-/** The colour for a mood: the user's colour, tinted towards each emotion as much as it's felt. */
+/** Warm light, for a happy spot's core and glow. */
+const WARM_LIGHT = '#fff1c4';
+const WARM_GLOW = '#ffcf56';
+
+/**
+ * The colour for a mood: the user's colour, tinted towards each emotion as much as it's felt
+ * (blended in OKLCH, so it stays vivid), and brighter when happy.
+ */
 export function spotColour(base: string, mood: Record<Emotion, number>): string {
   let colour = base;
   for (const e of emotions) {
     const { tint, tintAmount } = SHAPES[e];
-    if (tint && mood[e] > 0.01) colour = mix(colour, tint, Math.min(1, tintAmount * mood[e]));
+    if (tint && mood[e] > 0.01) colour = mixVivid(colour, tint, Math.min(1, tintAmount * mood[e]));
   }
-  return colour;
+  return mood.joy > 0.01 ? brighten(colour, mood.joy) : colour;
+}
+
+/** The lit centre of the body: paler than the body, and glowing warm when happy. */
+export function spotCore(body: string, joy: number, shine: number): string {
+  return mix(mix(body, '#ffffff', shine), WARM_LIGHT, Math.min(1, 0.8 * joy));
+}
+
+/** The halo: the user's glow colour, turning golden when happy. */
+export function spotGlow(accent: string, mood: Record<Emotion, number>): string {
+  return mix(spotColour(accent, { ...mood, joy: 0 }), WARM_GLOW, Math.min(1, 0.75 * mood.joy));
 }
 
 /** The mood-weighted blend of the emotions' shapes and surfaces. */
@@ -238,7 +257,7 @@ export class SpotAvatar extends PlushCharacter {
     // halo in their accent colour, tinted the same way.
     const colour = spotColour(this.base, pose.mood);
     const dim = pose.state === 'resting' ? 0.35 : 0;
-    const centre = mix(mix(colour, '#ffffff', 0.35 + shape.gloss * 0.2 + flash * 0.3), '#202028', dim);
+    const centre = mix(spotCore(colour, pose.mood.joy, 0.35 + shape.gloss * 0.2 + flash * 0.3), '#202028', dim);
     const rim = mix(mix(colour, lightness(colour) > 0.5 ? '#3a3040' : '#000000', 0.25), '#202028', dim);
     this.stops[0].setAttribute('stop-color', centre);
     this.stops[1].setAttribute('stop-color', rim);
@@ -246,7 +265,7 @@ export class SpotAvatar extends PlushCharacter {
     const path = spotPath(shape, pose.t, this.swirl);
     this.body.setAttribute('d', path);
     this.halo.setAttribute('d', path);
-    this.halo.setAttribute('fill', spotColour(this.accent, pose.mood));
+    this.halo.setAttribute('fill', spotGlow(this.accent, pose.mood));
     this.halo.setAttribute('opacity', f(Math.min(1, shape.glow * 0.7 + flash * 0.3)));
     this.displacement.setAttribute('scale', f(shape.roughness * (pose.motion < 1 ? 0.5 : 1)));
 
