@@ -411,6 +411,34 @@ button.link:hover:not(:disabled) {
   stroke-linecap: round;
 }
 
+/* Accessories (the studio). --plush-accent is set per familiar. */
+.plush-accent {
+  fill: var(--plush-accent, #7c5cff);
+  stroke: var(--plush-accent-shadow, #563fb3);
+  stroke-width: 1.4;
+}
+
+.plush-accent-knot {
+  fill: var(--plush-accent-shadow, #563fb3);
+}
+
+.plush-accent-stripe {
+  fill: none;
+  stroke: var(--plush-accent-shadow, #563fb3);
+  stroke-width: 2;
+  stroke-dasharray: 3 4;
+}
+
+.plush-glasses {
+  fill: rgb(255 255 255 / 0.12);
+  stroke: var(--plush-accent-shadow, #563fb3);
+  stroke-width: 2.6;
+}
+
+.plush-flower-centre {
+  fill: #f6d55c;
+}
+
 .plush-thinking {
   fill: var(--accent);
   transition: opacity 0.3s;
@@ -919,4 +947,153 @@ select {
   .composer .mic.hands-free.hearing {
     animation: none;
   }
+}
+
+/* --- studio --- */
+
+.studio {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 900px) {
+  .studio {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .studio-stage {
+    position: sticky;
+    top: 16px;
+  }
+
+  .studio-stage .avatar-stage {
+    height: 52vh;
+  }
+}
+
+.studio-stage {
+  grid-template-rows: auto auto auto;
+  gap: 8px;
+}
+
+.studio-controls fieldset {
+  border: none;
+  padding: 0;
+  margin: 0 0 18px;
+}
+
+.studio-controls legend {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.try-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.studio-controls .try-row {
+  justify-content: flex-start;
+}
+
+button.chip {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+button.chip.selected,
+button.swatch.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+button.swatch {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.swatch-wool {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(0 0 0 / 0.15);
+}
+
+.swatch-face {
+  width: 18px;
+  height: 22px;
+  border-radius: 50%;
+}
+
+.colour-pickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.colour-pickers label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.colour-pickers input[type='color'] {
+  width: 34px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+}
+
+.model-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.upload {
+  cursor: pointer;
+}
+
+.button-like {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-weight: 600;
+}
+
+.small {
+  font-size: 0.85rem;
 }

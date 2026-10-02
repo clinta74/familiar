@@ -128,6 +128,7 @@ app.MapHealthEndpoints();
 app.MapAuthEndpoints();
 app.MapDeviceEndpoints();
 app.MapFamiliarEndpoints();
+app.MapAvatarEndpoints();
 app.MapConversationEndpoints();
 app.MapJobEndpoints();
 app.MapNotificationEndpoints();

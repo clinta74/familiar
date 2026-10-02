@@ -1,3 +1,4 @@
+import type { LlamaLook } from './PlushLlamaAvatar';
 import type { Viseme } from './visemes';
 
 // The avatar layer is framework-free on purpose (no React imports anywhere under src/avatar): the
@@ -28,5 +29,7 @@ export interface AvatarDriver {
    * so silence still closes it). Null between words. Called every frame while speaking.
    */
   setViseme(viseme: Viseme | null, weight: number): void;
+  /** Colours and accessory, for renderers that have them (the plush llama). Applied in place. */
+  setLook?(look: LlamaLook): void;
   dispose(): void;
 }

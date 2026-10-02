@@ -1,3 +1,4 @@
+import { llamaPalette, type Accessory, type LlamaColours } from './appearance';
 import { approach, faceFor, neutralFace, type FaceParams } from './faceExpressions';
 import type { AvatarDriver, AvatarState, Emotion, Gesture } from './types';
 import { visemeMouth, type Viseme } from './visemes';
@@ -51,6 +52,14 @@ interface Parts {
   thinking: SVGGElement;
   hoof: SVGGElement;
   sleep: SVGTextElement;
+  /** Each accessory, drawn once and shown or hidden. */
+  accessories: Record<Exclude<Accessory, 'none'>, SVGGElement>;
+}
+
+/** How the llama looks: its colours and what it's wearing (PLAN.md §5.5). */
+export interface LlamaLook {
+  colours: LlamaColours;
+  accessory: Accessory;
 }
 
 type Puff = [x: number, y: number, r: number];
@@ -170,6 +179,32 @@ function build(container: HTMLElement): Parts {
 
   const tear = el('path', { class: 'plush-tear', d: 'M0,-7 C4,-1 6,3 6,6 A6,6 0 0 1 -6,6 C-6,3 -4,-1 0,-7 Z' }, head);
 
+  // Accessories, all in the accent colour. Each rides on the part it's attached to: the bow on an
+  // ear (so it flops with it), glasses and flower on the head, the scarf on the neck.
+  const bow = el('g', { class: 'plush-accessory', transform: 'translate(0 -16) rotate(-12)' }, ears[0]);
+  el('path', { class: 'plush-accent', d: 'M0,0 C-8,-12 -22,-12 -20,0 C-22,12 -8,12 0,0 Z' }, bow);
+  el('path', { class: 'plush-accent', d: 'M0,0 C8,-12 22,-12 20,0 C22,12 8,12 0,0 Z' }, bow);
+  el('circle', { class: 'plush-accent-knot', r: 4.5 }, bow);
+
+  const glasses = el('g', { class: 'plush-accessory' }, head);
+  for (const x of [-EYE_X, EYE_X]) el('circle', { class: 'plush-glasses', cx: x, cy: EYE_Y, r: EYE_R + 5 }, glasses);
+  el('path', { class: 'plush-glasses', d: `M${-EYE_X + EYE_R + 5},${EYE_Y - 2} Q0,${EYE_Y - 9} ${EYE_X - EYE_R - 5},${EYE_Y - 2}` }, glasses);
+
+  const flower = el('g', { class: 'plush-accessory', transform: 'translate(30 -60)' }, head);
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    el('circle', { class: 'plush-accent', cx: Math.cos(a) * 7, cy: Math.sin(a) * 7, r: 6 }, flower);
+  }
+  el('circle', { class: 'plush-flower-centre', r: 4.5 }, flower);
+
+  const scarf = el('g', { class: 'plush-accessory' }, neck);
+  el('path', { class: 'plush-accent', d: 'M-62,86 C-30,100 30,100 62,86 L64,112 C30,126 -30,126 -64,112 Z' }, scarf);
+  el('path', { class: 'plush-accent', d: 'M24,108 L44,108 L50,164 L28,166 Z' }, scarf);
+  el('path', { class: 'plush-accent-stripe', d: 'M-60,99 C-30,112 30,112 60,99 M30,128 L47,127 M32,146 L49,145' }, scarf);
+
+  const accessories = { bow, glasses, flower, scarf };
+  for (const g of Object.values(accessories)) g.style.display = 'none';
+
   // A fleecy hoof that pops up from below the stage to wave.
   const hoof = el('g', {}, root);
   wool(hoof, [[0, 40, 15], [0, 18, 15], [0, 62, 15]]);
@@ -183,7 +218,7 @@ function build(container: HTMLElement): Parts {
   sleep.textContent = 'z';
 
   container.appendChild(root);
-  return { root, head, ears, tuft, eyes, brows, mouth, cheeks, tear, thinking, hoof, sleep };
+  return { root, head, ears, tuft, eyes, brows, mouth, cheeks, tear, thinking, hoof, sleep, accessories };
 }
 
 const f = (n: number) => n.toFixed(2);
@@ -215,9 +250,20 @@ export class PlushLlamaAvatar implements AvatarDriver {
   private last = performance.now();
   private frame = 0;
 
-  constructor(container: HTMLElement) {
+  constructor(container: HTMLElement, look?: LlamaLook) {
     this.parts = build(container);
+    if (look) this.setLook(look);
     this.frame = requestAnimationFrame(this.tick);
+  }
+
+  /** Recolours and redresses it in place, for the studio's live preview. */
+  setLook(look: LlamaLook): void {
+    for (const [name, value] of Object.entries(llamaPalette(look.colours))) {
+      this.parts.root.style.setProperty(name, value);
+    }
+    for (const [name, g] of Object.entries(this.parts.accessories)) {
+      g.style.display = name === look.accessory ? '' : 'none';
+    }
   }
 
   setState(state: AvatarState): void {

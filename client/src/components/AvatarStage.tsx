@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { defaultAppearance, type Appearance } from '../avatar/appearance';
 import { createAvatar } from '../avatar/createAvatar';
 import type { AvatarDriver, AvatarState, Emotion, Gesture } from '../avatar/types';
 import type { Viseme } from '../avatar/visemes';
@@ -18,16 +19,22 @@ export interface AvatarHandle {
  * Hosts whichever avatar renderer is available and feeds it. Expression and gesture events go
  * straight to the driver through the handle, not through React state: they're moments, not data.
  */
-export const AvatarStage = forwardRef<AvatarHandle, { state: AvatarState }>(function AvatarStage({ state }, ref) {
+export const AvatarStage = forwardRef<AvatarHandle, { state: AvatarState; appearance?: Appearance | null }>(function AvatarStage(
+  { state, appearance }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const driver = useRef<AvatarDriver | null>(null);
   const stateRef = useRef(state);
+  const look = appearance ?? defaultAppearance;
+  const lookRef = useRef(look);
+
+  // A different model means a different renderer; anything else is applied to the one there is.
+  const model = look.model === 'vrm' && look.vrmId ? `vrm:${look.vrmId}` : 'llama';
 
   useEffect(() => {
     let disposed = false;
     let created: AvatarDriver | null = null;
 
-    void createAvatar(container.current!).then((avatar) => {
+    void createAvatar(container.current!, lookRef.current).then((avatar) => {
       if (disposed) {
         avatar.dispose();
         return;
@@ -42,7 +49,12 @@ export const AvatarStage = forwardRef<AvatarHandle, { state: AvatarState }>(func
       created?.dispose();
       driver.current = null;
     };
-  }, []);
+  }, [model]);
+
+  useEffect(() => {
+    lookRef.current = look;
+    driver.current?.setLook?.(look);
+  }, [look]);
 
   useEffect(() => {
     stateRef.current = state;

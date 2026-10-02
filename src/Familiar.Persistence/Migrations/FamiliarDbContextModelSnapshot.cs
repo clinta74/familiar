@@ -337,6 +337,57 @@ namespace Familiar.Persistence.Migrations
                     b.ToTable("messages", (string)null);
                 });
 
+            modelBuilder.Entity("Familiar.Domain.Familiars.AvatarAsset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("content");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Meta")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("meta");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.HasKey("Id")
+                        .HasName("pk_avatar_assets");
+
+                    b.HasIndex("AccountId")
+                        .HasDatabaseName("ix_avatar_assets_account_id");
+
+                    b.ToTable("avatar_assets", (string)null);
+                });
+
             modelBuilder.Entity("Familiar.Domain.Familiars.FamiliarProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -348,6 +399,10 @@ namespace Familiar.Persistence.Migrations
                     b.Property<Guid>("AccountId")
                         .HasColumnType("uuid")
                         .HasColumnName("account_id");
+
+                    b.Property<string>("Appearance")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("appearance");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -738,6 +793,16 @@ namespace Familiar.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_messages_conversations_conversation_id");
+                });
+
+            modelBuilder.Entity("Familiar.Domain.Familiars.AvatarAsset", b =>
+                {
+                    b.HasOne("Familiar.Domain.Accounts.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_avatar_assets_accounts_account_id");
                 });
 
             modelBuilder.Entity("Familiar.Domain.Familiars.FamiliarProfile", b =>

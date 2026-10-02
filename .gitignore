@@ -31,8 +31,9 @@ backups/
 logs/
 data/
 
-# VRM models: licences vary per model, so they are never committed (client/src/avatar/createAvatar.ts).
-client/public/avatars/*.vrm
+# VRM models: licences vary per model, so they are never committed. (Users upload theirs in the
+# studio; these are just strays from testing.)
+*.vrm
 
 # Hands-free assets, copied from node_modules by client/scripts/copy-vad-assets.mjs.
 client/public/vad/

@@ -21,6 +21,22 @@ internal sealed class FamiliarProfileConfiguration : IEntityTypeConfiguration<Fa
         builder.Property(p => p.UserNickname).HasMaxLength(FamiliarProfile.MaxNameLength);
         builder.Property(p => p.Voice).HasMaxLength(FamiliarProfile.MaxVoiceLength);
         builder.Property(p => p.VoiceSpeed).HasDefaultValue(1.0);
+        builder.Property(p => p.Appearance).HasColumnType("jsonb");
+    }
+}
+
+internal sealed class AvatarAssetConfiguration : IEntityTypeConfiguration<AvatarAsset>
+{
+    public void Configure(EntityTypeBuilder<AvatarAsset> builder)
+    {
+        builder.ToTable("AvatarAssets");
+        builder.Property(a => a.Id).HasDefaultValueSql("uuidv7()");
+        builder.HasOne<Account>().WithMany().HasForeignKey(a => a.AccountId).OnDelete(DeleteBehavior.Cascade);
+
+        builder.Property(a => a.Name).HasMaxLength(128).IsRequired();
+        builder.Property(a => a.Sha256).HasMaxLength(64).IsRequired();
+        builder.Property(a => a.Meta).HasColumnType("jsonb").IsRequired();
+        builder.HasIndex(a => a.AccountId);
     }
 }
 

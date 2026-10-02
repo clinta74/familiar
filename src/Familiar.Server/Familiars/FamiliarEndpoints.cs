@@ -1,8 +1,10 @@
 using Familiar.Agent.Speech;
 using Familiar.Domain.Familiars;
+using Familiar.Persistence;
 using Familiar.Server.Auth;
 using Familiar.Server.Conversation;
 using Familiar.Server.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 namespace Familiar.Server.Familiars;
 
@@ -16,10 +18,12 @@ public sealed record FamiliarView(
     double Expressiveness,
     string? Voice = null,
     double VoiceSpeed = 1.0,
-    bool? Proactive = null)
+    bool? Proactive = null,
+    AppearanceView? Appearance = null)
 {
     public static FamiliarView From(FamiliarProfile p) =>
-        new(p.Name, p.UserNickname, p.Warmth, p.Playfulness, p.Verbosity, p.Formality, p.Expressiveness, p.Voice, p.VoiceSpeed, p.Proactive);
+        new(p.Name, p.UserNickname, p.Warmth, p.Playfulness, p.Verbosity, p.Formality, p.Expressiveness, p.Voice, p.VoiceSpeed, p.Proactive,
+            AppearanceView.Parse(p.Appearance));
 }
 
 /// <param name="Voices">What the TTS service offers; empty if it isn't reachable.</param>
@@ -43,7 +47,8 @@ public static class FamiliarEndpoints
     private static async Task<IResult> GetAsync(HttpContext http, ConversationStore store, CancellationToken ct) =>
         TypedResults.Ok(FamiliarView.From(await store.ProfileAsync(http.User.AccountId()!.Value, ct)));
 
-    private static async Task<IResult> UpdateAsync(FamiliarView request, HttpContext http, ConversationStore store, CancellationToken ct)
+    private static async Task<IResult> UpdateAsync(
+        FamiliarView request, HttpContext http, ConversationStore store, IDbContextFactory<FamiliarDbContext> db, CancellationToken ct)
     {
         var name = request.Name?.Trim() ?? string.Empty;
         var nickname = string.IsNullOrWhiteSpace(request.UserNickname) ? null : request.UserNickname.Trim();
@@ -59,7 +64,18 @@ public static class FamiliarEndpoints
             return AuthEndpoints.Error(StatusCodes.Status400BadRequest, "That isn't a voice.");
         }
 
-        var profile = await store.ProfileAsync(http.User.AccountId()!.Value, ct);
+        var accountId = http.User.AccountId()!.Value;
+        if (request.Appearance is { } appearance)
+        {
+            await using var context = await db.CreateDbContextAsync(ct);
+            var owned = await context.AvatarAssets.Where(a => a.AccountId == accountId).Select(a => a.Id).ToListAsync(ct);
+            if (appearance.Problem(owned) is { } problem)
+            {
+                return AuthEndpoints.Error(StatusCodes.Status400BadRequest, problem);
+            }
+        }
+
+        var profile = await store.ProfileAsync(accountId, ct);
         profile.Name = name;
         profile.UserNickname = nickname;
         profile.Warmth = FamiliarProfile.Clamp(request.Warmth);
@@ -70,6 +86,7 @@ public static class FamiliarEndpoints
         profile.Voice = voice;
         profile.VoiceSpeed = ClampSpeed(request.VoiceSpeed);
         profile.Proactive = request.Proactive ?? profile.Proactive;
+        profile.Appearance = request.Appearance?.ToJson() ?? profile.Appearance;
 
         return TypedResults.Ok(FamiliarView.From(await store.SaveProfileAsync(profile, ct)));
     }

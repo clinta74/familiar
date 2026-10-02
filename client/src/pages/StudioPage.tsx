@@ -1,0 +1,255 @@
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { api, errorFrom } from '../api/client';
+import { familiarApi, type FamiliarProfile } from '../api/familiar';
+import {
+  accessories,
+  defaultAppearance,
+  presets,
+  type Accessory,
+  type Appearance,
+  type LlamaColours,
+} from '../avatar/appearance';
+import { emotions, gestures, type Emotion, type Gesture } from '../avatar/types';
+import { AvatarStage, type AvatarHandle } from '../components/AvatarStage';
+import { Shell } from './Shell';
+
+interface UploadedModel {
+  id: string;
+  name: string;
+  sizeBytes: number;
+  meta: { version: string; name: string | null; authors: string[]; licence: string | null; commercialUse: string | null };
+  createdAt: string;
+}
+
+const avatarsApi = {
+  list: () => api<UploadedModel[]>('/api/avatars'),
+  remove: (id: string) => api<void>(`/api/avatars/${id}`, { method: 'DELETE' }),
+  upload: async (file: File): Promise<UploadedModel> => {
+    const response = await fetch(`/api/avatars?fileName=${encodeURIComponent(file.name)}`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'model/gltf-binary' },
+      body: file,
+    });
+    if (!response.ok) throw await errorFrom(response);
+    return (await response.json()) as UploadedModel;
+  },
+};
+
+const colourLabels: Record<keyof LlamaColours, string> = {
+  wool: 'Fleece',
+  face: 'Face',
+  ear: 'Ears & hooves',
+  blush: 'Cheeks',
+  accent: 'Accessory',
+};
+
+const accessoryLabels: Record<Accessory, string> = {
+  none: 'Nothing',
+  bow: 'Bow',
+  scarf: 'Scarf',
+  glasses: 'Glasses',
+  flower: 'Flower',
+};
+
+const emotionLabels: Partial<Record<Emotion, string>> = {
+  joy: 'Happy',
+  sad: 'Sad',
+  surprised: 'Surprised',
+  angry: 'Cross',
+  thinking: 'Thinking',
+  relaxed: 'Relaxed',
+};
+
+const sameColours = (a: LlamaColours, b: LlamaColours) =>
+  (Object.keys(a) as (keyof LlamaColours)[]).every((k) => a[k].toLowerCase() === b[k].toLowerCase());
+
+/**
+ * The studio (PLAN.md §5.5): change how the familiar looks and see it straight away. The plush
+ * llama can be recoloured and dressed; or upload a VRM model (VRoid Studio makes them for free).
+ */
+export function StudioPage() {
+  const avatar = useRef<AvatarHandle>(null);
+  const [profile, setProfile] = useState<FamiliarProfile | null>(null);
+  const [look, setLook] = useState<Appearance>(defaultAppearance);
+  const [saved, setSaved] = useState<Appearance>(defaultAppearance);
+  const [models, setModels] = useState<UploadedModel[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const load = useCallback(() => {
+    familiarApi.get().then((p) => {
+      setProfile(p);
+      setLook(p.appearance);
+      setSaved(p.appearance);
+    }).catch(() => setStatus({ ok: false, message: 'Couldn’t load your familiar.' }));
+    avatarsApi.list().then(setModels).catch(() => undefined);
+  }, []);
+  useEffect(load, [load]);
+
+  const dirty = JSON.stringify(look) !== JSON.stringify(saved);
+
+  async function save() {
+    if (!profile) return;
+    setBusy(true);
+    setStatus(null);
+    try {
+      const updated = await familiarApi.save({ ...profile, appearance: look });
+      setProfile(updated);
+      setSaved(updated.appearance);
+      setStatus({ ok: true, message: 'Saved. This is how it looks everywhere now.' });
+    } catch (e) {
+      setStatus({ ok: false, message: e instanceof Error ? e.message : 'Couldn’t save.' });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function upload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setBusy(true);
+    setStatus(null);
+    try {
+      const model = await avatarsApi.upload(file);
+      setModels((list) => [...list, model]);
+      setLook((l) => ({ ...l, model: 'vrm', vrmId: model.id }));
+      setStatus({ ok: true, message: `Uploaded “${model.name}”. Save to use it.` });
+    } catch (e) {
+      setStatus({ ok: false, message: e instanceof Error ? e.message : 'Couldn’t upload that.' });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeModel(id: string) {
+    if (!window.confirm('Delete this model?')) return;
+    await avatarsApi.remove(id);
+    setModels((list) => list.filter((m) => m.id !== id));
+    // The server puts the llama back if it was in use.
+    load();
+  }
+
+  const setColour = (key: keyof LlamaColours, value: string) =>
+    setLook((l) => ({ ...l, colours: { ...l.colours, [key]: value } }));
+
+  const llama = look.model === 'llama';
+
+  return (
+    <Shell>
+      <div className="studio">
+        <section className="stage-panel studio-stage" aria-label="Preview">
+          <AvatarStage ref={avatar} state="idle" appearance={look} />
+          <div className="try-row" aria-label="Try an expression">
+            {emotions.filter((e) => emotionLabels[e]).map((e) => (
+              <button key={e} type="button" className="chip" onClick={() => avatar.current?.express(e, 0.9)}>{emotionLabels[e]}</button>
+            ))}
+          </div>
+          <div className="try-row" aria-label="Try a gesture">
+            {gestures.map((g: Gesture) => (
+              <button key={g} type="button" className="chip" onClick={() => avatar.current?.gesture(g)}>{g}</button>
+            ))}
+          </div>
+        </section>
+
+        <section className="card studio-controls">
+          <h2>Look</h2>
+
+          <fieldset className="stack">
+            <legend>Model</legend>
+            <label className="check">
+              <input type="radio" name="model" checked={llama} onChange={() => setLook((l) => ({ ...l, model: 'llama', vrmId: null }))} />
+              <span>Plush llama <span className="muted">— built in, and yours to colour</span></span>
+            </label>
+            {models.map((m) => (
+              <div key={m.id} className="model-row">
+                <label className="check">
+                  <input
+                    type="radio"
+                    name="model"
+                    checked={look.model === 'vrm' && look.vrmId === m.id}
+                    onChange={() => setLook((l) => ({ ...l, model: 'vrm', vrmId: m.id }))}
+                  />
+                  <span>
+                    {m.name}
+                    <span className="muted">
+                      {' '}— VRM {m.meta.version}
+                      {m.meta.authors.length > 0 && ` by ${m.meta.authors.join(', ')}`}
+                      {m.meta.licence && ` · licence: ${m.meta.licence}`}
+                      {` · ${(m.sizeBytes / 1024 / 1024).toFixed(1)} MB`}
+                    </span>
+                  </span>
+                </label>
+                <button type="button" className="link" onClick={() => void removeModel(m.id)}>Delete</button>
+              </div>
+            ))}
+            <label className="upload">
+              <span className="secondary button-like">{busy ? 'Working…' : 'Upload a VRM model…'}</span>
+              <input type="file" accept=".vrm,model/gltf-binary" onChange={(e) => void upload(e)} disabled={busy} hidden />
+            </label>
+            <p className="muted small">
+              Make one for free in VRoid Studio and export it as .vrm (up to 40 MB). Check the model’s licence allows how you use it.
+            </p>
+          </fieldset>
+
+          {llama && (
+            <>
+              <fieldset>
+                <legend>Colours</legend>
+                <div className="swatches">
+                  {presets.map((p) => (
+                    <button
+                      key={p.name}
+                      type="button"
+                      className={`swatch${sameColours(p.colours, look.colours) ? ' selected' : ''}`}
+                      onClick={() => setLook((l) => ({ ...l, colours: p.colours }))}
+                      aria-pressed={sameColours(p.colours, look.colours)}
+                    >
+                      <span className="swatch-wool" style={{ background: p.colours.wool }}>
+                        <span className="swatch-face" style={{ background: p.colours.face }} />
+                      </span>
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+                <div className="colour-pickers">
+                  {(Object.keys(colourLabels) as (keyof LlamaColours)[]).map((key) => (
+                    <label key={key}>
+                      <input type="color" value={look.colours[key]} onChange={(e) => setColour(key, e.target.value)} />
+                      {colourLabels[key]}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend>Wearing</legend>
+                <div className="try-row">
+                  {accessories.map((a) => (
+                    <button
+                      key={a}
+                      type="button"
+                      className={`chip${look.accessory === a ? ' selected' : ''}`}
+                      aria-pressed={look.accessory === a}
+                      onClick={() => setLook((l) => ({ ...l, accessory: a }))}
+                    >
+                      {accessoryLabels[a]}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            </>
+          )}
+
+          {status && <p className={status.ok ? 'success' : 'error'} role="status">{status.message}</p>}
+          <div className="confirm-actions">
+            <button type="button" onClick={() => void save()} disabled={busy || !dirty || !profile}>Save</button>
+            <button type="button" className="secondary" onClick={() => setLook(saved)} disabled={!dirty}>Undo changes</button>
+          </div>
+          <p className="muted small">Name, voice and personality are in Settings.</p>
+        </section>
+      </div>
+    </Shell>
+  );
+}

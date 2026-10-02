@@ -14,6 +14,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <span>Familiar</span>
         </NavLink>
         <nav>
+          <NavLink to="/studio">Studio</NavLink>
           <NavLink to="/settings">Settings</NavLink>
           <button type="button" className="link" onClick={() => void logout()}>
             Sign out {account?.username}

@@ -53,6 +53,12 @@ public sealed class FamiliarProfile
     /// </summary>
     public bool Proactive { get; set; } = true;
 
+    /// <summary>
+    /// How it looks (PLAN.md §5.5): which model, its colours, an accessory - as JSON, validated by the
+    /// server, read by the client's renderers. Null means the default plush llama.
+    /// </summary>
+    public string? Appearance { get; set; }
+
     /// <summary>When it last spoke first, so it doesn't greet every time a tab is opened.</summary>
     public DateTimeOffset? LastGreetedAt { get; set; }
 

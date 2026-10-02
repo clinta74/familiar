@@ -35,6 +35,8 @@ public sealed class FamiliarDbContext(DbContextOptions<FamiliarDbContext> option
 
     public DbSet<MemoryFact> Memories => Set<MemoryFact>();
 
+    public DbSet<AvatarAsset> AvatarAssets => Set<AvatarAsset>();
+
     public DbSet<CalendarSource> CalendarSources => Set<CalendarSource>();
 
     public DbSet<CalendarEvent> CalendarEvents => Set<CalendarEvent>();

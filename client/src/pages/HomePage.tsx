@@ -3,6 +3,8 @@ import type { AvatarState } from '../avatar/types';
 import { AvatarStage, type AvatarHandle } from '../components/AvatarStage';
 import { ChatPanel } from '../components/ChatPanel';
 import { TimersPanel } from '../components/TimersPanel';
+import { familiarApi } from '../api/familiar';
+import type { Appearance } from '../avatar/appearance';
 import { useConversation } from '../conversation/useConversation';
 import { AudioPlayer } from '../voice/AudioPlayer';
 import { HandsFree } from '../voice/HandsFree';
@@ -45,6 +47,12 @@ export function HomePage() {
   const [voiceOn, setVoiceOn] = useState(readVoicePreference);
   const [handsFreeOn, setHandsFreeOn] = useState(false);
   const [userSpeaking, setUserSpeaking] = useState(false);
+  const [appearance, setAppearance] = useState<Appearance | null>(null);
+
+  // How it looks is the studio's business; here it's only read.
+  useEffect(() => {
+    familiarApi.get().then((p) => setAppearance(p.appearance)).catch(() => undefined);
+  }, []);
 
   const player = useMemo(() => new AudioPlayer(), []);
   const recorder = useMemo(() => new Recorder(), []);
@@ -204,7 +212,7 @@ export function HomePage() {
     <Shell>
       <div className="home">
         <section className="stage-panel" aria-label={conversation.familiarName}>
-          <AvatarStage ref={avatar} state={avatarState} />
+          <AvatarStage ref={avatar} state={avatarState} appearance={appearance} />
           <p className="familiar-name">
             {conversation.familiarName}
             {status && <span className="familiar-status"> · {status}</span>}

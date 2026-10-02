@@ -668,6 +668,21 @@ per gap across devices, switchable per familiar. Findings: the model does weekda
 Wednesday" and the server works out the date — `create_event` takes `day` and `time` separately for
 the same reason. Weather and location (§6.3) aren't done: they need a provider and the phone apps.
 
+**Phase 6 (2026-10-02):** built. A **Studio** page with a live preview (buttons to try every
+expression and gesture) next to the controls. The plush llama takes five colours — fleece, face,
+ears, cheeks, accessory — from six presets or colour pickers, with outlines, stitching and nose
+derived so any choice reads (dark fleece gets lighter outlines), and wears a bow (on an ear, so it
+flops with it), scarf, glasses or flower. Or upload a **VRM model**: validated as binary glTF with
+the VRM 0.x/1.0 extension, its title, authors and licence read and shown, stored in Postgres (so
+backups have it; ≤ 40 MB, 5 per account), served only to its owner; deleting the model in use puts
+the llama back. Appearance is JSON on the profile, whitelisted server-side (colours must be
+`#rrggbb`: they go into CSS). This replaces Phase 1's "drop a file at
+`client/public/avatars/familiar.vrm`". Verified in a browser: presets, pickers, every accessory,
+save, and the saved look on the home page. **Not done:** the VRM path has still never rendered a
+real model (none to hand — the upload/validation side is tested with synthetic GLBs); a 2D
+Rive/sprite renderer (§5.2) — the llama already is the 2D renderer, and Rive needs art; voice
+pitch (Kokoro has none); idle tuning (blink rate, calm mode).
+
 | Phase | Delivers | Done when |
 |---|---|---|
 | **0. Scaffold** | Solution, auth, local compose + GPU overlay, Dockerfiles, CI image build, NAS compose, model bake-off, NAS VRAM measurement | Register/login works locally **and** from the published images on the NAS; `ollama show` confirms tool capability on the chosen model |

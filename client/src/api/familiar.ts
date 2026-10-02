@@ -1,3 +1,4 @@
+import type { Appearance } from '../avatar/appearance';
 import { api } from './client';
 
 export interface FamiliarProfile {
@@ -12,6 +13,8 @@ export interface FamiliarProfile {
   voiceSpeed: number;
   /** May speak first: a hello when you come back, mentioning what's coming up. */
   proactive: boolean;
+  /** How it looks (the studio). */
+  appearance: Appearance;
 }
 
 export interface Voices {

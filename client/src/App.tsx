@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { HomePage } from './pages/HomePage';
 import { SettingsPage } from './pages/SettingsPage';
+import { StudioPage } from './pages/StudioPage';
 
 function RequireAccount({ children }: { children: ReactNode }) {
   const { account } = useAuth();
@@ -29,6 +30,7 @@ export function App() {
           <Route path="/register" element={<SignedOutOnly><RegisterPage /></SignedOutOnly>} />
           <Route path="/" element={<RequireAccount><HomePage /></RequireAccount>} />
           <Route path="/settings" element={<RequireAccount><SettingsPage /></RequireAccount>} />
+          <Route path="/studio" element={<RequireAccount><StudioPage /></RequireAccount>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
