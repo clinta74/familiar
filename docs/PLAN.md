@@ -683,6 +683,23 @@ real model (none to hand — the upload/validation side is tested with synthetic
 Rive/sprite renderer (§5.2) — the llama already is the 2D renderer, and Rive needs art; voice
 pitch (Kokoro has none); idle tuning (blink rate, calm mode).
 
+**Phase 7 (2026-10-02):** built, and the "done when" is met live: a Home Assistant-style
+`rest_command` POST with a hook token made the familiar announce "The washing machine has
+finished." on the open stream (spoken, with the chime); with `"style": "tell"` it passed on "Someone
+is at the front door" in its own words. *Inbound*: announce-only hook tokens (`fhk_…`, hashed like
+device tokens, revocable); Settings shows the token once with a ready-to-paste `rest_command`.
+Announcements also push-notify, through an in-memory recent list the service worker reads. "Tell"
+quotes and attributes the message and offers no tools, so a message can only be passed on, never
+acted on. *Outbound*: webhooks for `timer.done`, `reminder.due`, `reply`, `tool.used` — queued,
+retried twice, signed `X-Familiar-Signature: sha256=<HMAC>`, URL and secret encrypted; last result
+and a test send in Settings. *MCP client*: the official C# SDK over streamable HTTP; a server's
+tools are listed, switched on per tool, and offered as `<server>_<tool>` (at most 8 across servers,
+for the small model's sake); anything not marked read-only asks first. Tools are now per account.
+Verified against a real MCP server (the SDK's own, in-process): read tool runs, write tool asks,
+switched-off tool isn't offered. **Not verified:** against Home Assistant's own MCP server (none to
+hand); outbound URLs may be on the LAN by design (Home Assistant lives there), with loopback and
+link-local refused.
+
 | Phase | Delivers | Done when |
 |---|---|---|
 | **0. Scaffold** | Solution, auth, local compose + GPU overlay, Dockerfiles, CI image build, NAS compose, model bake-off, NAS VRAM measurement | Register/login works locally **and** from the published images on the NAS; `ollama show` confirms tool capability on the chosen model |

@@ -91,8 +91,10 @@ export interface JobsEvent {
 
 /** A timer or reminder went off; the reply announcing it arrives as usual. */
 export interface NotifyEvent {
-  jobId: string;
-  kind: JobKind;
+  /** The job, or the announcement. */
+  id: string;
+  kind: JobKind | 'announcement';
+  /** What it was for, or who sent it. */
   label: string;
   text: string;
 }

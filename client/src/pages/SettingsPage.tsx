@@ -3,6 +3,7 @@ import { authApi, type Device } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { FamiliarSettings } from './FamiliarSettings';
 import { CalendarSettings } from './CalendarSettings';
+import { ConnectionsSettings } from './ConnectionsSettings';
 import { MemorySettings } from './MemorySettings';
 import { NotificationSettings } from './NotificationSettings';
 import { Shell } from './Shell';
@@ -112,6 +113,10 @@ export function SettingsPage() {
         <section className="card">
           <h2>Calendars</h2>
           <CalendarSettings />
+        </section>
+        <section className="card">
+          <h2>Connections</h2>
+          <ConnectionsSettings />
         </section>
         <section className="card">
           <h2>Notifications</h2>

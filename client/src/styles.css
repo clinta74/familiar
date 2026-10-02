@@ -1097,3 +1097,87 @@ button.swatch {
 .small {
   font-size: 0.85rem;
 }
+
+/* --- connections --- */
+
+.connections h3 {
+  margin: 8px 0 0;
+}
+
+.reveal {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.reveal p {
+  margin: 0;
+}
+
+.reveal-value {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.reveal-value code {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+
+pre.snippet {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  overflow-x: auto;
+}
+
+.check-group {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.check-group legend {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.mcp-server {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tool-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 4px;
+  display: grid;
+  gap: 4px;
+}
+
+.risk {
+  font-size: 0.72rem;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.risk.read {
+  color: var(--success);
+}
+
+.risk.write {
+  color: var(--accent);
+}

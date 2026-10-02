@@ -72,6 +72,7 @@ public static class HookEndpoints
         PushSender push,
         RecentAnnouncements recent,
         ConversationStore store,
+        ConversationHub hub,
         TimeProvider clock,
         CancellationToken ct)
     {
@@ -109,6 +110,7 @@ public static class HookEndpoints
         {
             // In its own words. Quoted and attributed, and the turn gets no tools, so the message
             // can only ever be passed on, not acted on.
+            hub.For(hook.AccountId).Publish(EventTypes.Notify, new NotifyEvent(id, NotifyKinds.Announcement, hook.Name, message));
             var cue = $"[{hook.Name} asked you to pass this on to them: \"{message.Replace('"', '\'')}\". " +
                 "Tell them in your own words, in a sentence or two.]";
             await turns.TellAsync(hook.AccountId, cue, ConversationEndpoints.Zone(request.TimeZone), speak: true, CancellationToken.None);
