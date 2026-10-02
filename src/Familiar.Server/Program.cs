@@ -41,6 +41,12 @@ builder.Services.AddHttpClient<ILlmClient, OllamaClient>(http =>
     http.Timeout = TimeSpan.FromSeconds(Math.Max(5, llmOptions.RequestTimeoutSeconds));
 });
 builder.Services.AddTransient<TurnRunner>();
+builder.Services.AddHttpClient<OllamaWarmUp>(http =>
+{
+    http.BaseAddress = new Uri(llmOptions.BaseUrl.TrimEnd('/') + "/");
+    http.Timeout = TimeSpan.FromSeconds(Math.Max(5, llmOptions.RequestTimeoutSeconds));
+});
+builder.Services.AddHostedService<LlmWarmUp>();
 builder.Services.AddHttpClient<IEmbedder, OllamaEmbedder>(http =>
 {
     http.BaseAddress = new Uri(llmOptions.BaseUrl.TrimEnd('/') + "/");

@@ -50,6 +50,9 @@ public sealed class FamiliarAppFactory(
         // The fakes need no warming, and a warm-up synthesis would show up in tests that count TTS calls.
         builder.UseSetting("Speech:WarmUpOnStart", "false");
 
+        // The warm-up talks to Ollama directly (it isn't the faked ILlmClient): never from tests.
+        builder.UseSetting("Llm:WarmUp", "false");
+
         // A greeting on connect would interleave with what most tests assert; greeting tests turn it on.
         builder.UseSetting("Awareness:Greet", "false");
 

@@ -137,4 +137,10 @@ internal static partial class ServerLog
 
     [LoggerMessage(111, LogLevel.Warning, "Webhook {WebhookId} didn't take {Event}: {Result}")]
     public static partial void WebhookRejected(this ILogger logger, Guid webhookId, string @event, string result);
+
+    [LoggerMessage(45, LogLevel.Information, "Models loaded and kept warm: {Model}, {EmbeddingModel}")]
+    public static partial void ModelsWarmed(this ILogger logger, string model, string embeddingModel);
+
+    [LoggerMessage(46, LogLevel.Warning, "Model {Model} doesn't exist on the model server. Create it once with tools/ollama/create-models.sh (see the NAS compose file)")]
+    public static partial void ModelMissing(this ILogger logger, string model);
 }

@@ -28,6 +28,12 @@ public sealed class LlmOptions
     /// <summary>For memories (PLAN.md §6.6). 768 dimensions; changing it means re-embedding every memory.</summary>
     public string EmbeddingModel { get; set; } = "nomic-embed-text";
 
+    /// <summary>Load the models at startup and keep them loaded (<see cref="OllamaWarmUp"/>).</summary>
+    public bool WarmUp { get; set; } = true;
+
+    /// <summary>How often the warm-up checks the models are still loaded.</summary>
+    public int WarmUpCheckSeconds { get; set; } = 120;
+
     public override string ToString() =>
         $"{Model} at {BaseUrl}, temperature {Temperature}, history {HistoryMessages}, embeddings {EmbeddingModel}, timeout {RequestTimeoutSeconds}s";
 }
