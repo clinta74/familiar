@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Familiar.Agent.Tools;
 
 namespace Familiar.Agent.Llm;
@@ -42,6 +43,16 @@ public interface ILlmClient
     /// <exception cref="LlmUnavailableException">The model server can't be reached or refused the request.</exception>
     IAsyncEnumerable<LlmChunk> StreamAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDefinition>? tools, CancellationToken ct);
 
+    /// <summary>
+    /// One whole answer constrained to a JSON schema, for background work (picking out memories)
+    /// rather than conversation.
+    /// </summary>
+    /// <param name="messages">The prompt.</param>
+    /// <param name="schema">The JSON schema the answer must match.</param>
+    /// <param name="ct">Cancels the request.</param>
+    /// <exception cref="LlmUnavailableException">The model server can't be reached or refused the request.</exception>
+    Task<JsonObject> CompleteJsonAsync(IReadOnlyList<ChatMessage> messages, JsonObject schema, CancellationToken ct);
+
     /// <summary>Whether the model server answers at all. Cheap; never throws.</summary>
     Task<bool> IsAvailableAsync(CancellationToken ct);
 }
@@ -51,3 +62,20 @@ public interface ILlmClient
 /// The familiar shows this as "resting" rather than as a failure.
 /// </summary>
 public sealed class LlmUnavailableException(string message, Exception? inner = null) : Exception(message, inner);
+
+/// <summary>What a text is being embedded for: nomic-embed-text embeds the two differently.</summary>
+public enum EmbeddingPurpose
+{
+    /// <summary>Something being stored, to be found later.</summary>
+    Document,
+
+    /// <summary>Something being looked for.</summary>
+    Query,
+}
+
+/// <summary>Turns text into vectors, for finding memories by meaning rather than wording.</summary>
+public interface IEmbedder
+{
+    /// <exception cref="LlmUnavailableException">The model server can't be reached or refused the request.</exception>
+    Task<float[]> EmbedAsync(string text, EmbeddingPurpose purpose, CancellationToken ct);
+}

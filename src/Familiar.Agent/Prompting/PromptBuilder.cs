@@ -13,7 +13,9 @@ public sealed record PromptContext(
     IReadOnlyList<Message> History,
     string UserText,
     DateTimeOffset Now,
-    TimeZoneInfo TimeZone);
+    TimeZoneInfo TimeZone,
+    IReadOnlyList<string>? Notes = null,
+    IReadOnlyList<string>? Memories = null);
 
 /// <summary>
 /// Builds the messages for one turn, always in the same order - most stable first, most variable
@@ -62,16 +64,28 @@ public static class PromptBuilder
         shake, tilt, wave, shrug, laugh, wink, sigh, yawn, excited. Tags are never read aloud.
         Example: [joy:0.7] That's wonderful news! [gesture:nod] You earned it.
 
-        Each user message begins with the current local time in parentheses. It's context for you,
-        not something the user said; don't repeat it unless it matters.
+        Each user message begins with notes in parentheses: the current local time, and sometimes
+        what's on their calendar, what timers are running, or how long since you last talked. They're
+        context for you, not something the user said. Bring them up when they matter (a meeting in
+        ten minutes is worth a mention); otherwise don't repeat them.
         A previous reply of yours ending in "…" was cut off by the user before you finished.
         """;
 
-    public static IReadOnlyList<ChatMessage> Build(PromptContext context)
+    /// <summary>Asked to speak first, with nothing from the user: a greeting (PLAN.md §6.3).</summary>
+    internal const string GreetingCue =
+        "[They've just opened the app and haven't said anything yet. Greet them in a sentence or two, the way a " +
+        "friend would after however long it's been. If something in the notes is coming up soon, mention it.]";
+
+    public static IReadOnlyList<ChatMessage> Build(PromptContext context) => Assemble(context, context.UserText);
+
+    /// <summary>A turn with no user message: the familiar speaks first.</summary>
+    public static IReadOnlyList<ChatMessage> BuildGreeting(PromptContext context) => Assemble(context, GreetingCue);
+
+    private static IReadOnlyList<ChatMessage> Assemble(PromptContext context, string last)
     {
         var messages = new List<ChatMessage>(context.History.Count + 2)
         {
-            new(ChatRole.System, $"{Persona(context.Profile, context.Username)}\n\n{Rules}"),
+            new(ChatRole.System, SystemMessage(context)),
         };
 
         foreach (var message in context.History)
@@ -81,8 +95,31 @@ public static class PromptBuilder
                 : new ChatMessage(ChatRole.Assistant, AsTheModelWroteIt(message)));
         }
 
-        messages.Add(new ChatMessage(ChatRole.User, $"({Situation(context.Now, context.TimeZone)}) {context.UserText}"));
+        var notes = context.Notes is { Count: > 0 } n ? ". " + string.Join(" ", n).TrimEnd('.') : "";
+        messages.Add(new ChatMessage(ChatRole.User, $"({Situation(context.Now, context.TimeZone)}{notes}) {last}"));
         return messages;
+    }
+
+    /// <summary>
+    /// Persona, then rules, then memories: the memories change now and then, so they go last, and a
+    /// new one doesn't cost the cached persona and rules.
+    /// </summary>
+    internal static string SystemMessage(PromptContext context)
+    {
+        var text = new StringBuilder();
+        text.Append(Persona(context.Profile, context.Username)).Append("\n\n").Append(Rules);
+
+        if (context.Memories is { Count: > 0 } memories)
+        {
+            var you = string.IsNullOrWhiteSpace(context.Profile.UserNickname) ? context.Username : context.Profile.UserNickname.Trim();
+            text.Append(CultureInfo.InvariantCulture, $"\n\nWhat you remember about {you} (they told you; use it naturally, don't recite it):");
+            foreach (var memory in memories)
+            {
+                text.Append("\n- ").Append(memory);
+            }
+        }
+
+        return text.ToString();
     }
 
     /// <summary>

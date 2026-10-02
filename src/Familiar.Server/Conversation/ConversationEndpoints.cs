@@ -64,6 +64,9 @@ public static class ConversationEndpoints
         ISpeechToText stt,
         ITextToSpeech tts,
         Scheduler scheduler,
+        ConversationTurns turns,
+        string? timeZone,
+        bool? speak,
         CancellationToken ct)
     {
         var accountId = http.User.AccountId()!.Value;
@@ -108,6 +111,13 @@ public static class ConversationEndpoints
             var jobs = await scheduler.PendingAsync(accountId, null, ct);
             await WriteAsync(http, ConversationHub.Frame(EventTypes.Jobs, new JobsEvent([.. jobs.Select(JobView.From)])), ct);
             await WriteAsync(http, ConversationHub.Frame(EventTypes.Ready, ready), ct);
+
+            // Coming back after a while: the familiar may say hello first. A fresh connection only -
+            // a reconnect is the same visit. Its events arrive on this stream like any other.
+            if (string.IsNullOrEmpty(lastEventId) && model.Result)
+            {
+                _ = turns.GreetAsync(accountId, Zone(timeZone), speak ?? false, CancellationToken.None);
+            }
 
             Task<bool>? waiting = null;
             while (!ct.IsCancellationRequested)

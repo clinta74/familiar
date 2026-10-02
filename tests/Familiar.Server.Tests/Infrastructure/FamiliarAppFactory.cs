@@ -27,6 +27,8 @@ public sealed class FamiliarAppFactory(
 
     public FakeTextToSpeech Tts { get; } = new();
 
+    public FakeEmbedder Embedder { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         // "Testing", so appsettings.Development.json (the compose database) can't leak in.
@@ -48,6 +50,9 @@ public sealed class FamiliarAppFactory(
         // The fakes need no warming, and a warm-up synthesis would show up in tests that count TTS calls.
         builder.UseSetting("Speech:WarmUpOnStart", "false");
 
+        // A greeting on connect would interleave with what most tests assert; greeting tests turn it on.
+        builder.UseSetting("Awareness:Greet", "false");
+
         foreach (var (key, value) in settings ?? new Dictionary<string, string>())
         {
             builder.UseSetting(key, value);
@@ -58,6 +63,7 @@ public sealed class FamiliarAppFactory(
             collection.AddSingleton<ILlmClient>(Llm);
             collection.AddSingleton<ISpeechToText>(Stt);
             collection.AddSingleton<ITextToSpeech>(Tts);
+            collection.AddSingleton<IEmbedder>(Embedder);
             if (clock is not null)
             {
                 collection.Replace(ServiceDescriptor.Singleton(clock));

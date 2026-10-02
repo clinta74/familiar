@@ -203,7 +203,7 @@ public sealed class ListScheduledTool(Scheduler scheduler) : ITool
                 timers.Add(new JsonObject
                 {
                     ["label"] = job.Label,
-                    ["remaining"] = Spoken.Duration((int)Math.Max(1, (job.DueAt - context.Now).TotalSeconds)),
+                    ["remaining"] = Spoken.Remaining(job.DueAt - context.Now),
                     ["rings"] = Spoken.When(job.DueAt, context.Zone, context.Now),
                 });
             }

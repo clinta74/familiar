@@ -87,6 +87,37 @@ public sealed class OllamaClient(HttpClient http, LlmOptions options) : ILlmClie
         }
     }
 
+    public async Task<JsonObject> CompleteJsonAsync(IReadOnlyList<ChatMessage> messages, JsonObject schema, CancellationToken ct)
+    {
+        var body = new JsonObject
+        {
+            ["model"] = options.Model,
+            ["stream"] = false,
+            ["think"] = false,
+            ["keep_alive"] = -1,
+            ["format"] = schema.DeepClone(),
+
+            // Low: this is bookkeeping, not conversation.
+            ["options"] = new JsonObject { ["temperature"] = 0.2 },
+            ["messages"] = new JsonArray([.. messages.Select(ToJson)]),
+        };
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/chat") { Content = JsonContent.Create(body) };
+        using var response = await SendAsync(request, ct);
+        var answer = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct));
+        var content = answer?["message"]?["content"]?.GetValue<string>() ?? "";
+
+        try
+        {
+            return JsonNode.Parse(content) as JsonObject
+                ?? throw new LlmUnavailableException("The model's answer wasn't a JSON object.");
+        }
+        catch (System.Text.Json.JsonException exception)
+        {
+            throw new LlmUnavailableException("The model's answer wasn't valid JSON.", exception);
+        }
+    }
+
     public async Task<bool> IsAvailableAsync(CancellationToken ct)
     {
         try

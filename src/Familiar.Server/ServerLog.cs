@@ -110,4 +110,25 @@ internal static partial class ServerLog
 
     [LoggerMessage(82, LogLevel.Warning, "Couldn't reach push service {Host}: {Reason}")]
     public static partial void PushFailed(this ILogger logger, string host, string reason);
+
+    [LoggerMessage(90, LogLevel.Warning, "Couldn't embed text for memory: {Reason}")]
+    public static partial void EmbeddingFailed(this ILogger logger, string reason);
+
+    [LoggerMessage(91, LogLevel.Error, "Memory pass failed; retrying shortly")]
+    public static partial void MemoryPassFailed(this ILogger logger, Exception exception);
+
+    [LoggerMessage(92, LogLevel.Information, "Memory pass for account {AccountId}: read {Messages} messages, stored {Stored} new memories")]
+    public static partial void MemoriesExtracted(this ILogger logger, Guid accountId, int messages, int stored);
+
+    [LoggerMessage(93, LogLevel.Error, "Couldn't greet account {AccountId}")]
+    public static partial void GreetingFailed(this ILogger logger, Exception exception, Guid accountId);
+
+    [LoggerMessage(100, LogLevel.Information, "Calendar feed {SourceId} synced: {Events} events")]
+    public static partial void FeedSynced(this ILogger logger, Guid sourceId, int events);
+
+    [LoggerMessage(101, LogLevel.Warning, "Calendar feed {SourceId} failed: {Error}")]
+    public static partial void FeedFailed(this ILogger logger, Guid sourceId, string error);
+
+    [LoggerMessage(102, LogLevel.Error, "Calendar sync pass failed; retrying shortly")]
+    public static partial void FeedPassFailed(this ILogger logger, Exception exception);
 }

@@ -120,6 +120,31 @@ public sealed class ConversationStore(IDbContextFactory<FamiliarDbContext> facto
             .FirstOrDefaultAsync(ct);
     }
 
+    /// <summary>When the user and the familiar last exchanged anything before a moment, across conversations.</summary>
+    public async Task<DateTimeOffset?> LastMessageAtAsync(Guid accountId, DateTimeOffset before, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.Messages
+            .Where(m => m.CreatedAt < before)
+            .Join(db.Conversations.Where(c => c.AccountId == accountId), m => m.ConversationId, c => c.Id, (m, _) => m)
+            .OrderByDescending(m => m.CreatedAt)
+            .Select(m => (DateTimeOffset?)m.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    /// <summary>
+    /// Claims the right to greet: true for exactly one caller per <paramref name="gap"/>, however many
+    /// tabs connect at once - it's a conditional update, so the database settles the race.
+    /// </summary>
+    public async Task<bool> TryClaimGreetingAsync(Guid accountId, DateTimeOffset now, TimeSpan gap, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var since = now - gap;
+        return await db.FamiliarProfiles
+            .Where(p => p.AccountId == accountId && p.Proactive && (p.LastGreetedAt == null || p.LastGreetedAt < since))
+            .ExecuteUpdateAsync(p => p.SetProperty(x => x.LastGreetedAt, now), ct) > 0;
+    }
+
     /// <summary>The account's familiar, created with defaults the first time.</summary>
     public async Task<FamiliarProfile> ProfileAsync(Guid accountId, CancellationToken ct)
     {

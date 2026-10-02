@@ -158,6 +158,10 @@ public static class ToolRegistration
         services.AddSingleton<ITool, Scheduling.CreateReminderTool>();
         services.AddSingleton<ITool, Scheduling.ListScheduledTool>();
         services.AddSingleton<ITool, Scheduling.CancelScheduledTool>();
+        services.AddSingleton<ITool, Calendars.ListEventsTool>();
+        services.AddSingleton<ITool, Calendars.CreateEventTool>();
+        services.AddSingleton<ITool, Memories.RememberTool>();
+        services.AddSingleton<ITool, Memories.ForgetTool>();
         services.AddSingleton<IToolExecutor, ToolExecutor>();
         return services;
     }

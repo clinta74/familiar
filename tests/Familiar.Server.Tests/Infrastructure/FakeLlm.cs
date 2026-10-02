@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Nodes;
 using Familiar.Agent.Llm;
 using Familiar.Agent.Tools;
 
@@ -26,11 +27,16 @@ public sealed class FakeLlm : ILlmClient
 
     public IReadOnlyList<ToolDefinition>? LastTools { get; private set; }
 
+    /// <summary>Answers to <see cref="CompleteJsonAsync"/>, in order; then <c>{"facts": []}</c>.</summary>
+    public ConcurrentQueue<string> JsonAnswers { get; } = new();
+
+    public IReadOnlyList<ChatMessage>? LastJsonPrompt { get; private set; }
+
     /// <summary>Queues a round in which the model calls a tool and says nothing.</summary>
     public FakeLlm ThenCall(string tool, string argumentsJson)
     {
         Rounds.Enqueue([new ToolCallsChunk([new ToolCall($"call_{Rounds.Count}", tool,
-            (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse(argumentsJson)!)])]);
+            (JsonObject)JsonNode.Parse(argumentsJson)!)])]);
         return this;
     }
 
@@ -68,5 +74,59 @@ public sealed class FakeLlm : ILlmClient
         }
     }
 
+    public Task<JsonObject> CompleteJsonAsync(IReadOnlyList<ChatMessage> messages, JsonObject schema, CancellationToken ct)
+    {
+        LastJsonPrompt = [.. messages];
+        if (Down)
+        {
+            throw new LlmUnavailableException("fake model is down");
+        }
+
+        var answer = JsonAnswers.TryDequeue(out var json) ? json : """{"facts": []}""";
+        return Task.FromResult((JsonObject)JsonNode.Parse(answer)!);
+    }
+
     public Task<bool> IsAvailableAsync(CancellationToken ct) => Task.FromResult(!Down);
+}
+
+/// <summary>
+/// Embeddings without a model: words hashed into the vector, so texts sharing words are similar and
+/// identical texts are identical. Enough to exercise duplicates and "forget …" deterministically.
+/// </summary>
+public sealed class FakeEmbedder : IEmbedder
+{
+    public bool Down { get; set; }
+
+    public Task<float[]> EmbedAsync(string text, EmbeddingPurpose purpose, CancellationToken ct)
+    {
+        if (Down)
+        {
+            throw new LlmUnavailableException("fake embedder is down");
+        }
+
+        var vector = new float[768];
+        foreach (var word in text.ToLowerInvariant().Split([' ', '.', ',', '!', '?', '\''],StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (word.Length > 2)
+            {
+                vector[(int)((uint)StableHash(word) % 768)] += 1;
+            }
+        }
+
+        return Task.FromResult(vector);
+    }
+
+    private static int StableHash(string word)
+    {
+        unchecked
+        {
+            var hash = 17;
+            foreach (var c in word)
+            {
+                hash = (hash * 31) + c;
+            }
+
+            return hash;
+        }
+    }
 }

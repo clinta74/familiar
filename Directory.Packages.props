@@ -11,6 +11,13 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10" />
     <!-- Data Protection keys live in Postgres, so a recreated container doesn't log everyone out. -->
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.10" />
+    <!-- Memory embeddings (PLAN.md §6.6); the pgvector/pgvector image already has the extension. -->
+    <PackageVersion Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Calendars">
+    <!-- iCal feeds: parsing, time zones and RRULE expansion (PLAN.md §6.4). -->
+    <PackageVersion Include="Ical.Net" Version="5.2.3" />
   </ItemGroup>
 
   <ItemGroup Label="Diagnostics">

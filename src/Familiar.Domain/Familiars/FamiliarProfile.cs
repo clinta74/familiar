@@ -47,6 +47,15 @@ public sealed class FamiliarProfile
     /// <summary>Speaking rate, 1 = normal.</summary>
     public double VoiceSpeed { get; set; } = 1.0;
 
+    /// <summary>
+    /// The familiar may speak first: a greeting when the user comes back, mentioning what's coming up
+    /// (PLAN.md §6.3).
+    /// </summary>
+    public bool Proactive { get; set; } = true;
+
+    /// <summary>When it last spoke first, so it doesn't greet every time a tab is opened.</summary>
+    public DateTimeOffset? LastGreetedAt { get; set; }
+
     public DateTimeOffset CreatedAt { get; init; }
 
     public DateTimeOffset UpdatedAt { get; set; }

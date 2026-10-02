@@ -15,7 +15,7 @@ internal sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<F
             ?? "Host=localhost;Port=5433;Database=familiar;Username=familiar;Password=familiar_dev_only";
 
         var options = new DbContextOptionsBuilder<FamiliarDbContext>()
-            .UseNpgsql(connectionString)
+            .UseNpgsql(connectionString, npgsql => npgsql.UseVector())
             .Options;
 
         return new FamiliarDbContext(options);

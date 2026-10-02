@@ -6,6 +6,7 @@ using Familiar.Agent.Turns;
 using Familiar.Domain.Conversations;
 using Familiar.Domain.Expression;
 using Familiar.Domain.Scheduling;
+using Familiar.Server.Awareness;
 using Familiar.Server.Tools;
 
 namespace Familiar.Server.Conversation;
@@ -30,6 +31,8 @@ public sealed class ConversationTurns(
     ConversationStore store,
     SpeechClipStore clips,
     IToolExecutor tools,
+    SituationProvider situations,
+    AwarenessOptions awareness,
     IServiceScopeFactory scopes,
     LlmOptions llmOptions,
     SpeechOptions speechOptions,
@@ -270,7 +273,70 @@ public sealed class ConversationTurns(
         channel.TurnTask = null;
     }
 
-    private async Task RunAsync(AccountChannel channel, Guid accountId, Message userMessage, TurnRequest request, CancellationToken ct)
+    /// <summary>
+    /// The familiar speaks first (PLAN.md §6.3): when someone comes back after a while, it says hello
+    /// and mentions anything coming up soon. At most once per <see cref="GreetingGap"/> however many
+    /// devices connect, never over a turn in progress, and not at all if the user switched it off.
+    /// </summary>
+    public async Task GreetAsync(Guid accountId, TimeZoneInfo zone, bool speak, CancellationToken ct)
+    {
+        // Called without awaiting, from the stream: failures end here, logged.
+        try
+        {
+            await TryGreetAsync(accountId, zone, speak, ct);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.GreetingFailed(exception, accountId);
+        }
+    }
+
+    private async Task TryGreetAsync(Guid accountId, TimeZoneInfo zone, bool speak, CancellationToken ct)
+    {
+        if (!awareness.Greet)
+        {
+            return;
+        }
+
+        var now = clock.GetUtcNow();
+        var last = await store.LastMessageAtAsync(accountId, now, ct);
+        if (last is { } at && now - at < GreetingGap)
+        {
+            // Mid-conversation: a greeting would be odd.
+            return;
+        }
+
+        var channel = hub.For(accountId);
+        if (!await channel.TurnGate.WaitAsync(TimeSpan.Zero, ct))
+        {
+            return;
+        }
+
+        try
+        {
+            if (channel.TurnTask is { IsCompleted: false } || !await store.TryClaimGreetingAsync(accountId, now, GreetingGap, ct))
+            {
+                return;
+            }
+
+            channel.TurnCancellation?.Dispose();
+            var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.ApplicationStopping);
+            channel.TurnCancellation = cancellation;
+            channel.TurnTask = Task.Run(
+                () => RunAsync(channel, accountId, null, new TurnRequest(zone, speak, clock.GetTimestamp()), cancellation.Token),
+                CancellationToken.None);
+        }
+        finally
+        {
+            channel.TurnGate.Release();
+        }
+    }
+
+    /// <summary>How long a quiet spell must be before the familiar greets, and how often it may.</summary>
+    internal static readonly TimeSpan GreetingGap = TimeSpan.FromHours(3);
+
+    /// <summary>One reply. With no <paramref name="userMessage"/>, a greeting: the familiar speaks first.</summary>
+    private async Task RunAsync(AccountChannel channel, Guid accountId, Message? userMessage, TurnRequest request, CancellationToken ct)
     {
         var replyId = Guid.CreateVersion7();
         var started = false;
@@ -286,8 +352,12 @@ public sealed class ConversationTurns(
 
             var profile = await store.ProfileAsync(accountId, ct);
             var username = await store.UsernameAsync(accountId, ct);
-            var history = await store.HistoryAsync(userMessage.ConversationId, userMessage.Id, llmOptions.HistoryMessages, ct);
-            var prompt = PromptBuilder.Build(new PromptContext(profile, username, history, userMessage.Content, clock.GetUtcNow(), request.Zone));
+            var now = clock.GetUtcNow();
+            var conversationId = userMessage?.ConversationId ?? (await store.CurrentAsync(accountId, ct)).Id;
+            var history = await store.HistoryAsync(conversationId, userMessage?.Id ?? Guid.Empty, llmOptions.HistoryMessages, ct);
+            var situation = await situations.ForAsync(accountId, request.Zone, now, userMessage?.CreatedAt ?? now, ct);
+            var context = new PromptContext(profile, username, history, userMessage?.Content ?? "", now, request.Zone, situation.Notes, situation.Memories);
+            var prompt = userMessage is null ? PromptBuilder.BuildGreeting(context) : PromptBuilder.Build(context);
 
             if (request.Speak)
             {
@@ -349,7 +419,10 @@ public sealed class ConversationTurns(
 
             var runner = scope.ServiceProvider.GetRequiredService<TurnRunner>();
             var toolContext = new ToolContext(accountId, replyId, request.Zone, clock.GetUtcNow());
-            var result = await runner.RunAsync(prompt, Emit, ct, tools, toolContext);
+            // A greeting gets no tools: it's a hello, not a chance to start doing things.
+            var result = userMessage is null
+                ? await runner.RunAsync(prompt, Emit, ct)
+                : await runner.RunAsync(prompt, Emit, ct, tools, toolContext);
 
             if (started || result.Text.Length > 0)
             {
@@ -357,7 +430,7 @@ public sealed class ConversationTurns(
                 await store.AddAsync(new Message
                 {
                     Id = replyId,
-                    ConversationId = userMessage.ConversationId,
+                    ConversationId = conversationId,
                     Role = MessageRole.Assistant,
                     Content = result.Text,
                     Emotion = result.Emotion,

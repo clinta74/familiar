@@ -25,9 +25,10 @@ public sealed class SseClient : IAsyncDisposable
 
     public HttpResponseMessage Response => _response;
 
-    public static async Task<SseClient> ConnectAsync(HttpClient client, string? lastEventId = null)
+    public static async Task<SseClient> ConnectAsync(HttpClient client, string? lastEventId = null, string? timeZone = null)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/conversation/stream");
+        var url = timeZone is null ? "/api/conversation/stream" : $"/api/conversation/stream?timeZone={Uri.EscapeDataString(timeZone)}";
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
         if (lastEventId is not null)
         {
             request.Headers.Add("Last-Event-ID", lastEventId);

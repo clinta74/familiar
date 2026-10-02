@@ -15,10 +15,11 @@ public sealed record FamiliarView(
     double Formality,
     double Expressiveness,
     string? Voice = null,
-    double VoiceSpeed = 1.0)
+    double VoiceSpeed = 1.0,
+    bool? Proactive = null)
 {
     public static FamiliarView From(FamiliarProfile p) =>
-        new(p.Name, p.UserNickname, p.Warmth, p.Playfulness, p.Verbosity, p.Formality, p.Expressiveness, p.Voice, p.VoiceSpeed);
+        new(p.Name, p.UserNickname, p.Warmth, p.Playfulness, p.Verbosity, p.Formality, p.Expressiveness, p.Voice, p.VoiceSpeed, p.Proactive);
 }
 
 /// <param name="Voices">What the TTS service offers; empty if it isn't reachable.</param>
@@ -68,6 +69,7 @@ public static class FamiliarEndpoints
         profile.Expressiveness = FamiliarProfile.Clamp(request.Expressiveness);
         profile.Voice = voice;
         profile.VoiceSpeed = ClampSpeed(request.VoiceSpeed);
+        profile.Proactive = request.Proactive ?? profile.Proactive;
 
         return TypedResults.Ok(FamiliarView.From(await store.SaveProfileAsync(profile, ct)));
     }

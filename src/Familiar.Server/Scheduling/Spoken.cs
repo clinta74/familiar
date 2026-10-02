@@ -1,4 +1,5 @@
 using System.Globalization;
+using Familiar.Domain.Calendars;
 using Familiar.Domain.Scheduling;
 
 namespace Familiar.Server.Scheduling;
@@ -56,6 +57,72 @@ public static class Spoken
             _ => string.Create(CultureInfo.InvariantCulture, $"on {local:dddd d MMMM} at {time}"),
         };
     }
+
+    /// <summary>
+    /// When an event is, relative to now: "in 25 minutes", "now, until 3:00 PM", "tomorrow at 10:00 AM",
+    /// "today (all day)".
+    /// </summary>
+    public static string EventWhen(CalendarEvent e, TimeZoneInfo zone, DateTimeOffset now)
+    {
+        if (e.AllDay)
+        {
+            // Stored as UTC midnight of its date: the date is what matters, not an instant.
+            var today = TimeZoneInfo.ConvertTime(now, zone).Date;
+            var days = (e.StartsAt.UtcDateTime.Date - today).Days;
+            var lasts = (e.EndsAt - e.StartsAt).TotalDays >= 2 ? $", for {(int)(e.EndsAt - e.StartsAt).TotalDays} days" : "";
+            return days switch
+            {
+                < 0 when e.EndsAt.UtcDateTime.Date > today => $"all day, until {e.EndsAt.UtcDateTime.AddDays(-1):dddd}",
+                0 => $"today (all day{lasts})",
+                1 => $"tomorrow (all day{lasts})",
+                > 1 and < 7 => $"on {e.StartsAt.UtcDateTime:dddd} (all day{lasts})",
+                _ => string.Create(CultureInfo.InvariantCulture, $"on {e.StartsAt.UtcDateTime:dddd d MMMM} (all day{lasts})"),
+            };
+        }
+
+        if (e.StartsAt <= now && e.EndsAt > now)
+        {
+            return $"now, until {TimeZoneInfo.ConvertTime(e.EndsAt, zone).ToString("h:mm tt", CultureInfo.InvariantCulture)}";
+        }
+
+        var until = e.StartsAt - now;
+        if (until > TimeSpan.Zero && until < TimeSpan.FromMinutes(90))
+        {
+            return $"in {Duration((int)Math.Max(60, Math.Round(until.TotalMinutes) * 60))}";
+        }
+
+        return When(e.StartsAt, zone, now);
+    }
+
+    /// <summary>Time left, rounded the way it's said: "40 seconds", "10 minutes", "1 hour 5 minutes".</summary>
+    public static string Remaining(TimeSpan left) =>
+        left.TotalSeconds < 90
+            ? Duration((int)Math.Max(1, Math.Round(left.TotalSeconds)))
+            : Duration((int)Math.Round(left.TotalMinutes) * 60);
+
+    /// <summary>Midnight at the start of a local date, as an instant.</summary>
+    public static DateTimeOffset StartOfDay(DateTime date, TimeZoneInfo zone)
+    {
+        var local = DateTime.SpecifyKind(date.Date, DateTimeKind.Unspecified);
+        while (zone.IsInvalidTime(local))
+        {
+            local = local.AddMinutes(30);
+        }
+
+        return new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(local, zone), TimeSpan.Zero);
+    }
+
+    /// <summary>"3 days", "yesterday"-ish: how long ago, roughly, as a person would say it.</summary>
+    public static string Ago(TimeSpan span) => span switch
+    {
+        { TotalHours: < 1 } => "a few minutes",
+        { TotalHours: < 2 } => "about an hour",
+        { TotalHours: < 24 } => $"about {(int)span.TotalHours} hours",
+        { TotalDays: < 2 } => "a day",
+        { TotalDays: < 14 } => $"{(int)span.TotalDays} days",
+        { TotalDays: < 60 } => $"{(int)(span.TotalDays / 7)} weeks",
+        _ => $"{(int)(span.TotalDays / 30)} months",
+    };
 
     /// <summary>What the familiar says when a job fires. Late jobs (fired after a restart) admit it.</summary>
     public static string Announcement(ScheduledJob job, DateTimeOffset now)

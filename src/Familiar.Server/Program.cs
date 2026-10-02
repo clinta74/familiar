@@ -5,9 +5,12 @@ using Familiar.Agent.Turns;
 using Familiar.Persistence;
 using Familiar.Server;
 using Familiar.Server.Auth;
+using Familiar.Server.Awareness;
+using Familiar.Server.Calendars;
 using Familiar.Server.Conversation;
 using Familiar.Server.Familiars;
 using Familiar.Server.Infrastructure;
+using Familiar.Server.Memories;
 using Familiar.Server.Notifications;
 using Familiar.Server.Scheduling;
 using Familiar.Server.Tools;
@@ -35,6 +38,11 @@ builder.Services.AddHttpClient<ILlmClient, OllamaClient>(http =>
     http.Timeout = TimeSpan.FromSeconds(Math.Max(5, llmOptions.RequestTimeoutSeconds));
 });
 builder.Services.AddTransient<TurnRunner>();
+builder.Services.AddHttpClient<IEmbedder, OllamaEmbedder>(http =>
+{
+    http.BaseAddress = new Uri(llmOptions.BaseUrl.TrimEnd('/') + "/");
+    http.Timeout = TimeSpan.FromSeconds(Math.Max(5, llmOptions.RequestTimeoutSeconds));
+});
 
 // Voice (PLAN.md §3.2): the STT and TTS sidecars, both OpenAI-compatible HTTP.
 builder.Services.AddSingleton(speechOptions);
@@ -63,6 +71,22 @@ builder.Services.AddSingleton<VapidKeys>();
 builder.Services.AddHttpClient(nameof(PushSender), http => http.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.AddSingleton<PushSender>();
 builder.Services.AddHostedService<SchedulerLoop>();
+
+// Awareness and memory (PLAN.md §6.3, §6.4, §6.6).
+builder.Services.AddSingleton(builder.Configuration.GetSection(MemoryOptions.Section).Get<MemoryOptions>() ?? new MemoryOptions());
+builder.Services.AddSingleton(builder.Configuration.GetSection(CalendarOptions.Section).Get<CalendarOptions>() ?? new CalendarOptions());
+builder.Services.AddSingleton<MemoryStore>();
+builder.Services.AddHostedService<MemoryExtractor>();
+builder.Services.AddSingleton<CalendarStore>();
+builder.Services.AddHttpClient(nameof(FeedSync), http =>
+{
+    http.Timeout = TimeSpan.FromSeconds(20);
+    http.DefaultRequestHeaders.UserAgent.ParseAdd("Familiar/1.0 (calendar subscription)");
+});
+builder.Services.AddSingleton<FeedSync>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<FeedSync>());
+builder.Services.AddSingleton<SituationProvider>();
+builder.Services.AddSingleton(builder.Configuration.GetSection(AwarenessOptions.Section).Get<AwarenessOptions>() ?? new AwarenessOptions());
 
 builder.Services.AddSingleton<ConversationHub>();
 builder.Services.AddSingleton<ConversationStore>();
@@ -107,6 +131,8 @@ app.MapFamiliarEndpoints();
 app.MapConversationEndpoints();
 app.MapJobEndpoints();
 app.MapNotificationEndpoints();
+app.MapMemoryEndpoints();
+app.MapCalendarEndpoints();
 
 await app.RunAsync();
 

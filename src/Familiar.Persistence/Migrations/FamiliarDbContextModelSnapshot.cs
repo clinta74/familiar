@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using Pgvector;
 
 #nullable disable
 
@@ -21,6 +22,7 @@ namespace Familiar.Persistence.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "citext");
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Familiar.Domain.Accounts.AccessToken", b =>
@@ -141,6 +143,116 @@ namespace Familiar.Persistence.Migrations
                     b.ToTable("accounts", (string)null);
                 });
 
+            modelBuilder.Entity("Familiar.Domain.Calendars.CalendarEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<bool>("AllDay")
+                        .HasColumnType("boolean")
+                        .HasColumnName("all_day");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("EndsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ends_at");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("external_id");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("location");
+
+                    b.Property<Guid>("SourceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_id");
+
+                    b.Property<DateTimeOffset>("StartsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("starts_at");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id")
+                        .HasName("pk_calendar_events");
+
+                    b.HasIndex("SourceId")
+                        .HasDatabaseName("ix_calendar_events_source_id");
+
+                    b.HasIndex("AccountId", "StartsAt")
+                        .HasDatabaseName("ix_calendar_events_account_id_starts_at");
+
+                    b.ToTable("calendar_events", (string)null);
+                });
+
+            modelBuilder.Entity("Familiar.Domain.Calendars.CalendarSource", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTimeOffset?>("LastSyncedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_synced_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("ProtectedUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("protected_url");
+
+                    b.HasKey("Id")
+                        .HasName("pk_calendar_sources");
+
+                    b.HasIndex("AccountId")
+                        .HasDatabaseName("ix_calendar_sources_account_id");
+
+                    b.ToTable("calendar_sources", (string)null);
+                });
+
             modelBuilder.Entity("Familiar.Domain.Conversations.Conversation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -156,6 +268,10 @@ namespace Familiar.Persistence.Migrations
                     b.Property<DateTimeOffset>("LastMessageAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_message_at");
+
+                    b.Property<DateTimeOffset?>("MemoryCheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("memory_checked_at");
 
                     b.Property<DateTimeOffset>("StartedAt")
                         .HasColumnType("timestamp with time zone")
@@ -245,6 +361,10 @@ namespace Familiar.Persistence.Migrations
                         .HasColumnType("double precision")
                         .HasColumnName("formality");
 
+                    b.Property<DateTimeOffset?>("LastGreetedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_greeted_at");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -254,6 +374,10 @@ namespace Familiar.Persistence.Migrations
                     b.Property<double>("Playfulness")
                         .HasColumnType("double precision")
                         .HasColumnName("playfulness");
+
+                    b.Property<bool>("Proactive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("proactive");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -291,6 +415,55 @@ namespace Familiar.Persistence.Migrations
                         .HasDatabaseName("ix_familiar_profiles_account_id");
 
                     b.ToTable("familiar_profiles", (string)null);
+                });
+
+            modelBuilder.Entity("Familiar.Domain.Memories.MemoryFact", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Vector>("Embedding")
+                        .HasColumnType("vector(768)")
+                        .HasColumnName("embedding");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("source");
+
+                    b.Property<Guid?>("SourceMessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_message_id");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("text");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_memories");
+
+                    b.HasIndex("AccountId", "CreatedAt")
+                        .HasDatabaseName("ix_memories_account_id_created_at");
+
+                    b.ToTable("memories", (string)null);
                 });
 
             modelBuilder.Entity("Familiar.Domain.Notifications.PushSubscription", b =>
@@ -527,6 +700,26 @@ namespace Familiar.Persistence.Migrations
                     b.Navigation("Account");
                 });
 
+            modelBuilder.Entity("Familiar.Domain.Calendars.CalendarEvent", b =>
+                {
+                    b.HasOne("Familiar.Domain.Calendars.CalendarSource", null)
+                        .WithMany()
+                        .HasForeignKey("SourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_calendar_events_calendar_sources_source_id");
+                });
+
+            modelBuilder.Entity("Familiar.Domain.Calendars.CalendarSource", b =>
+                {
+                    b.HasOne("Familiar.Domain.Accounts.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_calendar_sources_accounts_account_id");
+                });
+
             modelBuilder.Entity("Familiar.Domain.Conversations.Conversation", b =>
                 {
                     b.HasOne("Familiar.Domain.Accounts.Account", null)
@@ -555,6 +748,16 @@ namespace Familiar.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_familiar_profiles_accounts_account_id");
+                });
+
+            modelBuilder.Entity("Familiar.Domain.Memories.MemoryFact", b =>
+                {
+                    b.HasOne("Familiar.Domain.Accounts.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_memories_accounts_account_id");
                 });
 
             modelBuilder.Entity("Familiar.Domain.Notifications.PushSubscription", b =>

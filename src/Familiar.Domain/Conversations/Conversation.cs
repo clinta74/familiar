@@ -11,5 +11,11 @@ public sealed class Conversation
 
     public DateTimeOffset LastMessageAt { get; set; }
 
+    /// <summary>
+    /// How far the memory pass has read: messages created after this haven't been looked at for
+    /// things worth remembering yet.
+    /// </summary>
+    public DateTimeOffset? MemoryCheckedAt { get; set; }
+
     public List<Message> Messages { get; } = [];
 }

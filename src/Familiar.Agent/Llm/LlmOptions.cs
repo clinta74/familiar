@@ -25,6 +25,9 @@ public sealed class LlmOptions
     /// <summary>How many earlier messages go into each prompt.</summary>
     public int HistoryMessages { get; set; } = 20;
 
+    /// <summary>For memories (PLAN.md §6.6). 768 dimensions; changing it means re-embedding every memory.</summary>
+    public string EmbeddingModel { get; set; } = "nomic-embed-text";
+
     public override string ToString() =>
-        $"{Model} at {BaseUrl}, temperature {Temperature}, history {HistoryMessages}, timeout {RequestTimeoutSeconds}s";
+        $"{Model} at {BaseUrl}, temperature {Temperature}, history {HistoryMessages}, embeddings {EmbeddingModel}, timeout {RequestTimeoutSeconds}s";
 }

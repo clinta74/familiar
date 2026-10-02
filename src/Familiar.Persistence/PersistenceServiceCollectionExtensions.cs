@@ -12,12 +12,12 @@ public static class PersistenceServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddFamiliarPersistence(this IServiceCollection services, string connectionString)
     {
-        var dataSource = new NpgsqlDataSourceBuilder(connectionString)
-            .EnableDynamicJson()
-            .Build();
+        var builder = new NpgsqlDataSourceBuilder(connectionString).EnableDynamicJson();
+        builder.UseVector();
+        var dataSource = builder.Build();
 
         services.AddSingleton(dataSource);
-        services.AddPooledDbContextFactory<FamiliarDbContext>(options => options.UseNpgsql(dataSource));
+        services.AddPooledDbContextFactory<FamiliarDbContext>(options => options.UseNpgsql(dataSource, npgsql => npgsql.UseVector()));
         services.AddScoped(sp => sp.GetRequiredService<IDbContextFactory<FamiliarDbContext>>().CreateDbContext());
 
         return services;
