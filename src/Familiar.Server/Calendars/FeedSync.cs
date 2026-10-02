@@ -1,5 +1,3 @@
-using System.Net;
-using System.Net.Sockets;
 using Familiar.Domain.Calendars;
 
 namespace Familiar.Server.Calendars;
@@ -29,45 +27,8 @@ public sealed class FeedSync(
     TimeProvider clock,
     ILogger<FeedSync> logger) : BackgroundService
 {
-    /// <summary>
-    /// Whether a URL is one Familiar will fetch: http(s) or webcal, and not this machine or a
-    /// link-local address. The local network is allowed - a Nextcloud on the LAN is a fine
-    /// calendar - so this is a guard against mistakes and the obvious abuses, not a sandbox.
-    /// </summary>
-    public static Uri? Acceptable(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text) || text.Length > 2048 || !Uri.TryCreate(text.Trim(), UriKind.Absolute, out var uri))
-        {
-            return null;
-        }
-
-        // webcal:// is just "subscribe to this with your calendar app" - it's https underneath.
-        if (uri.Scheme.Equals("webcal", StringComparison.OrdinalIgnoreCase))
-        {
-            uri = new UriBuilder(uri) { Scheme = Uri.UriSchemeHttps, Port = uri.IsDefaultPort ? -1 : uri.Port }.Uri;
-        }
-
-        if (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp)
-        {
-            return null;
-        }
-
-        if (uri.IsLoopback || uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
-            || uri.Host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        if (IPAddress.TryParse(uri.Host.Trim('[', ']'), out var address)
-            && (IPAddress.IsLoopback(address) || address.Equals(IPAddress.Any) || address.Equals(IPAddress.IPv6Any)
-                || (address.AddressFamily == AddressFamily.InterNetwork && address.GetAddressBytes() is [169, 254, ..])
-                || address.IsIPv6LinkLocal))
-        {
-            return null;
-        }
-
-        return uri;
-    }
+    /// <summary>Whether a URL is one Familiar will fetch as a feed: see <see cref="Infrastructure.OutboundUrl"/>.</summary>
+    public static Uri? Acceptable(string? text) => Infrastructure.OutboundUrl.Check(text, allowWebcal: true);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

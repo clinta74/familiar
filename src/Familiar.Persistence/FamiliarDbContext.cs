@@ -2,6 +2,7 @@ using Familiar.Domain.Accounts;
 using Familiar.Domain.Calendars;
 using Familiar.Domain.Conversations;
 using Familiar.Domain.Familiars;
+using Familiar.Domain.Hooks;
 using Familiar.Domain.Memories;
 using Familiar.Domain.Notifications;
 using Familiar.Domain.Scheduling;
@@ -36,6 +37,12 @@ public sealed class FamiliarDbContext(DbContextOptions<FamiliarDbContext> option
     public DbSet<MemoryFact> Memories => Set<MemoryFact>();
 
     public DbSet<AvatarAsset> AvatarAssets => Set<AvatarAsset>();
+
+    public DbSet<HookToken> HookTokens => Set<HookToken>();
+
+    public DbSet<Webhook> Webhooks => Set<Webhook>();
+
+    public DbSet<McpServer> McpServers => Set<McpServer>();
 
     public DbSet<CalendarSource> CalendarSources => Set<CalendarSource>();
 

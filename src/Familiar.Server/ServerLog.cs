@@ -131,4 +131,10 @@ internal static partial class ServerLog
 
     [LoggerMessage(102, LogLevel.Error, "Calendar sync pass failed; retrying shortly")]
     public static partial void FeedPassFailed(this ILogger logger, Exception exception);
+
+    [LoggerMessage(110, LogLevel.Error, "Couldn't dispatch webhook event {Event}")]
+    public static partial void WebhookFailed(this ILogger logger, Exception exception, string @event);
+
+    [LoggerMessage(111, LogLevel.Warning, "Webhook {WebhookId} didn't take {Event}: {Result}")]
+    public static partial void WebhookRejected(this ILogger logger, Guid webhookId, string @event, string result);
 }

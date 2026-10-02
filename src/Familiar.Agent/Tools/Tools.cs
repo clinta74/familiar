@@ -42,7 +42,8 @@ public interface ITool
 /// </summary>
 public interface IToolExecutor
 {
-    IReadOnlyList<ToolDefinition> Definitions { get; }
+    /// <summary>The tools this user's familiar has: the built-in ones, and any from their MCP servers.</summary>
+    Task<IReadOnlyList<ToolDefinition>> DefinitionsAsync(ToolContext context, CancellationToken ct);
 
     Task<ToolResult> ExecuteAsync(ToolCall call, ToolContext context, CancellationToken ct);
 }

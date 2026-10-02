@@ -98,10 +98,11 @@ public sealed class TurnRunner(ILlmClient llm)
         }
 
         var messages = prompt.ToList();
-        var definitions = tools is not null && toolContext is not null ? tools.Definitions : null;
 
         try
         {
+            var definitions = tools is not null && toolContext is not null ? await tools.DefinitionsAsync(toolContext, ct) : null;
+
             for (var round = 0; round <= MaxToolRounds; round++)
             {
                 var calls = new List<ToolCall>();

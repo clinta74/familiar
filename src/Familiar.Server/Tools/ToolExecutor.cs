@@ -79,16 +79,24 @@ public sealed class ToolExecutor(
     IEnumerable<ITool> tools,
     ToolConfirmations confirmations,
     IDbContextFactory<FamiliarDbContext> db,
+    Hooks.WebhookDispatcher webhooks,
+    Hooks.McpTools mcp,
     TimeProvider clock,
     ILogger<ToolExecutor> logger) : IToolExecutor
 {
     private readonly Dictionary<string, ITool> _tools = tools.ToDictionary(t => t.Definition.Name, StringComparer.Ordinal);
 
-    public IReadOnlyList<ToolDefinition> Definitions => [.. _tools.Values.Select(t => t.Definition)];
+    /// <summary>The built-in tools, the same for everyone.</summary>
+    public IReadOnlyList<ToolDefinition> BuiltIn => [.. _tools.Values.Select(t => t.Definition)];
+
+    public async Task<IReadOnlyList<ToolDefinition>> DefinitionsAsync(ToolContext context, CancellationToken ct) =>
+        [.. BuiltIn, .. (await mcp.ToolsForAsync(context.AccountId, ct)).Select(t => t.Definition)];
 
     public async Task<ToolResult> ExecuteAsync(ToolCall call, ToolContext context, CancellationToken ct)
     {
-        if (!_tools.TryGetValue(call.Name, out var tool))
+        var tool = _tools.GetValueOrDefault(call.Name)
+            ?? (await mcp.ToolsForAsync(context.AccountId, ct)).FirstOrDefault(t => t.Definition.Name == call.Name);
+        if (tool is null)
         {
             logger.UnknownTool(call.Name);
             return ToolResult.Failure($"There's no tool called {call.Name}.");
@@ -144,6 +152,13 @@ public sealed class ToolExecutor(
         });
         await audit.SaveChangesAsync(CancellationToken.None);
 
+        webhooks.Raise(context.AccountId, Hooks.WebhookEvents.ToolUsed, new
+        {
+            tool = call.Name,
+            outcome = outcome.ToString().ToLowerInvariant(),
+            summary = result.Summary,
+        });
+
         return result;
     }
 }
@@ -168,5 +183,5 @@ public static class ToolRegistration
 
     /// <summary>For the logs: what the familiar can do.</summary>
     public static string Describe(IToolExecutor executor) =>
-        string.Join(", ", executor.Definitions.Select(d => $"{d.Name} ({d.Risk})"));
+        executor is ToolExecutor tools ? string.Join(", ", tools.BuiltIn.Select(d => $"{d.Name} ({d.Risk})")) : executor.GetType().Name;
 }

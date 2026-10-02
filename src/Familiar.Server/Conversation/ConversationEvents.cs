@@ -79,12 +79,32 @@ public sealed record AudioEndEvent(Guid ReplyId, int Clips);
 
 public sealed record EmptyEvent;
 
-/// <summary>A timer or reminder went off. The reply that announces it arrives as usual; this is for the chime.</summary>
-/// <param name="JobId">The job that fired.</param>
-/// <param name="Kind">Timer or reminder.</param>
-/// <param name="Label">What it was for.</param>
+/// <summary>
+/// Something went off or arrived: a timer, a reminder, an announcement from a hook. The reply that
+/// says it arrives as usual; this is for the chime.
+/// </summary>
+/// <param name="Id">The job or announcement.</param>
+/// <param name="Kind">One of <see cref="NotifyKinds"/>.</param>
+/// <param name="Label">What it was for, or who sent it.</param>
 /// <param name="Text">What the familiar says about it.</param>
-public sealed record NotifyEvent(Guid JobId, Familiar.Domain.Scheduling.JobKind Kind, string Label, string Text);
+public sealed record NotifyEvent(Guid Id, string Kind, string Label, string Text);
+
+public static class NotifyKinds
+{
+    public const string Timer = "timer";
+    public const string Reminder = "reminder";
+    public const string Announcement = "announcement";
+}
+
+/// <summary>Something the familiar says unprompted, word for word.</summary>
+/// <param name="AccountId">Whose familiar.</param>
+/// <param name="Text">What it says.</param>
+/// <param name="Emotion">How it looks saying it.</param>
+/// <param name="Intensity">0-1.</param>
+/// <param name="Gesture">A gesture to go with it, if any.</param>
+/// <param name="Notify">The notify event that goes first.</param>
+public sealed record Announcement(
+    Guid AccountId, string Text, Emotion Emotion, double Intensity, Gesture? Gesture, NotifyEvent Notify);
 
 /// <summary>A stored message, as both the history endpoint and the <c>message</c> event show it.</summary>
 public sealed record MessageView(

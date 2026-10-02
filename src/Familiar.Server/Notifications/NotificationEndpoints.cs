@@ -21,7 +21,39 @@ public sealed record UnsubscribeRequest(string? Endpoint);
 public sealed record PushKeyResponse(string PublicKey);
 
 /// <summary>Something that just happened, for the service worker to show as a notification.</summary>
-public sealed record NotificationView(Guid Id, JobKind Kind, string Title, string Body, DateTimeOffset At);
+public sealed record NotificationView(Guid Id, string Kind, string Title, string Body, DateTimeOffset At);
+
+/// <summary>
+/// Announcements from hooks in the last few minutes, for the service worker. In memory: unlike a
+/// fired timer there's no row to find it by, and one that's lost in a restart is past its moment.
+/// </summary>
+public sealed class RecentAnnouncements(TimeProvider clock)
+{
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, List<NotificationView>> _byAccount = new();
+
+    public void Add(Guid accountId, NotificationView notification)
+    {
+        var list = _byAccount.GetOrAdd(accountId, _ => []);
+        lock (list)
+        {
+            list.Add(notification);
+            list.RemoveAll(n => n.At < clock.GetUtcNow() - NotificationEndpoints.RecentWindow);
+        }
+    }
+
+    public IReadOnlyList<NotificationView> For(Guid accountId)
+    {
+        if (!_byAccount.TryGetValue(accountId, out var list))
+        {
+            return [];
+        }
+
+        lock (list)
+        {
+            return [.. list.Where(n => n.At >= clock.GetUtcNow() - NotificationEndpoints.RecentWindow)];
+        }
+    }
+}
 
 public static class NotificationEndpoints
 {
@@ -91,18 +123,21 @@ public static class NotificationEndpoints
 
     /// <summary>What the service worker shows when a push arrives (the push itself says nothing).</summary>
     private static async Task<IReadOnlyList<NotificationView>> RecentAsync(
-        HttpContext http, SchedulerStore store, Conversation.ConversationStore conversations, TimeProvider clock, CancellationToken ct)
+        HttpContext http, SchedulerStore store, Conversation.ConversationStore conversations, RecentAnnouncements announcements,
+        TimeProvider clock, CancellationToken ct)
     {
         var accountId = http.User.AccountId()!.Value;
         var fired = await store.FiredSinceAsync(accountId, clock.GetUtcNow() - RecentWindow, ct);
         var name = (await conversations.ProfileAsync(accountId, ct)).Name;
 
-        return [.. fired.Select(job => new NotificationView(
+        var jobs = fired.Select(job => new NotificationView(
             job.Id,
-            job.Kind,
+            job.Kind == JobKind.Timer ? Conversation.NotifyKinds.Timer : Conversation.NotifyKinds.Reminder,
             job.Kind == JobKind.Timer ? $"{name}: time's up" : $"{name}: reminder",
             Spoken.Announcement(job, job.FiredAt ?? job.DueAt),
-            job.FiredAt ?? job.DueAt))];
+            job.FiredAt ?? job.DueAt));
+
+        return [.. jobs.Concat(announcements.For(accountId)).OrderBy(n => n.At)];
     }
 
     private static string? Truncate(string? value, int max) => value is null || value.Length <= max ? value : null;

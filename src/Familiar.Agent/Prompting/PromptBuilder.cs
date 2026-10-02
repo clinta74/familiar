@@ -72,14 +72,14 @@ public static class PromptBuilder
         """;
 
     /// <summary>Asked to speak first, with nothing from the user: a greeting (PLAN.md §6.3).</summary>
-    internal const string GreetingCue =
+    public const string GreetingCue =
         "[They've just opened the app and haven't said anything yet. Greet them in a sentence or two, the way a " +
         "friend would after however long it's been. If something in the notes is coming up soon, mention it.]";
 
     public static IReadOnlyList<ChatMessage> Build(PromptContext context) => Assemble(context, context.UserText);
 
-    /// <summary>A turn with no user message: the familiar speaks first.</summary>
-    public static IReadOnlyList<ChatMessage> BuildGreeting(PromptContext context) => Assemble(context, GreetingCue);
+    /// <summary>A turn with no user message: the familiar speaks first, prompted by a bracketed cue.</summary>
+    public static IReadOnlyList<ChatMessage> BuildUnprompted(PromptContext context, string cue) => Assemble(context, cue);
 
     private static IReadOnlyList<ChatMessage> Assemble(PromptContext context, string last)
     {

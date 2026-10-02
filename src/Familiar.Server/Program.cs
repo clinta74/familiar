@@ -7,6 +7,7 @@ using Familiar.Server;
 using Familiar.Server.Auth;
 using Familiar.Server.Awareness;
 using Familiar.Server.Calendars;
+using Familiar.Server.Hooks;
 using Familiar.Server.Conversation;
 using Familiar.Server.Familiars;
 using Familiar.Server.Infrastructure;
@@ -88,6 +89,14 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<FeedSync>());
 builder.Services.AddSingleton<SituationProvider>();
 builder.Services.AddSingleton(builder.Configuration.GetSection(AwarenessOptions.Section).Get<AwarenessOptions>() ?? new AwarenessOptions());
 
+// Hooks (PLAN.md §6.5): announcements in, webhooks out.
+builder.Services.AddSingleton<RecentAnnouncements>();
+builder.Services.AddHttpClient(nameof(WebhookDispatcher), http => http.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddSingleton<WebhookDispatcher>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<WebhookDispatcher>());
+builder.Services.AddHttpClient(nameof(McpTools), http => http.Timeout = TimeSpan.FromSeconds(30));
+builder.Services.AddSingleton<McpTools>();
+
 builder.Services.AddSingleton<ConversationHub>();
 builder.Services.AddSingleton<ConversationStore>();
 builder.Services.AddSingleton<ConversationTurns>();
@@ -134,6 +143,8 @@ app.MapJobEndpoints();
 app.MapNotificationEndpoints();
 app.MapMemoryEndpoints();
 app.MapCalendarEndpoints();
+app.MapHookEndpoints();
+app.MapMcpEndpoints();
 
 await app.RunAsync();
 

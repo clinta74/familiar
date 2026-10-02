@@ -5,7 +5,8 @@ using System.Text;
 namespace Familiar.Server.Auth;
 
 /// <summary>
-/// The device token string: <c>fam_&lt;id&gt;_&lt;secret&gt;</c>.
+/// Token strings: <c>fam_&lt;id&gt;_&lt;secret&gt;</c> for devices, and the same shape with another
+/// prefix for narrower tokens (<c>fhk_</c>: announce-only hook tokens).
 /// </summary>
 /// <remarks>
 /// The prefix makes a leaked token greppable and recognisable to secret scanners. The id is the
@@ -18,28 +19,33 @@ public static class AccessTokenSecret
 
     private const int IdLength = 32;
 
-    public static (string Token, string SecretHash) Mint(Guid id)
+    public static (string Token, string SecretHash) Mint(Guid id) => Mint(id, Prefix);
+
+    public static (string Token, string SecretHash) Mint(Guid id, string prefix)
     {
         var secret = Base64Url(RandomNumberGenerator.GetBytes(32));
-        return ($"{Prefix}{id:N}_{secret}", Hash(secret));
+        return ($"{prefix}{id:N}_{secret}", Hash(secret));
     }
 
     /// <summary>Splits a token into its id and secret. No I/O; says nothing about validity.</summary>
-    public static bool TryParse(string? token, out Guid id, [NotNullWhen(true)] out string? secret)
+    public static bool TryParse(string? token, out Guid id, [NotNullWhen(true)] out string? secret) =>
+        TryParse(token, Prefix, out id, out secret);
+
+    public static bool TryParse(string? token, string prefix, out Guid id, [NotNullWhen(true)] out string? secret)
     {
         id = Guid.Empty;
         secret = null;
 
         if (token is null
-            || token.Length < Prefix.Length + IdLength + 2
-            || !token.StartsWith(Prefix, StringComparison.Ordinal)
-            || token[Prefix.Length + IdLength] != '_'
-            || !Guid.TryParseExact(token.AsSpan(Prefix.Length, IdLength), "N", out id))
+            || token.Length < prefix.Length + IdLength + 2
+            || !token.StartsWith(prefix, StringComparison.Ordinal)
+            || token[prefix.Length + IdLength] != '_'
+            || !Guid.TryParseExact(token.AsSpan(prefix.Length, IdLength), "N", out id))
         {
             return false;
         }
 
-        secret = token[(Prefix.Length + IdLength + 1)..];
+        secret = token[(prefix.Length + IdLength + 1)..];
         return true;
     }
 

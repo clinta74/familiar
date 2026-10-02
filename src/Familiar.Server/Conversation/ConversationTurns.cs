@@ -33,6 +33,7 @@ public sealed class ConversationTurns(
     IToolExecutor tools,
     SituationProvider situations,
     AwarenessOptions awareness,
+    Hooks.WebhookDispatcher webhooks,
     IServiceScopeFactory scopes,
     LlmOptions llmOptions,
     SpeechOptions speechOptions,
@@ -155,13 +156,45 @@ public sealed class ConversationTurns(
     }
 
     /// <summary>
-    /// A timer or reminder went off: the familiar says so, as a reply of its own (PLAN.md §6.2). It
-    /// waits for a reply in progress to finish rather than talking over it, and like any reply it can
-    /// be interrupted.
+    /// A timer or reminder went off: the familiar says so, as a reply of its own (PLAN.md §6.2).
     /// </summary>
-    public async Task AnnounceAsync(ScheduledJob job, string text, CancellationToken ct)
+    public Task AnnounceAsync(ScheduledJob job, string text, CancellationToken ct)
     {
-        var channel = hub.For(job.AccountId);
+        var late = clock.GetUtcNow() - job.DueAt > TimeSpan.FromMinutes(1);
+        var (emotion, intensity, gesture) = (late, job.Kind) switch
+        {
+            (true, _) => (Emotion.Sad, 0.4, Gesture.Shrug),
+            (_, JobKind.Timer) => (Emotion.Joy, 0.7, Gesture.Excited),
+            _ => (Emotion.Relaxed, 0.6, Gesture.Nod),
+        };
+
+        var kind = job.Kind == JobKind.Timer ? NotifyKinds.Timer : NotifyKinds.Reminder;
+        return AnnounceAsync(new Announcement(job.AccountId, text, emotion, intensity, gesture, new NotifyEvent(job.Id, kind, job.Label, text)), ct);
+    }
+
+    /// <summary>
+    /// The familiar says something unprompted, word for word: an announcement. It waits for a reply
+    /// in progress to finish rather than talking over it, and like any reply it can be interrupted.
+    /// </summary>
+    public async Task AnnounceAsync(Announcement announcement, CancellationToken ct)
+    {
+        var channel = hub.For(announcement.AccountId);
+        await QueueAsync(channel, token => SayAsync(channel, announcement, token), ct);
+    }
+
+    /// <summary>
+    /// The familiar says something unprompted in its own words: the model gets <paramref name="cue"/>
+    /// in place of a user message, and no tools. For "tell them…" from a hook.
+    /// </summary>
+    public async Task TellAsync(Guid accountId, string cue, TimeZoneInfo zone, bool speak, CancellationToken ct)
+    {
+        var channel = hub.For(accountId);
+        await QueueAsync(channel, token => RunAsync(channel, accountId, null, new TurnRequest(zone, speak, clock.GetTimestamp()), token, cue), ct);
+    }
+
+    /// <summary>Runs something as the account's next turn, once the one in progress (if any) is done.</summary>
+    private async Task QueueAsync(AccountChannel channel, Func<CancellationToken, Task> turn, CancellationToken ct)
+    {
         await channel.TurnGate.WaitAsync(ct);
         try
         {
@@ -174,7 +207,7 @@ public sealed class ConversationTurns(
 
             var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.ApplicationStopping);
             channel.TurnCancellation = cancellation;
-            channel.TurnTask = Task.Run(() => SayAsync(channel, job, text, cancellation.Token), CancellationToken.None);
+            channel.TurnTask = Task.Run(() => turn(cancellation.Token), CancellationToken.None);
         }
         finally
         {
@@ -182,30 +215,23 @@ public sealed class ConversationTurns(
         }
     }
 
-    private async Task SayAsync(AccountChannel channel, ScheduledJob job, string text, CancellationToken ct)
+    private async Task SayAsync(AccountChannel channel, Announcement announcement, CancellationToken ct)
     {
         var replyId = Guid.CreateVersion7();
         VoicePipeline? voice = null;
         await using var scope = scopes.CreateAsyncScope();
+        var (accountId, text, emotion, intensity, gesture, notify) = announcement;
 
         try
         {
-            var profile = await store.ProfileAsync(job.AccountId, ct);
-            var conversation = await store.CurrentAsync(job.AccountId, ct);
-
-            var late = clock.GetUtcNow() - job.DueAt > TimeSpan.FromMinutes(1);
-            var (emotion, intensity, gesture) = (late, job.Kind) switch
-            {
-                (true, _) => (Emotion.Sad, 0.4, Gesture.Shrug),
-                (_, JobKind.Timer) => (Emotion.Joy, 0.7, Gesture.Excited),
-                _ => (Emotion.Relaxed, 0.6, Gesture.Nod),
-            };
+            var profile = await store.ProfileAsync(accountId, ct);
+            var conversation = await store.CurrentAsync(accountId, ct);
 
             voice = new VoicePipeline(
                 scope.ServiceProvider.GetRequiredService<ITextToSpeech>(),
                 clips,
                 channel,
-                job.AccountId,
+                accountId,
                 replyId,
                 profile.Voice ?? speechOptions.DefaultVoice,
                 profile.VoiceSpeed,
@@ -213,11 +239,15 @@ public sealed class ConversationTurns(
                 logger,
                 ct);
 
-            channel.Publish(EventTypes.Notify, new NotifyEvent(job.Id, job.Kind, job.Label, text));
+            channel.Publish(EventTypes.Notify, notify);
             channel.Publish(EventTypes.Expression, new ExpressionEvent(emotion, Math.Round(intensity * profile.Expressiveness, 2)));
             channel.Publish(EventTypes.ReplyStart, new ReplyStartEvent(replyId));
             channel.Publish(EventTypes.State, new StateEvent(FamiliarState.Speaking));
-            channel.Publish(EventTypes.Gesture, new GestureEvent(gesture));
+            if (gesture is { } g)
+            {
+                channel.Publish(EventTypes.Gesture, new GestureEvent(g));
+            }
+
             channel.Publish(EventTypes.ReplyDelta, new ReplyDeltaEvent(replyId, text));
             voice.Add(text);
 
@@ -241,7 +271,7 @@ public sealed class ConversationTurns(
         }
         catch (Exception exception)
         {
-            logger.AnnounceFailed(exception, job.Id);
+            logger.AnnounceFailed(exception, notify.Id);
         }
         finally
         {
@@ -323,7 +353,7 @@ public sealed class ConversationTurns(
             var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.ApplicationStopping);
             channel.TurnCancellation = cancellation;
             channel.TurnTask = Task.Run(
-                () => RunAsync(channel, accountId, null, new TurnRequest(zone, speak, clock.GetTimestamp()), cancellation.Token),
+                () => RunAsync(channel, accountId, null, new TurnRequest(zone, speak, clock.GetTimestamp()), cancellation.Token, PromptBuilder.GreetingCue),
                 CancellationToken.None);
         }
         finally
@@ -335,8 +365,12 @@ public sealed class ConversationTurns(
     /// <summary>How long a quiet spell must be before the familiar greets, and how often it may.</summary>
     internal static readonly TimeSpan GreetingGap = TimeSpan.FromHours(3);
 
-    /// <summary>One reply. With no <paramref name="userMessage"/>, a greeting: the familiar speaks first.</summary>
-    private async Task RunAsync(AccountChannel channel, Guid accountId, Message? userMessage, TurnRequest request, CancellationToken ct)
+    /// <summary>
+    /// One reply. With no <paramref name="userMessage"/>, the familiar speaks first, prompted by
+    /// <paramref name="cue"/> (a greeting, or something a hook asked it to pass on).
+    /// </summary>
+    private async Task RunAsync(
+        AccountChannel channel, Guid accountId, Message? userMessage, TurnRequest request, CancellationToken ct, string? cue = null)
     {
         var replyId = Guid.CreateVersion7();
         var started = false;
@@ -357,7 +391,7 @@ public sealed class ConversationTurns(
             var history = await store.HistoryAsync(conversationId, userMessage?.Id ?? Guid.Empty, llmOptions.HistoryMessages, ct);
             var situation = await situations.ForAsync(accountId, request.Zone, now, userMessage?.CreatedAt ?? now, ct);
             var context = new PromptContext(profile, username, history, userMessage?.Content ?? "", now, request.Zone, situation.Notes, situation.Memories);
-            var prompt = userMessage is null ? PromptBuilder.BuildGreeting(context) : PromptBuilder.Build(context);
+            var prompt = userMessage is null ? PromptBuilder.BuildUnprompted(context, cue ?? PromptBuilder.GreetingCue) : PromptBuilder.Build(context);
 
             if (request.Speak)
             {
@@ -441,6 +475,14 @@ public sealed class ConversationTurns(
 
                 channel.Publish(EventTypes.ReplyEnd,
                     new ReplyEndEvent(replyId, result.Text, result.Emotion, result.Intensity, result.Interrupted));
+                webhooks.Raise(accountId, Hooks.WebhookEvents.Reply, new
+                {
+                    id = replyId,
+                    text = result.Text,
+                    emotion = result.Emotion.ToString().ToLowerInvariant(),
+                    interrupted = result.Interrupted,
+                    unprompted = userMessage is null,
+                });
             }
 
             if (voice is not null)

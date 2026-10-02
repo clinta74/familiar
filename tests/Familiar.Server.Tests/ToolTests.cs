@@ -97,7 +97,7 @@ public sealed class ToolTests(PostgresFixture postgres)
         Assert.Contains(app.Tts.Requests, r => r.Text.Contains("timer is done", StringComparison.Ordinal));
 
         var recent = await (await client.GetAsync("/api/notifications/recent")).ReadAsync<List<NotificationView>>();
-        Assert.Equal(notify.JobId, Assert.Single(recent).Id);
+        Assert.Equal(notify.Id, Assert.Single(recent).Id);
         Assert.Empty(await (await client.GetAsync("/api/jobs")).ReadAsync<List<JobView>>());
     }
 
@@ -423,8 +423,8 @@ public sealed class TurnRunnerToolTests
     {
         public int Calls { get; private set; }
 
-        public IReadOnlyList<ToolDefinition> Definitions { get; } =
-            [new("list_scheduled", "List.", ToolSchema.Object(), ToolRisk.Read)];
+        public Task<IReadOnlyList<ToolDefinition>> DefinitionsAsync(ToolContext context, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<ToolDefinition>>([new("list_scheduled", "List.", ToolSchema.Object(), ToolRisk.Read)]);
 
         public Task<ToolResult> ExecuteAsync(ToolCall call, ToolContext context, CancellationToken ct)
         {

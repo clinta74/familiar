@@ -67,6 +67,7 @@ public sealed class SchedulerLoop(
     SchedulerSignal signal,
     ConversationTurns turns,
     PushSender push,
+    Hooks.WebhookDispatcher webhooks,
     TimeProvider clock,
     ILogger<SchedulerLoop> logger) : BackgroundService
 {
@@ -119,5 +120,14 @@ public sealed class SchedulerLoop(
         }
 
         await push.NotifyAsync(job.AccountId, ct);
+
+        webhooks.Raise(job.AccountId, job.Kind == JobKind.Timer ? Hooks.WebhookEvents.TimerDone : Hooks.WebhookEvents.ReminderDue, new
+        {
+            id = job.Id,
+            label = job.Label,
+            dueAt = job.DueAt,
+            durationSeconds = job.DurationSeconds,
+            text,
+        });
     }
 }
