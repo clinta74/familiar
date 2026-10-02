@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { authApi, type Device } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { FamiliarSettings } from './FamiliarSettings';
+import { CalendarSettings } from './CalendarSettings';
+import { MemorySettings } from './MemorySettings';
 import { NotificationSettings } from './NotificationSettings';
 import { Shell } from './Shell';
 
@@ -102,6 +104,14 @@ export function SettingsPage() {
         <section className="card">
           <h2>Your familiar</h2>
           <FamiliarSettings />
+        </section>
+        <section className="card">
+          <h2>What it remembers</h2>
+          <MemorySettings />
+        </section>
+        <section className="card">
+          <h2>Calendars</h2>
+          <CalendarSettings />
         </section>
         <section className="card">
           <h2>Notifications</h2>

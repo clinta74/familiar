@@ -42,7 +42,7 @@ export interface ConversationHandlers {
  * The live conversation: history on load, then the event stream (PLAN.md §3.1). EventSource does
  * the reconnecting, and sends Last-Event-ID so the server replays what was missed.
  */
-export function useConversation(handlers: ConversationHandlers) {
+export function useConversation(handlers: ConversationHandlers, options: { speakGreeting?: boolean } = {}) {
   const [state, dispatch] = useReducer(conversationReducer, initialConversation);
 
   // The stream outlives renders; handlers are read through a ref so it never has to reconnect.
@@ -61,7 +61,12 @@ export function useConversation(handlers: ConversationHandlers) {
 
     void loadHistory();
 
-    const source = new EventSource('/api/conversation/stream');
+    // The time zone, so a greeting knows what "this morning" means; and whether to speak it.
+    const query = new URLSearchParams({
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      speak: String(options.speakGreeting ?? false),
+    });
+    const source = new EventSource(`/api/conversation/stream?${query.toString()}`);
     const on = <T,>(type: string, handle: (payload: T) => void) =>
       source.addEventListener(type, (event) => handle(JSON.parse((event as MessageEvent<string>).data) as T));
 
@@ -103,6 +108,7 @@ export function useConversation(handlers: ConversationHandlers) {
       disposed = true;
       source.close();
     };
+    // Connect once: the options are read at mount; a change of voice setting needn't reconnect.
   }, []);
 
   const send = useCallback(async (text: string, speak: boolean) => {

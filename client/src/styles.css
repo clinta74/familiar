@@ -732,8 +732,82 @@ button.link:hover:not(:disabled) {
   display: grid;
 }
 
-.device-list .muted {
+.device-list .muted,
+.device-list .error {
   font-size: 0.85rem;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+/* --- memories and calendars --- */
+
+.memory-list,
+.event-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.memory-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.memory-list li > div {
+  display: grid;
+}
+
+.memory-list .muted {
+  font-size: 0.8rem;
+}
+
+.memory-edit {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+}
+
+.memory-edit input {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-list li {
+  display: grid;
+  grid-template-columns: minmax(8.5rem, auto) 1fr auto;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.event-when {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.link.danger {
+  color: var(--error);
+  justify-self: start;
+}
+
+label.check {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+label.check input {
+  width: auto;
+  margin-top: 4px;
 }
 
 /* --- voice --- */

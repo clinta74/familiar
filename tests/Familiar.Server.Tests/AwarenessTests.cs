@@ -217,7 +217,7 @@ public sealed class AwarenessTests(PostgresFixture postgres)
         await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
         var tomorrow = DateTime.UtcNow.AddDays(1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         app.Llm
-            .ThenCall("create_event", $$"""{"title": "Lunch with Jo", "start": "{{tomorrow}}T12:30", "duration_minutes": 90}""").ThenSay("[joy:0.5] Added.")
+            .ThenCall("create_event", """{"title": "Lunch with Jo", "day": "tomorrow", "time": "12:30", "duration_minutes": 90}""").ThenSay("[joy:0.5] Added.")
             .ThenCall("list_events", $$"""{"date": "{{tomorrow}}"}""").ThenSay("[joy:0.5] Lunch with Jo.");
         var client = await SignedInAsync(app);
         await using var stream = await SseClient.ConnectAsync(client);

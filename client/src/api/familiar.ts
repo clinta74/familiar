@@ -10,6 +10,8 @@ export interface FamiliarProfile {
   expressiveness: number;
   voice: string | null;
   voiceSpeed: number;
+  /** May speak first: a hello when you come back, mentioning what's coming up. */
+  proactive: boolean;
 }
 
 export interface Voices {

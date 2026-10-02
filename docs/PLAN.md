@@ -648,6 +648,26 @@ voice-style request, chip, countdown, announced on time. **Not yet verified:** a
 closed tab — the test browser denies notifications; try it in Chrome over `localhost` or trusted
 https (a self-signed certificate the browser doesn't trust blocks service workers).
 
+**Phase 5 (2026-10-02):** built, and the "done when" is met live with familiar-chat: a test user
+said "I'm Sam… my daughter Maya is eight" and asked for a dentist appointment tomorrow; four minutes
+later the memory pass had stored their name, job and daughter; with the clock "a day on", opening
+the app got *"Hey Sam, it is so good to see you again! I know you have that dentist appointment
+tomorrow morning at ten."* *Memory*: `memories` with pgvector embeddings (nomic-embed-text); a
+background pass reads a conversation once it's been quiet 3 minutes (structured JSON output) and
+stores facts unless already known — near-duplicates are cosine ≥ 0.88, measured; `remember` /
+`forget` tools (forget matches words, then meaning with a margin, else asks which); Settings lists,
+edits and forgets. Memories sit at the *end* of the system message, so a new one doesn't cost the
+cached persona and rules. *Calendars*: Familiar's own (read/write) and subscribed iCal feeds
+(read-only, Ical.Net expands RRULE/EXDATE/time zones 60 days ahead, refreshed every 30 min; the
+URL is encrypted with Data Protection and never sent back). CalDAV/Google writes are deferred:
+§12 item 3 is still open, and the phone apps' device calendar may make them unnecessary.
+*Situation*: each turn's notes carry the next events, running timers, near reminders, and how long
+since you last talked. *Greeting*: a fresh connection after 3 quiet hours gets a hello first, once
+per gap across devices, switchable per familiar. Findings: the model does weekday arithmetic badly
+("Tuesday" from a Thursday came back as Monday's date), so tools take "Tuesday 15:00" / "next
+Wednesday" and the server works out the date — `create_event` takes `day` and `time` separately for
+the same reason. Weather and location (§6.3) aren't done: they need a provider and the phone apps.
+
 | Phase | Delivers | Done when |
 |---|---|---|
 | **0. Scaffold** | Solution, auth, local compose + GPU overlay, Dockerfiles, CI image build, NAS compose, model bake-off, NAS VRAM measurement | Register/login works locally **and** from the published images on the NAS; `ollama show` confirms tool capability on the chosen model |

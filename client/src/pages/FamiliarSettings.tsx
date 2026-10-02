@@ -81,6 +81,14 @@ export function FamiliarSettings() {
 
       <VoiceSettings profile={profile} voices={voices} onChange={update} />
 
+      <label className="check">
+        <input type="checkbox" checked={profile.proactive} onChange={(e) => update({ proactive: e.target.checked })} />
+        <span>
+          Say hello first
+          <span className="muted"> — when you come back after a few hours, {profile.name || 'it'} greets you and mentions anything coming up soon.</span>
+        </span>
+      </label>
+
       {status && <p className={status.ok ? 'success' : 'error'} role="status">{status.message}</p>}
       <button type="submit" disabled={busy}>Save</button>
     </form>

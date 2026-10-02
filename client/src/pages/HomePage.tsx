@@ -86,7 +86,7 @@ export function HomePage() {
     onCleared: () => player.stop(),
     // The announcement itself arrives as a reply; this is the bell before it.
     onNotify: () => player.chime(),
-  });
+  }, { speakGreeting: voiceOn });
 
   const busy = conversation.state === 'thinking' || conversation.state === 'speaking' || audible;
   const busyRef = useRef(busy);

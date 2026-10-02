@@ -86,7 +86,7 @@ public sealed class CreateReminderTool(Scheduler scheduler) : ITool
         ToolSchema.Object(
             ["text"],
             ("text", ToolSchema.String("What to remind them of, e.g. \"call Mum\".")),
-            ("time", ToolSchema.String("When, in the user's local time: \"YYYY-MM-DDTHH:MM\", or \"HH:MM\" for the next time it's that time.")),
+            ("time", ToolSchema.String("When, in the user's local time: a day and time like \"tomorrow 09:00\" or \"Tuesday 15:00\", \"HH:MM\" for the next time it's that time, or \"YYYY-MM-DDTHH:MM\".")),
             ("in_minutes", ToolSchema.Integer("Or: how many minutes from now."))),
         ToolRisk.WriteOwn);
 
@@ -148,6 +148,19 @@ public sealed class CreateReminderTool(Scheduler scheduler) : ITool
     /// </summary>
     internal static DateTimeOffset? ParseLocal(string text, ToolContext context)
     {
+        // "Tuesday 15:00", "tomorrow 9:30": the day is worked out here, because small models get
+        // weekday arithmetic wrong ("Tuesday" from a Thursday came back as the Monday).
+        var trimmed = text.Trim();
+        var split = trimmed.LastIndexOf(' ');
+        if (split > 0 && LocalDates.Day(trimmed[..split], context) is { } day
+            && DateTime.TryParseExact(trimmed[(split + 1)..], ["HH:mm", "H:mm"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var clock))
+        {
+            var at = ToUtc(day + clock.TimeOfDay, context.Zone);
+
+            // "Thursday 9:00" said on a Thursday afternoon means next week.
+            return at < context.Now && LocalDates.IsWeekday(trimmed[..split]) ? ToUtc(day.AddDays(7) + clock.TimeOfDay, context.Zone) : at;
+        }
+
         if (!DateTime.TryParseExact(text.Trim(), Formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var local))
         {
             return null;
@@ -285,5 +298,58 @@ public sealed class CancelScheduledTool(Scheduler scheduler) : ITool
             ? job.Label.Length > 0 ? $"{job.Label} timer" : $"{Spoken.Duration(job.DurationSeconds ?? 0)} timer"
             : $"reminder to {job.Label}";
         return $"{name} ({Spoken.When(job.DueAt, context.Zone, context.Now)})";
+    }
+}
+
+/// <summary>Day words the tools accept in place of a date: "today", "tomorrow", a weekday, or "YYYY-MM-DD".</summary>
+public static class LocalDates
+{
+    private static readonly Dictionary<string, DayOfWeek> Weekdays = Enum.GetValues<DayOfWeek>()
+        .ToDictionary(d => d.ToString(), d => d, StringComparer.OrdinalIgnoreCase);
+
+    public static bool IsWeekday(string word) => Weekdays.ContainsKey(Bare(word));
+
+    /// <summary>
+    /// The local date a word means. A weekday is the next one, today included; "next Wednesday" is the
+    /// next one after today. ("Next" is ambiguous in speech; the nearer reading is the common one, and
+    /// the familiar says the date back.)
+    /// </summary>
+    public static DateTime? Day(string word, ToolContext context)
+    {
+        var next = word.Trim().StartsWith("next ", StringComparison.OrdinalIgnoreCase);
+        word = Bare(word);
+        var today = TimeZoneInfo.ConvertTime(context.Now, context.Zone).Date;
+
+        if (word.Equals("today", StringComparison.OrdinalIgnoreCase))
+        {
+            return today;
+        }
+
+        if (word.Equals("tomorrow", StringComparison.OrdinalIgnoreCase))
+        {
+            return today.AddDays(1);
+        }
+
+        if (Weekdays.TryGetValue(word, out var weekday))
+        {
+            var ahead = ((int)weekday - (int)today.DayOfWeek + 7) % 7;
+            return today.AddDays(next && ahead == 0 ? 7 : ahead);
+        }
+
+        return DateTime.TryParseExact(word, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) ? date : null;
+    }
+
+    private static string Bare(string word)
+    {
+        word = word.Trim().TrimEnd(',');
+        foreach (var prefix in new[] { "next ", "this ", "on " })
+        {
+            if (word.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                word = word[prefix.Length..].Trim();
+            }
+        }
+
+        return word;
     }
 }

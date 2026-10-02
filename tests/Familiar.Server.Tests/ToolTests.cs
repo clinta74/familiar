@@ -334,6 +334,12 @@ public sealed class SchedulingUnitTests
     [InlineData("9:00", "2026-10-02T14:00:00Z")]
     [InlineData("2026-10-03T08:15", "2026-10-03T13:15:00Z")]
     [InlineData("2026-11-01 09:00", "2026-11-01T15:00:00Z")]
+    [InlineData("Tuesday 15:00", "2026-10-06T20:00:00Z")]
+    [InlineData("tomorrow 9:00", "2026-10-02T14:00:00Z")]
+    [InlineData("thursday 18:00", "2026-10-01T23:00:00Z")]
+    [InlineData("Thursday 09:00", "2026-10-08T14:00:00Z")]
+    [InlineData("next Wednesday 12:30", "2026-10-07T17:30:00Z")]
+    [InlineData("next Thursday 18:00", "2026-10-08T23:00:00Z")]
     public void Reminder_times_are_the_users_local_time(string text, string expectedUtc) =>
         Assert.Equal(DateTimeOffset.Parse(expectedUtc, CultureInfo.InvariantCulture), CreateReminderTool.ParseLocal(text, Context));
 
