@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'reac
 import { api, errorFrom } from '../api/client';
 import { familiarApi, type FamiliarProfile } from '../api/familiar';
 import {
-  accessories,
+  characterInfo,
+  characters,
   defaultAppearance,
-  presets,
   type Accessory,
   type Appearance,
+  type CharacterModel,
   type LlamaColours,
 } from '../avatar/appearance';
 import { emotions, gestures, type Emotion, type Gesture } from '../avatar/types';
@@ -34,14 +35,6 @@ const avatarsApi = {
     if (!response.ok) throw await errorFrom(response);
     return (await response.json()) as UploadedModel;
   },
-};
-
-const colourLabels: Record<keyof LlamaColours, string> = {
-  wool: 'Fleece',
-  face: 'Face',
-  ear: 'Ears & hooves',
-  blush: 'Cheeks',
-  accent: 'Accessory',
 };
 
 const accessoryLabels: Record<Accessory, string> = {
@@ -134,7 +127,21 @@ export function StudioPage() {
   const setColour = (key: keyof LlamaColours, value: string) =>
     setLook((l) => ({ ...l, colours: { ...l.colours, [key]: value } }));
 
-  const llama = look.model === 'llama';
+  const builtIn = look.model !== 'vrm';
+  const info = characterInfo(builtIn ? (look.model as CharacterModel) : 'llama');
+
+  /** Switching character: its own default colours, unless the current ones are already its. */
+  const choose = (model: CharacterModel) => setLook((l) => {
+    const next = characterInfo(model);
+    const keep = l.model === model || next.presets.some((p) => sameColours(p.colours, l.colours));
+    return {
+      ...l,
+      model,
+      vrmId: null,
+      colours: keep ? l.colours : next.presets[0]!.colours,
+      accessory: next.accessories.includes(l.accessory) ? l.accessory : 'none',
+    };
+  });
 
   return (
     <Shell>
@@ -158,10 +165,12 @@ export function StudioPage() {
 
           <fieldset className="stack">
             <legend>Model</legend>
-            <label className="check">
-              <input type="radio" name="model" checked={llama} onChange={() => setLook((l) => ({ ...l, model: 'llama', vrmId: null }))} />
-              <span>Plush llama <span className="muted">— built in, and yours to colour</span></span>
-            </label>
+            {characters.map((c) => (
+              <label key={c.id} className="check">
+                <input type="radio" name="model" checked={look.model === c.id} onChange={() => choose(c.id)} />
+                <span>{c.name} <span className="muted">— {c.blurb}</span></span>
+              </label>
+            ))}
             {models.map((m) => (
               <div key={m.id} className="model-row">
                 <label className="check">
@@ -193,12 +202,12 @@ export function StudioPage() {
             </p>
           </fieldset>
 
-          {llama && (
+          {builtIn && (
             <>
               <fieldset>
                 <legend>Colours</legend>
                 <div className="swatches">
-                  {presets.map((p) => (
+                  {info.presets.map((p) => (
                     <button
                       key={p.name}
                       type="button"
@@ -214,31 +223,33 @@ export function StudioPage() {
                   ))}
                 </div>
                 <div className="colour-pickers">
-                  {(Object.keys(colourLabels) as (keyof LlamaColours)[]).map((key) => (
+                  {(Object.keys(info.colourLabels) as (keyof LlamaColours)[]).map((key) => (
                     <label key={key}>
                       <input type="color" value={look.colours[key]} onChange={(e) => setColour(key, e.target.value)} />
-                      {colourLabels[key]}
+                      {info.colourLabels[key]}
                     </label>
                   ))}
                 </div>
               </fieldset>
 
-              <fieldset>
-                <legend>Wearing</legend>
-                <div className="try-row">
-                  {accessories.map((a) => (
-                    <button
-                      key={a}
-                      type="button"
-                      className={`chip${look.accessory === a ? ' selected' : ''}`}
-                      aria-pressed={look.accessory === a}
-                      onClick={() => setLook((l) => ({ ...l, accessory: a }))}
-                    >
-                      {accessoryLabels[a]}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
+              {info.accessories.length > 1 && (
+                <fieldset>
+                  <legend>Wearing</legend>
+                  <div className="try-row">
+                    {info.accessories.map((a) => (
+                      <button
+                        key={a}
+                        type="button"
+                        className={`chip${look.accessory === a ? ' selected' : ''}`}
+                        aria-pressed={look.accessory === a}
+                        onClick={() => setLook((l) => ({ ...l, accessory: a }))}
+                      >
+                        {accessoryLabels[a]}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
             </>
           )}
 

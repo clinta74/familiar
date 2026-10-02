@@ -683,6 +683,17 @@ real model (none to hand — the upload/validation side is tested with synthetic
 Rive/sprite renderer (§5.2) — the llama already is the 2D renderer, and Rive needs art; voice
 pitch (Kokoro has none); idle tuning (blink rate, calm mode).
 
+*More characters (2026-10-02):* a **fox** (swivelling pointed ears, a bushy tail that swishes when
+happy), a **hedgehog** (two layers of prickles that bristle when startled or cross and lie flat when
+sad), a **fuzzy monster** (googly eyes, stubby horns, fur that stands on end) and the **spot** — no
+face at all: it stays where it is and shows feeling with shape (swelling, sagging, spikes, lobes),
+surface (glossy or matte, smooth or frayed, a glow) and colour (the user's colour tinted by mood:
+warm when happy, blue when sad, red when cross, violet when thinking); speech makes it pulse, and the
+gestures are done in place (a wave is a pseudopod). The llama's animation became a shared engine
+(`client/src/avatar/plush/`) that all of them run on; each character is just its drawing. Each has
+its own presets, colour labels and accessories (the spot wears none), and the persona says what the
+user picked — asked what it is, the hedgehog said "a little plush hedgehog with soft prickles".
+
 **Phase 7 (2026-10-02):** built, and the "done when" is met live: a Home Assistant-style
 `rest_command` POST with a hook token made the familiar announce "The washing machine has
 finished." on the open stream (spoken, with the chime); with `"style": "tell"` it passed on "Someone

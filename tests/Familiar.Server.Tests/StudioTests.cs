@@ -117,6 +117,29 @@ public sealed class StudioTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Every_built_in_character_can_be_chosen_and_the_familiar_is_told_what_it_looks_like()
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        var client = app.CreateClient();
+        (await client.RegisterAsync("shapeshifter")).EnsureSuccessStatusCode();
+        await using var stream = await SseClient.ConnectAsync(client);
+        await stream.ReadUntilAsync(Conversation.EventTypes.Ready);
+
+        foreach (var (model, look) in new[] { ("fox", "plush fox"), ("hedgehog", "plush hedgehog"), ("monster", "fuzzy, friendly monster"), ("spot", "spot of colour with no face"), ("llama", "plush llama") })
+        {
+            var familiar = await (await client.GetAsync("/api/familiar")).ReadAsync<FamiliarView>();
+            var saved = await (await client.PutAsJsonAsync("/api/familiar", familiar with { Appearance = familiar.Appearance! with { Model = model } })).ReadAsync<FamiliarView>();
+            Assert.Equal(model, saved.Appearance!.Model);
+
+            await client.PostAsJsonAsync("/api/conversation/messages", new Conversation.SendMessageRequest("what are you?", "UTC"));
+            await stream.ReadUntilStateAsync(Conversation.FamiliarState.Idle);
+            var persona = app.Llm.LastPrompt![0].Content;
+            Assert.Contains(look, persona, StringComparison.Ordinal);
+            Assert.Single(new[] { "plush llama", "plush fox", "plush hedgehog", "monster", "spot of colour" }, l => persona.Contains(l, StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
     public void Vrm_0_metadata_is_read_too()
     {
         var (info, problem) = VrmFile.Inspect(Glb("""

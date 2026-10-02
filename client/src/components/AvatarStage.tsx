@@ -28,7 +28,13 @@ export const AvatarStage = forwardRef<AvatarHandle, { state: AvatarState; appear
   const lookRef = useRef(look);
 
   // A different model means a different renderer; anything else is applied to the one there is.
-  const model = look.model === 'vrm' && look.vrmId ? `vrm:${look.vrmId}` : 'llama';
+  const model = look.model === 'vrm' ? (look.vrmId ? `vrm:${look.vrmId}` : 'llama') : look.model;
+
+  // First, so a change of model below builds the new renderer from the new look, not the last one.
+  useEffect(() => {
+    lookRef.current = look;
+    driver.current?.setLook?.(look);
+  }, [look]);
 
   useEffect(() => {
     let disposed = false;
@@ -50,11 +56,6 @@ export const AvatarStage = forwardRef<AvatarHandle, { state: AvatarState; appear
       driver.current = null;
     };
   }, [model]);
-
-  useEffect(() => {
-    lookRef.current = look;
-    driver.current?.setLook?.(look);
-  }, [look]);
 
   useEffect(() => {
     stateRef.current = state;

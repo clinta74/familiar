@@ -15,7 +15,8 @@ public sealed record PromptContext(
     DateTimeOffset Now,
     TimeZoneInfo TimeZone,
     IReadOnlyList<string>? Notes = null,
-    IReadOnlyList<string>? Memories = null);
+    IReadOnlyList<string>? Memories = null,
+    string? Look = null);
 
 /// <summary>
 /// Builds the messages for one turn, always in the same order - most stable first, most variable
@@ -107,7 +108,7 @@ public static class PromptBuilder
     internal static string SystemMessage(PromptContext context)
     {
         var text = new StringBuilder();
-        text.Append(Persona(context.Profile, context.Username)).Append("\n\n").Append(Rules);
+        text.Append(Persona(context.Profile, context.Username, context.Look)).Append("\n\n").Append(Rules);
 
         if (context.Memories is { Count: > 0 } memories)
         {
@@ -122,11 +123,14 @@ public static class PromptBuilder
         return text.ToString();
     }
 
+    /// <summary>What the default familiar looks like. Without a sentence like this the model denies being what it's drawn as.</summary>
+    public const string DefaultLook = "You look like a soft, fluffy plush llama with big ears, and you're happy being one.";
+
     /// <summary>
     /// The persona, from the profile's sliders. Rendered from fixed phrases, never from free text,
     /// so it can't carry instructions, and it only changes when the user changes a setting.
     /// </summary>
-    internal static string Persona(FamiliarProfile profile, string username)
+    internal static string Persona(FamiliarProfile profile, string username, string? look = null)
     {
         var you = string.IsNullOrWhiteSpace(profile.UserNickname) ? username : profile.UserNickname.Trim();
         var text = new StringBuilder();
@@ -135,8 +139,13 @@ public static class PromptBuilder
             $"You are {profile.Name}, {you}'s familiar: a small, friendly companion who lives on their devices ");
         text.Append("and keeps them company, chats with them, and helps out with everyday things. ");
 
-        // What the user sees on screen. Without it the model denies being the llama it's drawn as.
-        text.Append("You look like a soft, fluffy plush llama with big ears, and you're happy being one. ");
+        // What the user sees on screen (PromptContext.Look): without it the model denies being the
+        // llama, fox or spot it's drawn as.
+        if ((look ?? DefaultLook) is { Length: > 0 } looks)
+        {
+            text.Append(looks).Append(' ');
+        }
+
         text.Append(CultureInfo.InvariantCulture, $"Call them {you}. ");
 
         text.Append(Pick(profile.Warmth,
