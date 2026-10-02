@@ -1,5 +1,7 @@
+using Familiar.Agent.Llm;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -10,8 +12,15 @@ namespace Familiar.Server.Tests.Infrastructure;
 public sealed class FamiliarAppFactory(
     string connectionString,
     IReadOnlyDictionary<string, string>? settings = null,
-    TimeProvider? clock = null) : WebApplicationFactory<Program>
+    TimeProvider? clock = null,
+    FakeLlm? llm = null) : WebApplicationFactory<Program>
 {
+    /// <summary>
+    /// The model every test talks to. Never the real one: a test must not depend on Ollama being up,
+    /// and the scripted replies are what make the assertions exact.
+    /// </summary>
+    public FakeLlm Llm { get; } = llm ?? new FakeLlm();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         // "Testing", so appsettings.Development.json (the compose database) can't leak in.
@@ -34,10 +43,14 @@ public sealed class FamiliarAppFactory(
             builder.UseSetting(key, value);
         }
 
-        if (clock is not null)
+        builder.ConfigureTestServices(services =>
         {
-            builder.ConfigureServices(services => services.Replace(ServiceDescriptor.Singleton(clock)));
-        }
+            services.AddSingleton<ILlmClient>(Llm);
+            if (clock is not null)
+            {
+                services.Replace(ServiceDescriptor.Singleton(clock));
+            }
+        });
 
         // The Windows event log provider's handle is shared across hosts in one process and closed
         // by the first to be disposed; later hosts then throw from inside ILogger.Log.

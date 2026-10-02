@@ -7,6 +7,18 @@
   --accent: #7c5cff;
   --accent-hover: #6a48f5;
   --on-accent: #ffffff;
+  --plush-wool: #fdfaf5;
+  --plush-wool-shadow: #d9cdbf;
+  --plush-skin: #e4d6cc;
+  --plush-skin-shadow: #c7b3a6;
+  --plush-snout: #ddcbbf;
+  --plush-ear: #b3a093;
+  --plush-thread: #5b463d;
+  --plush-nose: #7a6157;
+  --plush-button: #181210;
+  --plush-blush: #f4aab5;
+  --plush-hoof: #8e7a6e;
+  --tear: #8fd3ff;
   --error: #c62f4a;
   --success: #1f8a5b;
   --radius: 14px;
@@ -218,38 +230,349 @@ button.link:hover:not(:disabled) {
 }
 
 .content {
-  max-width: 760px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 24px 16px;
 }
 
-.stage {
+/* --- home: avatar + conversation --- */
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell .content {
+  flex: 1;
+  width: 100%;
+}
+
+.home {
   display: grid;
-  justify-items: center;
-  text-align: center;
-  gap: 12px;
-  padding-top: 8vh;
+  gap: 16px;
+  grid-template-rows: auto 1fr;
+  height: calc(100vh - 57px - 48px);
+  min-height: 520px;
 }
 
-.avatar-placeholder {
-  animation: breathe 4s ease-in-out infinite;
-}
-
-@keyframes breathe {
-  50% {
-    transform: translateY(-6px) scale(1.02);
+@media (min-width: 900px) {
+  .home {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: 1fr;
   }
+}
+
+.stage-panel {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  justify-items: center;
+  min-height: 0;
+}
+
+.avatar-stage {
+  width: 100%;
+  /* A definite height on narrow screens, where the stage sits above the chat: without one the SVG
+     sizes itself from its width and spills over the conversation. */
+  height: clamp(180px, 32vh, 320px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  /* The llama's neck runs off the bottom of the stage; fade it rather than cut it. */
+  mask-image: linear-gradient(to bottom, #000 80%, transparent);
+}
+
+@media (min-width: 900px) {
+  .avatar-stage {
+    height: 100%;
+  }
+}
+
+.plush-llama {
+  /* Both dimensions definite, so the viewBox is fitted inside the stage rather than sized from
+     the width and cropped. Overflow visible, so the neck can run on past the viewBox to the bottom
+     of the stage, which fades it out. */
+  width: 100%;
+  max-width: 460px;
+  height: 100%;
+  overflow: visible;
+}
+
+.vrm-avatar {
+  width: 100%;
+  height: 100%;
+}
+
+/* The llama is a toy, so its colours don't follow the theme. */
+.plush-fuzzy {
+  filter: var(--plush-fuzz);
+}
+
+.plush-wool {
+  fill: var(--plush-wool);
+}
+
+.plush-wool-outline {
+  fill: var(--plush-wool-shadow);
+}
+
+.plush-ear-outer {
+  stroke: var(--plush-wool-shadow);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.plush-ear-inner {
+  fill: var(--plush-ear);
+}
+
+.plush-curl {
+  fill: none;
+  stroke: var(--plush-wool-shadow);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.plush-skin {
+  fill: var(--plush-skin);
+}
+
+.plush-snout {
+  fill: var(--plush-snout);
+  stroke: var(--plush-skin-shadow);
+  stroke-width: 2;
+}
+
+.plush-thread {
+  fill: none;
+  stroke: var(--plush-thread);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+}
+
+.plush-lash {
+  fill: none;
+  stroke: var(--plush-button);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.plush-button {
+  fill: var(--plush-button);
+}
+
+.plush-button-shine {
+  fill: #fff;
+  opacity: 0.9;
+}
+
+.plush-lid {
+  fill: var(--plush-skin);
+  stroke: var(--plush-thread);
+  stroke-width: 1.6;
+}
+
+.plush-nose {
+  fill: var(--plush-nose);
+}
+
+.plush-nose-shine {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.45;
+}
+
+.plush-mouth {
+  fill: var(--plush-nose);
+  stroke: var(--plush-thread);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.plush-cheeks {
+  fill: var(--plush-blush);
+}
+
+.plush-tear {
+  fill: var(--tear);
+}
+
+.plush-hoof {
+  fill: var(--plush-hoof);
+}
+
+.plush-hoof-split {
+  stroke: var(--plush-wool-shadow);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.plush-thinking {
+  fill: var(--accent);
+  transition: opacity 0.3s;
+}
+
+.plush-sleep {
+  fill: var(--muted);
+  font: 700 22px system-ui, sans-serif;
+}
+
+.familiar-name {
+  margin: 4px 0 0;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.familiar-status {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* --- chat --- */
+
+.chat {
+  display: grid;
+  grid-template-rows: 1fr auto auto auto;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.transcript {
+  list-style: none;
+  margin: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.transcript-empty {
+  margin: auto;
+  text-align: center;
+}
+
+.bubble {
+  max-width: 85%;
+  padding: 9px 13px;
+  border-radius: 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: grid;
+  gap: 2px;
+}
+
+.bubble.user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: var(--on-accent);
+  border-bottom-right-radius: 5px;
+}
+
+.bubble.assistant {
+  align-self: flex-start;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 5px;
+}
+
+.bubble.streaming .bubble-text::after {
+  content: '▍';
+  margin-left: 1px;
+  animation: caret 1s steps(1) infinite;
+  color: var(--accent);
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+.bubble-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.chat-error {
+  padding: 0 16px 8px;
+}
+
+.composer {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  align-items: flex-end;
+}
+
+.composer textarea {
+  flex: 1;
+  font: inherit;
+  resize: none;
+  max-height: 160px;
+  field-sizing: content;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.composer textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.chat-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 12px 10px;
+  font-size: 0.85rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .avatar-placeholder {
+  .bubble.streaming .bubble-text::after {
     animation: none;
   }
+}
+
+/* --- familiar settings --- */
+
+.field-row {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.slider {
+  gap: 2px;
+}
+
+.slider input[type='range'] {
+  accent-color: var(--accent);
+  padding: 0;
+}
+
+.slider-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 400;
 }
 
 .settings {
   display: grid;
   gap: 16px;
+  max-width: 760px;
+  margin: 0 auto;
 }
 
 .settings h2 {

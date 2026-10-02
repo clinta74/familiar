@@ -141,6 +141,147 @@ namespace Familiar.Persistence.Migrations
                     b.ToTable("accounts", (string)null);
                 });
 
+            modelBuilder.Entity("Familiar.Domain.Conversations.Conversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<DateTimeOffset>("LastMessageAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_message_at");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_conversations");
+
+                    b.HasIndex("AccountId", "LastMessageAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_conversations_account_id_last_message_at");
+
+                    b.ToTable("conversations", (string)null);
+                });
+
+            modelBuilder.Entity("Familiar.Domain.Conversations.Message", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("content");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Emotion")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("emotion");
+
+                    b.Property<double?>("EmotionIntensity")
+                        .HasColumnType("double precision")
+                        .HasColumnName("emotion_intensity");
+
+                    b.Property<bool>("Interrupted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("interrupted");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("role");
+
+                    b.HasKey("Id")
+                        .HasName("pk_messages");
+
+                    b.HasIndex("ConversationId", "Id")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_messages_conversation_id_id");
+
+                    b.ToTable("messages", (string)null);
+                });
+
+            modelBuilder.Entity("Familiar.Domain.Familiars.FamiliarProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<double>("Expressiveness")
+                        .HasColumnType("double precision")
+                        .HasColumnName("expressiveness");
+
+                    b.Property<double>("Formality")
+                        .HasColumnType("double precision")
+                        .HasColumnName("formality");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("name");
+
+                    b.Property<double>("Playfulness")
+                        .HasColumnType("double precision")
+                        .HasColumnName("playfulness");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UserNickname")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("user_nickname");
+
+                    b.Property<double>("Verbosity")
+                        .HasColumnType("double precision")
+                        .HasColumnName("verbosity");
+
+                    b.Property<double>("Warmth")
+                        .HasColumnType("double precision")
+                        .HasColumnName("warmth");
+
+                    b.HasKey("Id")
+                        .HasName("pk_familiar_profiles");
+
+                    b.HasIndex("AccountId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_familiar_profiles_account_id");
+
+                    b.ToTable("familiar_profiles", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
                 {
                     b.Property<int>("Id")
@@ -176,9 +317,44 @@ namespace Familiar.Persistence.Migrations
                     b.Navigation("Account");
                 });
 
+            modelBuilder.Entity("Familiar.Domain.Conversations.Conversation", b =>
+                {
+                    b.HasOne("Familiar.Domain.Accounts.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_conversations_accounts_account_id");
+                });
+
+            modelBuilder.Entity("Familiar.Domain.Conversations.Message", b =>
+                {
+                    b.HasOne("Familiar.Domain.Conversations.Conversation", null)
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_messages_conversations_conversation_id");
+                });
+
+            modelBuilder.Entity("Familiar.Domain.Familiars.FamiliarProfile", b =>
+                {
+                    b.HasOne("Familiar.Domain.Accounts.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_familiar_profiles_accounts_account_id");
+                });
+
             modelBuilder.Entity("Familiar.Domain.Accounts.Account", b =>
                 {
                     b.Navigation("AccessTokens");
+                });
+
+            modelBuilder.Entity("Familiar.Domain.Conversations.Conversation", b =>
+                {
+                    b.Navigation("Messages");
                 });
 #pragma warning restore 612, 618
         }

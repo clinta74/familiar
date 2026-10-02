@@ -14,7 +14,7 @@ Android first. iOS follows, built and shipped from CI because there is no Mac (�
 | Layer | Choice | Why |
 |---|---|---|
 | Shared code | **Kotlin Multiplatform** (`mobile/shared`) | Protocol, networking, auth, conversation state written once for both platforms. |
-| Networking | **Ktor client** (WebSocket + REST), `kotlinx.serialization` | Multiplatform; bearer token on the WS upgrade. |
+| Networking | **Ktor client** (SSE + REST), `kotlinx.serialization` | Multiplatform; bearer token on every request, the event stream included. |
 | UI | **Compose Multiplatform** | One UI, previewed and debugged on Android, runs on iOS. This matters most *because* there's no Mac — see §5. |
 | Platform services | Kotlin on Android, **Swift** on iOS, behind `expect`/`actual` interfaces | Audio, alarms, calendar, notifications, assistant entry points are where "native" earns its keep. |
 | Avatar | **WebView/WKWebView hosting `client/packages/avatar`** | One renderer across web, Android, iOS. Native VRM rendering doesn't exist in usable form on either platform; Unity-as-a-library is hundreds of MB to draw a face. |
@@ -32,7 +32,7 @@ developed without a Mac).
 Audio is played **natively** (audio focus, Bluetooth, ducking, background playback, the system
 volume stream) and the WebView only draws. The bridge carries:
 
-- `setState`, `setExpression`, `playGesture` — straight from the WS events.
+- `setState`, `setExpression`, `playGesture` — straight from the SSE events.
 - Viseme track + the native player's start time, re-based onto the WebView's clock once per
   utterance, so lip-sync is scheduled locally rather than streamed at 60 Hz across the bridge.
 - Amplitude fallback: native player's RMS level at ~30 Hz → `setMouthOpen`.
@@ -52,7 +52,7 @@ beyond the driver calls.
 | Timers & alarms | `AlarmManager.setAlarmClock` / exact alarms | Rings offline. Exact alarms need `SCHEDULE_EXACT_ALARM` (user-granted on 14+) — or fall back to handing off via `AlarmClock.ACTION_SET_TIMER` to the system clock app. |
 | Calendar | `CalendarContract` | Reads/writes every synced account (Google, Exchange, DAVx⁵ CalDAV). Uploads a rolling window for situation awareness (PLAN.md §6.4). |
 | Notifications | FCM (or UnifiedPush/ntfy) + notification channels | Content-free wake → fetch (PLAN.md §6.2). Full-screen intent for an alarm ringing. |
-| Situation | Location (coarse, opt-in), DND state, battery, connectivity, headset connected, activity recognition | Each is a capability in `hello` and a separate permission; none required. |
+| Situation | Location (coarse, opt-in), DND state, battery, connectivity, headset connected, activity recognition | Each is a stream capability (PLAN.md §3.1) and a separate permission; none required. |
 | Quick access | App shortcuts, Quick Settings tile, home-screen widget (next reminder, talk button) | |
 | Wake word *(later)* | On-device (e.g. openWakeWord) inside the foreground service | A v1 non-goal; native makes it possible. Battery cost to measure. |
 | Wear OS *(later)* | Timers/reminders on the watch | |
@@ -81,8 +81,8 @@ decides when to stream, so the mic isn't shipping silence over LTE.
 ```
 mobile/
   shared/                 KMP: commonMain / androidMain / iosMain
-    protocol/             WS envelope + messages, mirroring the server's (generated from a schema, §6)
-    api/                  Ktor REST + WS client, auth, token refresh, reconnect with backoff
+    protocol/             SSE events + request bodies, mirroring the server's (generated from a schema, §6)
+    api/                  Ktor REST + SSE client, auth, reconnect with Last-Event-ID
     conversation/         state machine: idle ↔ listening ↔ thinking ↔ speaking, barge-in
     tools/                device-side tool registry; dispatches tool.invoke to platform actuals
     platform/             expect: AudioIO, Alarms, Calendar, Notifications, Location, SecureStore
@@ -92,7 +92,7 @@ mobile/
 ```
 
 Device-side tools are declared once in `tools/`, implemented per platform, and advertised in
-`hello` only where the platform implementation exists and the permission is granted.
+the stream request's capabilities only where the platform implementation exists and the permission is granted.
 
 ---
 
@@ -128,7 +128,7 @@ registration; sideloading APKs to your own devices needs nothing.
 
 ## 6. Keeping the protocol in sync
 
-Three clients (TS web, Kotlin mobile, C# server) speak one WS protocol. Hand-written copies will
+Three clients (TS web, Kotlin mobile, C# server) speak one event protocol. Hand-written copies will
 drift. The server's message records are the source of truth; a build step emits a **JSON Schema**
 from them, and the TS and Kotlin types are generated from it. CI fails if generated files are
 stale. REST uses the server's OpenAPI document the same way.
@@ -145,7 +145,7 @@ mostly a client for those.
 | **M0. Scaffold** | KMP project, Android app, iOS CI build → TestFlight, server URL + login, schema-generated protocol | Log in on an Android phone; an empty iOS build arrives in TestFlight |
 | **M1. Talk** | Avatar WebView + bridge, native audio, push-to-talk, streamed TTS, lip-sync | Same conversation as the web client, on Android |
 | **M2. Hands-free** | Foreground service, on-device VAD, barge-in, headset support | Talk to it with the phone in a pocket |
-| **M3. Device tools** | Alarms/timers on device, calendar read/write + sync window, notifications (FCM), `hello` capabilities | "Wake me at 7" rings in airplane mode |
+| **M3. Device tools** | Alarms/timers on device, calendar read/write + sync window, notifications (FCM), stream capabilities | "Wake me at 7" rings in airplane mode |
 | **M4. Be the assistant** | `ROLE_ASSISTANT`, shortcuts, QS tile, widget | Long-press home opens Familiar listening |
 | **M5. iOS parity** | AlarmKit, EventKit, APNs, App Intents, Live Activities, widgets | The M1–M3 "done when" lines hold on an iPhone |
 | **M6. Extras** | Wake word, Wear OS, situation signals (location, DND, activity) | — |

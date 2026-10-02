@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Familiar.Agent/Familiar.Agent.csproj" />
     <Project Path="src/Familiar.Domain/Familiar.Domain.csproj" />
     <Project Path="src/Familiar.Persistence/Familiar.Persistence.csproj" />
     <Project Path="src/Familiar.Server/Familiar.Server.csproj" />

@@ -66,6 +66,10 @@ services:
       # The compose network: requests arrive via the client container's nginx, and its
       # X-Forwarded-For is what gives rate limits a real client address. Must match the subnet below.
       Proxy__KnownNetworks: ${FAMILIAR_SUBNET:-172.30.0.0/16}
+      # By service name on the compose network; ollama's port isn't published. familiar-chat must
+      # exist (tools/ollama/create-models.sh) - its base model would answer with a 4096-token window.
+      Llm__BaseUrl: http://ollama:11434
+      Llm__Model: familiar-chat
     volumes:
       - ${FAMILIAR_DATA_DIR:-./data}/logs:/app/logs
     # The .NET GC sizes its heap from the cgroup limit; without one it sizes against the whole NAS.

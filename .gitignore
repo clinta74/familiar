@@ -30,3 +30,6 @@ appsettings.local.json
 backups/
 logs/
 data/
+
+# VRM models: licences vary per model, so they are never committed (client/src/avatar/createAvatar.ts).
+client/public/avatars/*.vrm

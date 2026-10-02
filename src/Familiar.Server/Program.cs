@@ -1,7 +1,11 @@
 using System.Text.Json.Serialization;
+using Familiar.Agent.Llm;
+using Familiar.Agent.Turns;
 using Familiar.Persistence;
 using Familiar.Server;
 using Familiar.Server.Auth;
+using Familiar.Server.Conversation;
+using Familiar.Server.Familiars;
 using Familiar.Server.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,8 +16,23 @@ var authOptions = builder.Configuration.GetSection(AuthOptions.Section).Get<Auth
 var proxyOptions = ProxyOptions.From(builder.Configuration);
 var migrationBudget = TimeSpan.FromSeconds(builder.Configuration.GetValue("Database:MigrationRetryBudgetSeconds", 60));
 
+var llmOptions = builder.Configuration.GetSection(LlmOptions.Section).Get<LlmOptions>() ?? new LlmOptions();
+
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddFamiliarPersistence(connectionString);
+
+// The conversation (PLAN.md §3). The model client is a typed HttpClient, resolved per turn rather
+// than captured by a singleton, so the handler pool can rotate connections.
+builder.Services.AddSingleton(llmOptions);
+builder.Services.AddHttpClient<ILlmClient, OllamaClient>(http =>
+{
+    http.BaseAddress = new Uri(llmOptions.BaseUrl.TrimEnd('/') + "/");
+    http.Timeout = TimeSpan.FromSeconds(Math.Max(5, llmOptions.RequestTimeoutSeconds));
+});
+builder.Services.AddTransient<TurnRunner>();
+builder.Services.AddSingleton<ConversationHub>();
+builder.Services.AddSingleton<ConversationStore>();
+builder.Services.AddSingleton<ConversationTurns>();
 builder.Services.AddFamiliarAuth(authOptions, builder.Environment);
 builder.Services.AddFamiliarRateLimiting(builder.Configuration);
 builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(proxyOptions.Apply);
@@ -30,6 +49,7 @@ var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Fam
 logger.Starting(BuildInfo.Current.Version, BuildInfo.Current.Revision, app.Environment.EnvironmentName);
 logger.AuthConfigured(authOptions.ToString());
 logger.ProxyConfigured(proxyOptions.Describe());
+logger.LlmConfigured(llmOptions.ToString());
 
 await StartupMigrator.MigrateAsync(app.Services, migrationBudget, logger, app.Lifetime.ApplicationStopping);
 
@@ -44,6 +64,8 @@ app.UseRateLimiter();
 app.MapHealthEndpoints();
 app.MapAuthEndpoints();
 app.MapDeviceEndpoints();
+app.MapFamiliarEndpoints();
+app.MapConversationEndpoints();
 
 await app.RunAsync();
 

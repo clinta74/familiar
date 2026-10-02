@@ -1,4 +1,4 @@
-# nginx for the Familiar client: the SPA on /, the API on /api, the conversation socket on /ws.
+# nginx for the Familiar client: the SPA on /, the API (including the conversation event stream) on /api.
 #
 # A template: the image's entrypoint fills in ${BACKEND_ORIGIN} and ${DNS_RESOLVER} at container
 # start. nginx's own $variables are untouched, because envsubst only replaces names that exist in the
@@ -47,12 +47,6 @@ http {
     # to request time, which is what the resolver is for.
     resolver ${DNS_RESOLVER} valid=10s ipv6=off;
 
-    # Upgrade only when the client asked to; a plain request keeps a keep-alive connection.
-    map $http_upgrade $connection_upgrade {
-        default upgrade;
-        ''      '';
-    }
-
     server {
         listen 80 default_server;
         listen [::]:80 default_server;
@@ -87,32 +81,13 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
             proxy_set_header Connection "";
 
+            # Unbuffered, so the conversation stream (server-sent events) reaches the browser as it
+            # is written. The server pings an idle stream every 15 s, well inside the read timeout.
             proxy_buffering off;
             proxy_request_buffering off;
             proxy_connect_timeout 10s;
             proxy_send_timeout 60s;
             proxy_read_timeout 60s;
-        }
-
-        # The live conversation (PLAN.md §3.1). Upgraded to a WebSocket, and given a long read
-        # timeout: a voice session can sit quiet for minutes while someone thinks, and nginx's
-        # default 60 s would cut it. The application sends its own pings well inside this.
-        location /ws {
-            set $backend "${BACKEND_ORIGIN}";
-            proxy_pass $backend$request_uri;
-            proxy_http_version 1.1;
-
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection $connection_upgrade;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-
-            proxy_buffering off;
-            proxy_connect_timeout 10s;
-            proxy_send_timeout 3600s;
-            proxy_read_timeout 3600s;
         }
 
         # Caching is set with `expires` rather than add_header on purpose: any add_header inside a

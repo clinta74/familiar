@@ -1,6 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <circle cx="16" cy="16" r="14" fill="#7c5cff"/>
-  <circle cx="11.5" cy="14" r="2.2" fill="#fff"/>
-  <circle cx="20.5" cy="14" r="2.2" fill="#fff"/>
-  <path d="M11 20.5c2.8 2.4 7.2 2.4 10 0" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <g fill="#fdfaf5" stroke="#d9cdbf" stroke-width="0.6">
+    <path d="M9 10C7.5 6.5 8 2.6 9.6 1c1.7 1.6 2.4 5.4 1.6 9z"/>
+    <path d="M23 10c1.5-3.5 1-7.4-.6-9-1.7 1.6-2.4 5.4-1.6 9z"/>
+  </g>
+  <path d="M9.6 8.6c-.6-2-.4-4 .3-5.1.7 1.1.9 3.1.5 5.1z" fill="#b3a093"/>
+  <path d="M22.4 8.6c.6-2 .4-4-.3-5.1-.7 1.1-.9 3.1-.5 5.1z" fill="#b3a093"/>
+  <g fill="#fdfaf5">
+    <circle cx="9.5" cy="12" r="4"/><circle cx="8.5" cy="17" r="4"/><circle cx="10" cy="22" r="4"/>
+    <circle cx="14" cy="25" r="4"/><circle cx="18" cy="25" r="4"/><circle cx="22" cy="22" r="4"/>
+    <circle cx="23.5" cy="17" r="4"/><circle cx="22.5" cy="12" r="4"/>
+  </g>
+  <ellipse cx="16" cy="18" rx="5.6" ry="6" fill="#e4d6cc"/>
+  <g fill="#fdfaf5">
+    <circle cx="11" cy="9" r="3.6"/><circle cx="16" cy="7" r="4.2"/><circle cx="21" cy="9" r="3.6"/>
+    <circle cx="13.5" cy="11" r="3.2"/><circle cx="18.5" cy="11" r="3.2"/>
+  </g>
+  <circle cx="13.6" cy="16.4" r="1.4" fill="#181210"/>
+  <circle cx="18.4" cy="16.4" r="1.4" fill="#181210"/>
+  <ellipse cx="16" cy="21" rx="3.2" ry="2.6" fill="#ddcbbf"/>
+  <ellipse cx="16" cy="20.2" rx="1.3" ry="0.8" fill="#7a6157"/>
 </svg>

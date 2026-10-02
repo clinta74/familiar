@@ -47,7 +47,7 @@ Non-goals for v1: multi-user shared rooms, public hosting, cloud LLM fallback, w
   one (for `num_ctx` / `keep_alive`), a derived model with the window baked in, and the
   prefix-caching discipline from muwbta's `tools/ollama/README.md` (§4.3).
 - **Long-running, stateful work is .NET's strength**: hosted services for the scheduler,
-  `Channel<T>` for per-conversation pipelines, WebSockets, cancellation everywhere (barge-in is a
+  `Channel<T>` for per-conversation pipelines, streaming responses, cancellation everywhere (barge-in is a
   cancellation problem).
 - **Microsoft.Extensions.AI** gives a provider-neutral chat + tool-calling abstraction with an
   Ollama implementation, so tools are plain C# methods with attributes.
@@ -61,66 +61,84 @@ Non-goals for v1: multi-user shared rooms, public hosting, cloud LLM fallback, w
 ## 3. Architecture
 
 ```
- Browser (React)                                 Server (.NET 10)                      Sidecars
- ┌──────────────────────┐   WebSocket /ws   ┌──────────────────────────────┐
- │ mic → VAD → opus/pcm ├──────────────────►│ ConversationSession (per WS) │──HTTP──► STT  (faster-whisper)
- │                      │                   │   ├ STT client               │
- │ audio player  ◄──────┤◄─ audio chunks ───┤   ├ AgentLoop (LLM + tools) ─┼──HTTP──► Ollama
- │ avatar (three-vrm) ◄─┤◄─ expression,     │   ├ EmotionTagParser          │
- │   visemes, gestures  │   viseme, state   │   ├ SentenceChunker → TTS ───┼──HTTP──► TTS  (Kokoro)
- │ chat transcript   ◄──┤◄─ text deltas ────┤   └ ContextBuilder           │
- └──────────────────────┘                   │                              │
-          ▲  REST /api (auth, avatar,       │ Scheduler (hosted service)   │──► Web Push / FCM
-          │  history, settings)             │ Tool registry + hooks        │──► CalDAV, webhooks, MCP
-          └─────────────────────────────────┤ EF Core ─────────────────────┼──► Postgres 18 + pgvector
-                                            └──────────────────────────────┘
+ Browser / phone                                Server (.NET 10)                      Sidecars
+ ┌──────────────────────┐ GET  /api/conversation/stream (SSE)
+ │ event stream      ◄──┤◄── state, deltas, ──┐┌──────────────────────────────┐
+ │                      │    expression, ...  ││ ConversationHub (per account)│
+ │ mic → VAD → utterance├─── POST .../audio ──►│   ├ STT client               │──HTTP──► STT  (faster-whisper)
+ │ typed text           ├─── POST .../messages►│   ├ AgentLoop (LLM + tools) ─┼──HTTP──► Ollama
+ │ stop / barge-in      ├─── POST .../interrupt►  ├ EmotionTagParser          │
+ │ audio player     ◄───┤◄── GET  .../audio/{n}  ├ SentenceChunker → TTS ───┼──HTTP──► TTS  (Kokoro)
+ │ avatar (VRM / face)  │                     │└   └ ContextBuilder           │
+ └──────────────────────┘                     │  Scheduler (hosted service)   │──► Web Push / FCM / APNs
+          REST /api (auth, familiar,          │  Tool registry + hooks        │──► CalDAV, webhooks, MCP
+          history, settings)                  └─ EF Core ─────────────────────┼──► Postgres 18 + pgvector
+                                                └──────────────────────────────┘
 ```
 
-### 3.1 Transport
+### 3.1 Transport — Server-Sent Events + POST
 
-**WebSocket** for the live conversation, **REST** for everything else.
+**Decided (2026-10-01): SSE for everything the server pushes, POST for everything the client
+sends.** The first draft of this plan used a WebSocket; it was dropped before any code was
+written, because nothing in this design needs a continuous upstream channel:
 
-muwbta uses SSE + POST because traffic is mostly server→client text. Voice is genuinely
-bidirectional and continuous: mic audio streams up while TTS audio streams down, and the user
-speaking over the avatar (barge-in) must cancel generation immediately. One socket makes that a
-single cancellation token instead of a race between two channels.
+- **Speech-to-text runs per utterance.** Client-side VAD decides when you've stopped talking
+  (§3.2), and the whole utterance is one POST — tens of KB, milliseconds on the LAN or VPN.
+  faster-whisper doesn't produce useful live partials anyway, so streaming mic audio up a socket
+  would buy nothing.
+- **Barge-in is a POST** that cancels the running turn's token. No socket required.
+- **Reconnection is built in.** `EventSource` reconnects on its own and sends `Last-Event-ID`;
+  the server replays from a per-account ring buffer, or tells the client to resync history if
+  it fell too far behind. Phones drop connections constantly; with a socket that resume logic
+  would be ours to write.
+- **One account, every device.** A turn's events go to every open stream of the account, so
+  the phone and the browser show the same conversation live.
+- **It's plain HTTP:** the auth, rate limits, forwarded headers and nginx config that already
+  exist apply unchanged, with no upgrade handling and no cross-site WebSocket hijacking to guard.
+  muwbta runs this pattern in production.
 
-- **Web:** same-origin HttpOnly cookie (Vite proxies `/api` and `/ws` in dev — same reasoning as
-  muwbta's README "Why the client proxies").
-- **Android:** personal access token as `Authorization: Bearer` on the WebSocket upgrade (OkHttp
-  can set headers; browsers can't, which is why web keeps the cookie).
+The cost is that SSE is text: TTS audio (phase 2) is fetched per sentence by URL, announced by an
+event, rather than pushed. If true streaming STT is ever wanted, a socket can be added for that
+alone.
 
-Message envelope (JSON text frames; audio as binary frames with a 1-byte type prefix):
+- **Web:** same-origin HttpOnly cookie. `EventSource` can't set headers, which is the reason the
+  browser uses the cookie (Vite and nginx proxy `/api` so it's one origin).
+- **Android / iOS:** `Authorization: Bearer` device token on every request, the stream included
+  (OkHttp and URLSession can set headers).
 
-| Direction | Type | Payload |
+| Direction | Endpoint / event | Payload |
 |---|---|---|
-| ↑ | `audio` (binary) | 16 kHz mono PCM or Opus frames while VAD says speech |
-| ↑ | `utterance.end` | VAD end-of-speech |
-| ↑ | `text` | typed message |
-| ↑ | `interrupt` | user started speaking / pressed stop |
-| ↑ | `confirm` | `{ toolCallId, approved }` |
-| ↑ | `hello` | `{ client: web\|android\|ios, version, capabilities[] }` — first frame |
-| ↑ | `tool.result` | result of a device-side tool (§6.1) |
-| ↓ | `state` | `listening` · `thinking` · `speaking` · `idle` · `using-tool` |
-| ↓ | `transcript` | partial/final user transcript |
-| ↓ | `reply.delta` | assistant text (tags stripped) |
-| ↓ | `expression` | `{ emotion, intensity, at }` |
-| ↓ | `gesture` | `{ name, at }` — nod, wave, shrug, think, … |
-| ↓ | `audio` (binary) | TTS chunk, sequence-numbered |
-| ↓ | `visemes` | `[{ v, t, d }]` aligned to the audio chunk (phase 3) |
-| ↓ | `tool.confirm` | ask the user before a side-effecting tool runs |
-| ↓ | `tool.invoke` | run a device-side tool on this client (§6.1) |
+| ↑ | `POST /api/conversation/messages` | `{ text, timeZone }` — a typed message; starts a turn |
+| ↑ | `POST /api/conversation/audio` | an utterance (Opus/WebM or WAV) after VAD end-of-speech (phase 2) |
+| ↑ | `POST /api/conversation/interrupt` | user started speaking / pressed stop |
+| ↑ | `POST /api/conversation/confirm` | `{ toolCallId, approved }` (phase 4) |
+| ↑ | `POST /api/conversation/tool-results` | result of a device-side tool (§6.1) |
+| ↓ | `ready` | first event: the familiar's name and whether the model is reachable |
+| ↓ | `state` | `idle` · `thinking` · `speaking` · `resting` (model unreachable) · `listening` · `using-tool` |
+| ↓ | `message` | a user message as stored (so other devices see it) |
+| ↓ | `reply.start` / `reply.delta` / `reply.end` | assistant text, tags stripped; end says if interrupted |
+| ↓ | `expression` | `{ emotion, intensity }` |
+| ↓ | `gesture` | `{ name }` — nod, shake, tilt, wave, shrug |
+| ↓ | `audio` | `{ seq, url, visemes? }` — a TTS sentence is ready (phase 2–3) |
+| ↓ | `tool.confirm` / `tool.invoke` | ask the user; run a device-side tool (phase 4) |
+| ↓ | `turn.error` | `{ code, message }` — e.g. `resting` when the model is unreachable. Not `error`: EventSource uses that name for its own connection failures |
 | ↓ | `notify` | timer fired, reminder due — may arrive outside a turn |
+| ↓ | `resync` | the client missed more than the replay buffer holds; reload history |
+
+A native client says what it can do (`client`, `capabilities[]`) as query parameters on the
+stream request, in place of the socket's `hello`.
 
 ### 3.2 One turn, end to end
 
-1. Client VAD (Silero via `@ricky0123/vad-web`) detects speech, streams audio up.
-2. On `utterance.end`, server sends the buffer to STT → `transcript`.
+1. Client VAD (Silero via `@ricky0123/vad-web`) detects speech and records the utterance.
+2. On end of speech the client POSTs it; the server sends it to STT and emits the transcript as a
+   `message`.
 3. `ContextBuilder` assembles the prompt (§4.3); `AgentLoop` streams from Ollama.
 4. Tool calls are executed (or held for confirmation) and the loop continues.
 5. Streamed text passes through `EmotionTagParser` → `expression`/`gesture` events, clean text.
 6. `SentenceChunker` cuts at sentence boundaries; each sentence goes to TTS as soon as it's
-   complete, so the avatar starts speaking after the **first sentence**, not the whole reply.
+   complete, and an `audio` event announces it, so the avatar starts speaking after the **first
+   sentence**, not the whole reply.
 7. `interrupt` at any point cancels the turn's token: Ollama stream, pending TTS, and queued audio.
    The partial reply is saved as interrupted so the model knows it was cut off.
 
@@ -172,12 +190,19 @@ dev box's 16 GB has more room.
 
 Built in one order, always — stable first, volatile last — so the KV cache is reused:
 
-1. System: Familiar's base behaviour, tool rules, emotion-tag grammar (static, global)
-2. Persona: this user's familiar — name, personality sliders rendered to prose (static per user)
-3. Long-term memories relevant to this turn (pgvector top-k)
-4. Situation block (§6.3): time, next events, active timers
-5. Rolling conversation summary + last N turns
+1–2. One system message: the persona (name, personality sliders rendered to fixed prose) and then
+   the rules (speech style, emotion-tag grammar, later tool rules). Static per user. Identity comes
+   first because models follow it better that way; the cost is that the cache isn't shared across
+   accounts, which on a household server is a few hundred tokens.
+3. Rolling conversation summary + last N turns
+4. Long-term memories relevant to this turn (pgvector top-k)
+5. Situation block (§6.3): time, next events, active timers
 6. The user's message
+
+Memories and situation sit after the history, not before it: they change every turn, and anything
+after a changed token is re-evaluated, so putting them early would throw away the cached history
+on every turn. Phase 1 does this with the time, prefixed to the user's message
+(`PromptBuilder`).
 
 ### 4.4 Expressiveness
 
@@ -197,6 +222,21 @@ The model emits inline tags the server strips before TTS:
 ---
 
 ## 5. Avatar
+
+### 5.0 The default: a plush llama
+
+The first familiar is a **stuffed-toy llama**, drawn procedurally in SVG
+(`client/src/avatar/PlushLlamaAvatar.ts`): a white fleece cloud (outlined puffs with stitched
+curls, fuzzy-edged by an SVG displacement filter) framing a soft taupe face, a fringe down to the
+brows, tall ears with taupe insides, lashed button eyes with felt lids, a rounded snout with a
+Y-mouth, pink cheeks, and a long fleecy neck that runs off the bottom of the stage and fades out.
+Only the head moves on it. No assets, so it loads instantly, works offline and has no licence to
+track.
+
+Its ears carry much of the emotion — perked for joy and surprise, drooping for sadness, pinned
+back when cross, flicking now and then while idle — on top of the shared expression parameters
+(eyes, lids, brows, mouth, blush, tear, gaze) every renderer blends between. Gestures: nod,
+shake, tilt, shrug, and a fleecy hoof that pops up to wave.
 
 ### 5.1 3D: VRM
 
@@ -266,8 +306,8 @@ Every invocation lands in `tool_invocations` (args, result, who approved, durati
 
 **Where a tool runs.** Most tools run on the server. Some can only run on the device: set a
 system alarm, read the phone's calendar, current location, Do Not Disturb state, launch an app.
-A native client lists what it can do in its `hello` capabilities; the server offers those tools
-to the model only for that session, and executes them by sending `tool.invoke` and awaiting
+A native client lists what it can do in its stream capabilities (§3.1); the server offers those tools
+to the model only for that client, and executes them by sending `tool.invoke` and awaiting
 `tool.result` (with a timeout, so a backgrounded phone fails the call instead of hanging the
 turn). The web client advertises few or none. Same risk classes, same confirmation flow, same
 audit row — the model can't tell the difference.
@@ -391,11 +431,11 @@ familiar/
                             tool registry, SituationProvider, memory extraction
     Familiar.Speech/        STT / TTS clients (HTTP), behind ISpeechToText / ITextToSpeech
     Familiar.Persistence/   EF Core 10 + Npgsql + pgvector, migrations
-    Familiar.Server/        ASP.NET Core: auth, REST, /ws, scheduler, push
+    Familiar.Server/        ASP.NET Core: auth, REST, SSE conversation stream, scheduler, push
   client/
     src/                    React app: chat, voice, settings, avatar studio
     packages/avatar/        framework-agnostic AvatarDriver + VRM renderer
-    Dockerfile              nginx serving the built client, proxying /api and /ws
+    Dockerfile              nginx serving the built client, proxying /api
   mobile/                   Kotlin Multiplatform: Android + iOS (MOBILE.md)
   tests/                    xUnit + Testcontainers; vitest on the client
   tools/ollama/             Modelfile.familiar, create-models.sh
@@ -457,7 +497,7 @@ runs only published images.**
 | stt | Speaches (faster-whisper), CUDA tag | 8001 | OpenAI-compatible `/v1/audio/transcriptions`. |
 | tts | Kokoro-FastAPI, GPU tag | 8002 | OpenAI-compatible `/v1/audio/speech`, plus word timestamps. |
 | server | *(host)* `dotnet run` | 5280 | |
-| client | *(host)* Vite | 5273 | Proxies `/api` and `/ws` — one origin, so the cookie behaves as in prod. |
+| client | *(host)* Vite | 5273 | Proxies `/api` — one origin, so the cookie behaves as in prod. |
 
 `docker-compose.gpu.yml` hands the GPU to ollama, stt, and tts via WSL's `/dev/dxg` +
 `/usr/lib/wsl` mount + `LD_LIBRARY_PATH`, the mechanism muwbta's overlay already proved on this
@@ -476,8 +516,8 @@ don't push.
 - **Server image:** multi-stage, `sdk:10.0` build → `aspnet:10.0` runtime, non-root, `/health`
   and `/health/ready`, migrations applied at startup. Uploaded avatars on a mounted volume.
 - **Client image:** Vite build → nginx, TLS with a self-signed cert at start (re-encrypted
-  behind the NAS front proxy, as muwbta does), proxies `/api` and upgrades `/ws` to the server.
-  Long `proxy_read_timeout` on `/ws`, or nginx closes idle voice sessions at 60 s.
+  behind the NAS front proxy, as muwbta does), proxies `/api` to the server with buffering off,
+  so the SSE stream flows; the server pings it well inside nginx's read timeout.
 
 Speech and Ollama use their upstream images; nothing of ours to build. Pin their tags rather
 than `latest` once Phase 0 settles versions, so a NAS pull can't change voice or model behaviour
@@ -529,8 +569,8 @@ text-only / "the familiar is resting", the same rule muwbta applies to its assis
 
 Phones leave the house; they reach the NAS over a **VPN** (Tailscale or WireGuard). Nothing new is
 exposed to the internet, and the app just uses the NAS's VPN address. Public exposure through the
-front proxy stays possible later — it would need a real certificate and the WebSocket upgrade let
-through — but nothing is built for it now.
+front proxy stays possible later — it would need a real certificate and the SSE stream let
+through unbuffered — but nothing is built for it now.
 
 The app takes a server URL at first launch, so the same build works against the NAS over the VPN
 and against the dev box on the LAN during development.
@@ -544,17 +584,25 @@ compose + GPU overlay, Dockerfiles, CI, NAS compose, backup sidecar, bake-off to
 on Docker Hub, and the dev-box bake-off chose `gemma4:12b`. Still open in Phase 0: NAS deploy,
 bake-off and VRAM split on the 3060.
 
+**Phase 1 (2026-10-01):** built. SSE + POST conversation (§3.1), streamed replies from
+`familiar-chat`, persona from the profile sliders, emotion and gesture tags parsed out of the
+stream, and the built-in **plush llama** (SVG, asset-free) reacting to them, ears and all; a VRM renderer behind the same driver loads
+when a model is dropped at `client/public/avatars/familiar.vrm`. Two deviations from this plan:
+the situation (time) rides on the last user message, not in the system prompt (§4.3, so the cached
+prefix survives), and the avatar lives in `client/src/avatar/` (framework-free) until the phone
+apps need it as a package. The VRM path is untested until there's a model to test it with.
+
 | Phase | Delivers | Done when |
 |---|---|---|
 | **0. Scaffold** | Solution, auth, local compose + GPU overlay, Dockerfiles, CI image build, NAS compose, model bake-off, NAS VRAM measurement | Register/login works locally **and** from the published images on the NAS; `ollama show` confirms tool capability on the chosen model |
-| **1. Text + avatar** | WebSocket, streaming chat, persona, emotion tags, VRM avatar with idle + expressions | Typed chat makes the avatar visibly react with the right mood |
+| **1. Text + avatar** | SSE stream + POST, streaming chat, persona, emotion tags, VRM avatar with idle + expressions | Typed chat makes the avatar visibly react with the right mood |
 | **2. Voice** | Push-to-talk → STT; sentence-streamed TTS; amplitude lip-sync; interrupt button | Spoken round-trip under ~2 s on GPU |
 | **3. Hands-free** | Client VAD, barge-in cancellation, viseme lip-sync from TTS timings | Talking over it stops it mid-sentence cleanly |
 | **4. Tools & scheduler** | Timers, reminders, scheduler, Web Push, confirmation flow, audit | "Set a 10-minute timer" fires with the tab closed |
 | **5. Awareness & memory** | SituationProvider, local + ICS calendars → CalDAV/Google writes, memory + memory UI | It brings up your next meeting unprompted, and remembers your name tomorrow |
 | **6. Customisation studio** | Avatar studio: model upload, colours, voice preview, personality sliders; 2D renderer | A user makes a familiar that's clearly theirs |
 | **7. Hooks** | Outbound webhooks, inbound triggers, MCP client | Home Assistant can make it announce something |
-| **Android** | See [MOBILE.md](MOBILE.md). Server side: `hello` capabilities, device-side tools, FCM, device calendar sync | — |
+| **Android** | See [MOBILE.md](MOBILE.md). Server side: stream capabilities, device-side tools, FCM, device calendar sync | — |
 | **iOS** | See [MOBILE.md](MOBILE.md). Server side: APNs | — |
 
 ---

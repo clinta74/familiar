@@ -41,4 +41,18 @@ internal static partial class ServerLog
 
     [LoggerMessage(32, LogLevel.Warning, "Could not record device token use for {DeviceId}")]
     public static partial void DeviceTouchFailed(this ILogger logger, Exception exception, Guid deviceId);
+
+    [LoggerMessage(40, LogLevel.Information, "Model: {Options}")]
+    public static partial void LlmConfigured(this ILogger logger, string options);
+
+    [LoggerMessage(41, LogLevel.Warning, "Model unavailable: {Reason}")]
+    public static partial void ModelUnavailable(this ILogger logger, string reason);
+
+    [LoggerMessage(42, LogLevel.Error, "Turn failed for account {AccountId}")]
+    public static partial void TurnFailed(this ILogger logger, Exception exception, Guid accountId);
+
+    // Debug: the fallback handles it. Frequent ones mean the system prompt or model drifted from
+    // the tag grammar, which is worth knowing when changing either (tools/ollama/README.md).
+    [LoggerMessage(43, LogLevel.Debug, "Reply for account {AccountId} had no emotion tag; used the fallback")]
+    public static partial void ReplyUntagged(this ILogger logger, Guid accountId);
 }

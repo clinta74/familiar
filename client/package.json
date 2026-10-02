@@ -13,9 +13,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@pixiv/three-vrm": "^3.5.5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router": "^7.18.2"
+    "react-router": "^7.18.2",
+    "three": "^0.186.1"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",
@@ -23,6 +25,7 @@
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.0.4",
     "jsdom": "^28.1.0",
     "oxlint": "^1.75.0",

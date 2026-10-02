@@ -1,0 +1,35 @@
+using Familiar.Domain.Expression;
+
+namespace Familiar.Domain.Conversations;
+
+public enum MessageRole
+{
+    User = 0,
+    Assistant = 1,
+}
+
+/// <summary>One turn of a conversation.</summary>
+public sealed class Message
+{
+    public Guid Id { get; init; } = Guid.CreateVersion7();
+
+    public Guid ConversationId { get; init; }
+
+    public MessageRole Role { get; init; }
+
+    /// <summary>What was said, with expression tags stripped.</summary>
+    public required string Content { get; set; }
+
+    /// <summary>For assistant messages: the emotion the reply was delivered with.</summary>
+    public Emotion? Emotion { get; set; }
+
+    public double? EmotionIntensity { get; set; }
+
+    /// <summary>
+    /// The user cut the reply off. The partial reply is kept, and shown to the model as such, so
+    /// it knows it didn't finish.
+    /// </summary>
+    public bool Interrupted { get; set; }
+
+    public DateTimeOffset CreatedAt { get; init; }
+}

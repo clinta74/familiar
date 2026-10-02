@@ -12,6 +12,7 @@ WORKDIR /src
 COPY ["global.json", "Directory.Build.props", "Directory.Packages.props", ".editorconfig", "./"]
 
 # Project files on their own, so editing source doesn't invalidate the restore layer.
+COPY ["src/Familiar.Agent/Familiar.Agent.csproj", "src/Familiar.Agent/"]
 COPY ["src/Familiar.Domain/Familiar.Domain.csproj", "src/Familiar.Domain/"]
 COPY ["src/Familiar.Persistence/Familiar.Persistence.csproj", "src/Familiar.Persistence/"]
 COPY ["src/Familiar.Server/Familiar.Server.csproj", "src/Familiar.Server/"]

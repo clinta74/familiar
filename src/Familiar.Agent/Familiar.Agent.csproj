@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The conversation engine: talking to the model, turning its output into speech and expression,
+    building prompts. No ASP.NET and no database, so it's testable with a fake model and nothing else.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Familiar.Domain\Familiar.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Familiar.Server.Tests" />
+  </ItemGroup>
+
+</Project>

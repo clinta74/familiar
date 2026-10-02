@@ -1,4 +1,6 @@
 using Familiar.Domain.Accounts;
+using Familiar.Domain.Conversations;
+using Familiar.Domain.Familiars;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,6 +12,12 @@ public sealed class FamiliarDbContext(DbContextOptions<FamiliarDbContext> option
     public DbSet<Account> Accounts => Set<Account>();
 
     public DbSet<AccessToken> AccessTokens => Set<AccessToken>();
+
+    public DbSet<FamiliarProfile> FamiliarProfiles => Set<FamiliarProfile>();
+
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+
+    public DbSet<Message> Messages => Set<Message>();
 
     /// <summary>
     /// ASP.NET Data Protection's key ring. Kept in the database rather than a container path, so

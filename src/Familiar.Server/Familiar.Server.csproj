@@ -5,6 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Familiar.Agent\Familiar.Agent.csproj" />
     <ProjectReference Include="..\Familiar.Domain\Familiar.Domain.csproj" />
     <ProjectReference Include="..\Familiar.Persistence\Familiar.Persistence.csproj" />
   </ItemGroup>

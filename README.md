@@ -6,9 +6,9 @@ Web first, then native Android and iOS, one server for all of them.
 - [docs/PLAN.md](docs/PLAN.md) — server and web design, deployment, phases
 - [docs/MOBILE.md](docs/MOBILE.md) — Android and iOS
 
-**Status: Phase 0 (scaffold).** Accounts, browser sessions and phone device tokens work end to end;
-the local and NAS stacks, images and CI are in place. The conversation and the avatar arrive in
-Phase 1.
+**Status: Phase 1 (text + avatar).** Talk to your familiar by typing: replies stream in from the local model, and its plush llama avatar reacts - ears, eyes, brows, blush, tears, gestures - to what it says.
+Accounts, browser sessions and phone device tokens work; local and NAS stacks, images and CI are in
+place. Voice is phase 2.
 
 ---
 
@@ -61,9 +61,10 @@ The GPU overlay uses WSL2's `/dev/dxg`, not the NVIDIA toolkit; see the comments
 
 ### Why the client proxies the API
 
-Browser sessions are an HttpOnly, `SameSite=Lax` cookie, and a browser WebSocket can't send an
-`Authorization` header — so `/api` and `/ws` are proxied through Vite (and through nginx in the
-image) to keep the browser on one origin. Phones use bearer device tokens instead.
+Browser sessions are an HttpOnly, `SameSite=Lax` cookie, and the conversation's event stream
+(`EventSource`) can't send an `Authorization` header — so `/api` is proxied through Vite (and
+through nginx in the image) to keep the browser on one origin. Phones use bearer device tokens
+instead.
 
 ## Authentication
 
