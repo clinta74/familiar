@@ -82,8 +82,12 @@ public static partial class AuthEndpoints
         // Hashed before taking the lock: PBKDF2 is the slow part, and it doesn't need serialising.
         account.PasswordHash = hasher.HashPassword(account, request.Password!);
 
-        await using (var transaction = await db.Database.BeginTransactionAsync(ct))
+        // Under the retrying execution strategy a transaction has to be retried whole: if the
+        // connection dies part-way, the lock, the checks and the insert all happen again.
+        var refused = await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
+            db.ChangeTracker.Clear();
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
             await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({RegistrationLock})", ct);
 
             var isFirstAccount = !await db.Accounts.AnyAsync(ct);
@@ -118,6 +122,13 @@ public static partial class AuthEndpoints
             {
                 logger.FirstAccountPromoted(account.Username);
             }
+
+            return (IResult?)null;
+        });
+
+        if (refused is not null)
+        {
+            return refused;
         }
 
         await CookieSession.SignInAsync(http, account, clock);

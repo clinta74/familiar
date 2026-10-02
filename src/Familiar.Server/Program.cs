@@ -28,7 +28,9 @@ var llmOptions = builder.Configuration.GetSection(LlmOptions.Section).Get<LlmOpt
 var speechOptions = builder.Configuration.GetSection(SpeechOptions.Section).Get<SpeechOptions>() ?? new SpeechOptions();
 
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddFamiliarPersistence(connectionString);
+builder.Services.AddFamiliarPersistence(connectionString, new DatabaseRetry(
+    builder.Configuration.GetValue("Database:MaxRetryCount", DatabaseRetry.Default.MaxRetryCount),
+    TimeSpan.FromSeconds(builder.Configuration.GetValue("Database:MaxRetryDelaySeconds", DatabaseRetry.Default.MaxRetryDelay.TotalSeconds))));
 
 // The conversation (PLAN.md §3). The model client is a typed HttpClient, resolved per turn rather
 // than captured by a singleton, so the handler pool can rotate connections.

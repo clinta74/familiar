@@ -121,28 +121,34 @@ public sealed class CalendarStore(IDbContextFactory<FamiliarDbContext> db, IData
     public async Task ReplaceFeedEventsAsync(CalendarSource source, IReadOnlyList<FeedOccurrence> occurrences, CancellationToken ct)
     {
         await using var context = await db.CreateDbContextAsync(ct);
-        await using var transaction = await context.Database.BeginTransactionAsync(ct);
 
-        await context.CalendarEvents.Where(e => e.SourceId == source.Id).ExecuteDeleteAsync(ct);
-        var now = clock.GetUtcNow();
-        context.CalendarEvents.AddRange(occurrences.Select(o => new CalendarEvent
+        // Retried as a whole (the execution strategy requires it): delete, insert and mark together.
+        await context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
-            SourceId = source.Id,
-            AccountId = source.AccountId,
-            ExternalId = o.ExternalId.Length <= 512 ? o.ExternalId : o.ExternalId[..512],
-            Title = o.Title,
-            Location = o.Location,
-            StartsAt = o.StartsAt,
-            EndsAt = o.EndsAt,
-            AllDay = o.AllDay,
-            CreatedAt = now,
-        }));
-        await context.SaveChangesAsync(ct);
+            context.ChangeTracker.Clear();
+            await using var transaction = await context.Database.BeginTransactionAsync(ct);
 
-        await context.CalendarSources
-            .Where(s => s.Id == source.Id)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.LastSyncedAt, now).SetProperty(x => x.LastError, (string?)null), ct);
-        await transaction.CommitAsync(ct);
+            await context.CalendarEvents.Where(e => e.SourceId == source.Id).ExecuteDeleteAsync(ct);
+            var now = clock.GetUtcNow();
+            context.CalendarEvents.AddRange(occurrences.Select(o => new CalendarEvent
+            {
+                SourceId = source.Id,
+                AccountId = source.AccountId,
+                ExternalId = o.ExternalId.Length <= 512 ? o.ExternalId : o.ExternalId[..512],
+                Title = o.Title,
+                Location = o.Location,
+                StartsAt = o.StartsAt,
+                EndsAt = o.EndsAt,
+                AllDay = o.AllDay,
+                CreatedAt = now,
+            }));
+            await context.SaveChangesAsync(ct);
+
+            await context.CalendarSources
+                .Where(s => s.Id == source.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.LastSyncedAt, now).SetProperty(x => x.LastError, (string?)null), ct);
+            await transaction.CommitAsync(ct);
+        });
     }
 
     /// <summary>
