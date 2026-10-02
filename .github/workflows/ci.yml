@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+env:
+  IMAGE_NAMESPACE: ${{ secrets.DOCKER_USERNAME }}
+
+jobs:
+  # Server tests start a real Postgres via Testcontainers; ubuntu runners have Docker.
+  test-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet build Familiar.slnx -c Release
+      - run: dotnet test Familiar.slnx -c Release --no-build
+
+  test-client:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+  # Images are built on every run (so a broken Dockerfile fails the PR) but pushed only from main
+  # and version tags.
+  images:
+    needs: [test-server, test-client]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: familiar-server
+            context: .
+            dockerfile: ./Dockerfile
+          - name: familiar-client
+            context: ./client
+            dockerfile: ./client/Dockerfile
+          - name: familiar-backup
+            context: ./tools/backup
+            dockerfile: ./tools/backup/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history and tags, for `git describe` below.
+          fetch-depth: 0
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAMESPACE || 'local' }}/${{ matrix.name }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-,enable=${{ startsWith(github.ref, 'refs/heads/') }}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Resolve build version
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            version="${GITHUB_REF#refs/tags/v}"
+          else
+            last="$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)"
+            count="$(git rev-list --count "${last}..HEAD" 2>/dev/null || git rev-list --count HEAD)"
+            version="${last#v}-dev.${count}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.ver.outputs.version }}
+            REVISION=${{ github.sha }}
+          provenance: false
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}

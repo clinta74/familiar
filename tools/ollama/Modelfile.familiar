@@ -1,0 +1,29 @@
+# Familiar's conversation model.
+#
+# Load-time parameters only. Sampling (temperature, top_p, seed) and `think` are per-request and
+# cost nothing to vary, so they stay in the caller. num_ctx cannot: a request asking for a different
+# window reloads the model and drops its KV cache. Baking it here means a caller that forgets to
+# send it gets the right window rather than Ollama's 4096 default - which truncates silently, so
+# the symptom is a model that "forgets" its persona, not an error.
+#
+# FROM is the default candidate. create-models.sh can override it (BASE=...) so the bake-off can
+# build the same derived model over several bases without editing this file. Once the bake-off
+# settles, the winner goes here.
+
+FROM qwen3:8b
+
+# 8k, from the budget (PLAN.md §4.3):
+#
+#   system + tool definitions   ~2,000
+#   persona                       ~400
+#   memories                      ~500
+#   situation block               ~300
+#   summary + recent turns      ~3,000
+#   generation                    ~600   a spoken reply is a few sentences
+#   headroom                    ~1,400
+#
+# Re-measure with real prompt_eval_count figures once phase 1 exists; change it here with the reason.
+PARAMETER num_ctx 8192
+
+# A conversational default. The caller lowers it for anything that must satisfy a schema.
+PARAMETER temperature 0.7

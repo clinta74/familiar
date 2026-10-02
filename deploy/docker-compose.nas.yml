@@ -1,0 +1,167 @@
+name: familiar
+
+# TrueNAS SCALE deployment. Published images only: nothing here builds from source, and no checkout
+# of the repository is needed on the NAS.
+#
+#     cp .env.example .env        # then set POSTGRES_PASSWORD and the paths
+#     docker compose -f docker-compose.nas.yml up -d
+#     docker compose -f docker-compose.nas.yml -f docker-compose.nas.gpu.yml up -d    # with the GPU
+#
+# Reached from phones over the VPN (PLAN.md §10.4); nothing here is meant to face the internet.
+#
+# Runs alongside muwbta on the same box, so every host port differs from muwbta's:
+#     client 7280 (muwbta 7180), postgres 5435 loopback (muwbta 5434).
+#
+# Nothing depends on ollama, stt or tts. The server starts and serves sign-in, settings and history
+# without them, and the conversation degrades to "resting" rather than the stack refusing to start.
+#
+# Once the first account (the admin) exists, leave ALLOW_REGISTRATION=false: a stranger on the VPN
+# shouldn't be able to make themselves an account.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18
+    container_name: familiar-postgres
+    restart: always
+    networks: [familiar]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-familiar}
+      POSTGRES_USER: ${POSTGRES_USER:-familiar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_INITDB_ARGS: -c timezone=UTC
+    ports:
+      # Loopback only, for psql on the NAS itself. The server reaches postgres over the network.
+      - 127.0.0.1:${POSTGRES_PORT:-5435}:5432
+    volumes:
+      # PG 18 layout: /var/lib/postgresql, not .../data.
+      - ${FAMILIAR_DATA_DIR:-./data}/postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-familiar} -d ${POSTGRES_DB:-familiar}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    shm_size: 256mb
+    mem_limit: 1g
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  server:
+    image: ${IMAGE_NAMESPACE:-candrews74}/familiar-server:${FAMILIAR_TAG:-latest}
+    container_name: familiar-server
+    restart: always
+    pull_policy: always
+    networks: [familiar]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Familiar: >-
+        Host=postgres;Port=5432;Database=${POSTGRES_DB:-familiar};Username=${POSTGRES_USER:-familiar};Password=${POSTGRES_PASSWORD};Maximum Pool Size=20
+      Auth__AllowRegistration: ${ALLOW_REGISTRATION:-false}
+      # The compose network: requests arrive via the client container's nginx, and its
+      # X-Forwarded-For is what gives rate limits a real client address. Must match the subnet below.
+      Proxy__KnownNetworks: ${FAMILIAR_SUBNET:-172.30.0.0/16}
+    volumes:
+      - ${FAMILIAR_DATA_DIR:-./data}/logs:/app/logs
+    # The .NET GC sizes its heap from the cgroup limit; without one it sizes against the whole NAS.
+    mem_limit: 1g
+    logging: *logging
+
+  client:
+    image: ${IMAGE_NAMESPACE:-candrews74}/familiar-client:${FAMILIAR_TAG:-latest}
+    container_name: familiar-client
+    restart: always
+    pull_policy: always
+    networks: [familiar]
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      BACKEND_ORIGIN: http://server:8080
+    ports:
+      # 443: the front proxy (or the VPN client directly) speaks HTTPS to this, so the server sees
+      # X-Forwarded-Proto https and the cookie is Secure. Self-signed unless a cert is mounted.
+      - ${CLIENT_PORT:-7280}:443
+    mem_limit: 128m
+    logging: *logging
+
+  # Familiar's own Ollama (PLAN.md §4.2). Models on the SSD pool: Ollama mmaps weights, and pages
+  # evicted from a spinning disk are re-read on the next token.
+  #
+  # After first start, build the derived model from any machine with Docker access to the NAS:
+  #     DOCKER_HOST=ssh://nas sh tools/ollama/create-models.sh
+  ollama:
+    image: ollama/ollama:${OLLAMA_TAG:-latest}
+    container_name: familiar-ollama
+    restart: always
+    networks: [familiar]
+    environment:
+      OLLAMA_KEEP_ALIVE: "-1"
+      OLLAMA_MAX_LOADED_MODELS: "2"
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-1}
+      # Leave cores for muwbta's game loop when inference falls back to the CPU.
+      OLLAMA_NUM_THREAD: ${OLLAMA_THREADS:-4}
+    cpus: ${OLLAMA_CPUS:-4.0}
+    mem_limit: ${OLLAMA_MEMORY:-12g}
+    volumes:
+      - ${OLLAMA_MODELS_DIR:-/mnt/ssd/familiar/ollama}:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *logging
+
+  stt:
+    image: ghcr.io/speaches-ai/speaches:${STT_TAG:-latest-cpu}
+    container_name: familiar-stt
+    restart: always
+    networks: [familiar]
+    volumes:
+      - ${FAMILIAR_DATA_DIR:-./data}/hf-cache:/home/ubuntu/.cache/huggingface/hub
+    mem_limit: 4g
+    logging: *logging
+
+  tts:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:${TTS_TAG:-latest}
+    container_name: familiar-tts
+    restart: always
+    networks: [familiar]
+    mem_limit: 4g
+    logging: *logging
+
+  # Nightly pg_dump that proves itself by restoring into a scratch database; a dump that won't
+  # restore is deleted rather than kept (tools/backup/backup.sh).
+  backup:
+    image: ${IMAGE_NAMESPACE:-candrews74}/familiar-backup:${FAMILIAR_TAG:-latest}
+    container_name: familiar-backup
+    restart: always
+    pull_policy: always
+    networks: [familiar]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-familiar}
+      PGDATABASE: ${POSTGRES_DB:-familiar}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_AT_HOUR: ${BACKUP_AT_HOUR:-3}
+      BACKUP_KEEP: ${BACKUP_KEEP:-30}
+    volumes:
+      - ${FAMILIAR_BACKUP_DIR:-./backups}:/backups
+    mem_limit: 512m
+    logging: *logging
+
+networks:
+  familiar:
+    ipam:
+      config:
+        # Fixed so Proxy__KnownNetworks can name it. muwbta uses 172.25.0.0/16.
+        - subnet: ${FAMILIAR_SUBNET:-172.30.0.0/16}

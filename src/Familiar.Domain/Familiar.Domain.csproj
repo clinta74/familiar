@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Entities and rules. References nothing, so it stays unit-testable without a database. -->
+
+</Project>

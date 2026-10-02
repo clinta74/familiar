@@ -1,0 +1,48 @@
+# The dev box's GPU (RTX 5070 Ti under WSL2 / Rancher Desktop), handed to ollama, stt and tts.
+#
+#     docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile llm --profile speech up -d
+#
+# Or set it once:
+#
+#     COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml      (in .env, or exported)
+#
+# An overlay rather than an edit: a machine without a usable card must still bring the stack up on
+# CPU, and asking for a device the host cannot supply doesn't degrade - the container refuses to
+# start.
+#
+# Why not `deploy.resources.reservations.devices`: that is the spelling for a Linux host with the
+# NVIDIA container toolkit (deploy/docker-compose.nas.gpu.yml uses it). Rancher Desktop's WSL distro
+# has no toolkit and no CDI spec, so it fails with "no known GPU vendor found". What WSL2 does have
+# is the card itself at /dev/dxg and the driver libraries at /usr/lib/wsl/lib; handing a container
+# those two directly is the whole mechanism. muwbta's docker-compose.gpu.yml proved it on this box.
+#
+# Compose merges `volumes` and `devices` with the base file by path, so only the additions are
+# listed here.
+#
+# The failure mode to watch for is silent: without LD_LIBRARY_PATH the loader never finds libcuda
+# and each service falls back to CPU successfully. Check:
+#
+#     docker logs familiar-ollama | grep "inference compute"     -> library=CUDA
+#     docker exec familiar-ollama ollama ps                       -> PROCESSOR 100% GPU
+
+services:
+  ollama:
+    devices: [/dev/dxg]
+    volumes: [/usr/lib/wsl:/usr/lib/wsl:ro]
+    environment:
+      LD_LIBRARY_PATH: /usr/lib/wsl/lib
+      OLLAMA_FLASH_ATTENTION: "1"
+
+  stt:
+    image: ghcr.io/speaches-ai/speaches:${STT_GPU_TAG:-latest-cuda}
+    devices: [/dev/dxg]
+    volumes: [/usr/lib/wsl:/usr/lib/wsl:ro]
+    environment:
+      LD_LIBRARY_PATH: /usr/lib/wsl/lib
+
+  tts:
+    image: ghcr.io/remsky/kokoro-fastapi-gpu:${TTS_GPU_TAG:-latest}
+    devices: [/dev/dxg]
+    volumes: [/usr/lib/wsl:/usr/lib/wsl:ro]
+    environment:
+      LD_LIBRARY_PATH: /usr/lib/wsl/lib

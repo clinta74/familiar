@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Familiar.Domain/Familiar.Domain.csproj" />
+    <Project Path="src/Familiar.Persistence/Familiar.Persistence.csproj" />
+    <Project Path="src/Familiar.Server/Familiar.Server.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Familiar.Server.Tests/Familiar.Server.Tests.csproj" />
+  </Folder>
+</Solution>

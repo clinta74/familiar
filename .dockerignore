@@ -1,0 +1,43 @@
+# Leading-directory patterns only match at the root, so anything that occurs at more than one depth
+# needs `**/`. The host's per-project obj/ leaking into the build context brings Windows package
+# paths into project.assets.json and breaks the restore inside the container.
+
+.git
+.gitignore
+.gitattributes
+.github/
+
+**/bin/
+**/obj/
+**/TestResults/
+**/node_modules/
+**/dist/
+**/coverage/
+
+.vs/
+.vscode/
+.idea/
+
+Dockerfile
+docker-compose*.yml
+.dockerignore
+deploy/
+
+*.md
+docs/
+
+# .editorconfig is deliberately NOT ignored: EnforceCodeStyleInBuild makes it build input, and the
+# image must compile under the same rules as CI and a developer machine.
+
+.env
+.env.*
+appsettings.local.json
+backups/
+logs/
+data/
+
+# The client and mobile apps have their own build contexts.
+client/
+mobile/
+tools/
+tests/

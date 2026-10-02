@@ -1,0 +1,32 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+**/TestResults/
+*.trx
+
+# Node
+**/node_modules/
+**/dist/
+*.tsbuildinfo
+**/coverage/
+
+# IDE / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+.DS_Store
+Thumbs.db
+
+# Local configuration and secrets
+.env
+deploy/.env
+appsettings.local.json
+
+# Runtime data
+backups/
+logs/
+data/

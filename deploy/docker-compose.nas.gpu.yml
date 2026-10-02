@@ -1,0 +1,50 @@
+# The NAS's RTX 3060 (12 GB), for a Linux host with the NVIDIA container toolkit.
+#
+#     docker compose -f docker-compose.nas.yml -f docker-compose.nas.gpu.yml up -d
+#
+# A reservation isn't exclusive: these services share the card with each other and with muwbta's
+# ollama. VRAM is the real budget, and everything wanted resident doesn't fit (PLAN.md §10.3):
+#
+#     muwbta-builder (Gemma 3 12B Q4, 16k)   ~8.4 GB
+#     Familiar LLM, 8B Q4                    ~5-6 GB
+#     whisper small/distil + Kokoro          ~1.5 GB
+#
+# Each service below is self-contained, so one can be kept on the CPU by deleting (or commenting
+# out) its block. Speech is the cheapest to leave on CPU; the LLM is the one that must have the card.
+#
+# Verify:
+#     docker exec familiar-ollama nvidia-smi
+#     docker logs familiar-ollama | grep "inference compute"      -> library=CUDA
+#     docker exec familiar-ollama ollama ps                        -> PROCESSOR 100% GPU
+
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      OLLAMA_FLASH_ATTENTION: "1"
+
+  stt:
+    image: ghcr.io/speaches-ai/speaches:${STT_GPU_TAG:-latest-cuda}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  tts:
+    image: ghcr.io/remsky/kokoro-fastapi-gpu:${TTS_GPU_TAG:-latest}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

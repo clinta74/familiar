@@ -1,0 +1,18 @@
+# LF everywhere. The server and client are built on Linux (Dockerfiles, CI), and this stops a
+# contributor's core.autocrlf from turning a one-line edit into a whole-file rewrite.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.vrm binary
+*.glb binary
+*.wav binary
+*.ogg binary
+*.mp3 binary
+*.onnx binary

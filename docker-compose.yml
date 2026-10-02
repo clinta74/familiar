@@ -1,0 +1,131 @@
+name: familiar-dev
+
+# Local development infrastructure. The .NET server and the React client run on the host
+# (`dotnet run`, `npm run dev`); this file runs what they talk to.
+#
+#     docker compose up -d                                   # postgres + adminer
+#     docker compose --profile llm up -d                     # ...and ollama
+#     docker compose --profile llm --profile speech up -d    # ...and speech-to-text, text-to-speech
+#
+# Layer docker-compose.gpu.yml over this for the GPU (see that file). Everything here is CPU by
+# default so a machine without a usable card can still bring the whole stack up.
+#
+# Every host port is a variable and none collides with muwbta's dev stack, so both can run at once:
+#
+#     service    familiar   muwbta
+#     postgres   5433       5432
+#     adminer    8081       8080
+#     ollama     11435      11434
+#     stt        8001       -
+#     tts        8002       -
+#
+# Credentials come from .env (see .env.example). The default password matches the connection string
+# in src/Familiar.Server/appsettings.Development.json, so a checkout with no .env still works.
+# Postgres reads POSTGRES_PASSWORD only when it initialises an empty data directory; changing it
+# later does nothing until the volume is recreated or the role is altered by hand.
+
+services:
+  postgres:
+    # pgvector's image is the official postgres:18 image plus the extension, so nothing else about
+    # it differs. Long-term memory (PLAN.md §6.6) needs the extension; phase 0 does not use it yet.
+    image: pgvector/pgvector:pg18
+    container_name: familiar-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-familiar}
+      POSTGRES_USER: ${POSTGRES_USER:-familiar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-familiar_dev_only}
+      POSTGRES_INITDB_ARGS: >-
+        -c timezone=UTC
+    ports:
+      - 127.0.0.1:${POSTGRES_PORT:-5433}:5432
+    volumes:
+      # PostgreSQL 18 images keep data under /var/lib/postgresql, not /var/lib/postgresql/data as
+      # through PG 17. Mounting the old path makes the container unhealthy.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-familiar} -d ${POSTGRES_DB:-familiar}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    shm_size: 256mb
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  adminer:
+    image: adminer:5
+    container_name: familiar-adminer
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - 127.0.0.1:${ADMINER_PORT:-8081}:8080
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    logging: *logging
+
+  # Familiar's own Ollama (PLAN.md §4.2). Separate from muwbta's so each can be tuned for its own
+  # workload: muwbta protects one large cached prefix, Familiar serves short conversational turns.
+  #
+  # After the first start, build the derived model once:
+  #     sh tools/ollama/create-models.sh
+  ollama:
+    image: ollama/ollama:${OLLAMA_TAG:-latest}
+    container_name: familiar-ollama
+    profiles: [llm]
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:${OLLAMA_PORT:-11435}:11434
+    environment:
+      # Never unload: a voice turn cannot wait for a model load.
+      OLLAMA_KEEP_ALIVE: "-1"
+      # Chat model + embedding model resident together.
+      OLLAMA_MAX_LOADED_MODELS: "2"
+      # Settled in the phase 0 bake-off together with num_ctx (tools/ollama/README.md).
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-1}
+      OLLAMA_NUM_THREAD: ${OLLAMA_THREADS:-4}
+    cpus: ${OLLAMA_CPUS:-4.0}
+    mem_limit: ${OLLAMA_MEMORY:-12g}
+    volumes:
+      - ollamadata:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *logging
+
+  # Speech-to-text: faster-whisper behind an OpenAI-compatible API (/v1/audio/transcriptions).
+  # Downloads its model on first use into the hf-cache volume.
+  stt:
+    image: ghcr.io/speaches-ai/speaches:${STT_TAG:-latest-cpu}
+    container_name: familiar-stt
+    profiles: [speech]
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:${STT_PORT:-8001}:8000
+    volumes:
+      - hf-cache:/home/ubuntu/.cache/huggingface/hub
+    logging: *logging
+
+  # Text-to-speech: Kokoro-82M behind an OpenAI-compatible API (/v1/audio/speech), plus word-level
+  # timestamps (/dev/captioned_speech) for phase 3 lip-sync.
+  tts:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:${TTS_TAG:-latest}
+    container_name: familiar-tts
+    profiles: [speech]
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:${TTS_PORT:-8002}:8880
+    logging: *logging
+
+volumes:
+  pgdata:
+  ollamadata:
+  hf-cache:
