@@ -7,12 +7,18 @@ import type {
   ReplyTruncatedEvent,
   ExpressionEvent,
   GestureEvent,
+  JobsEvent,
   MessageView,
+  NotifyEvent,
   ReadyEvent,
   ReplyDeltaEvent,
   ReplyEndEvent,
   ReplyStartEvent,
   StateEvent,
+  ToolConfirmedEvent,
+  ToolConfirmEvent,
+  ToolFinishedEvent,
+  ToolStartedEvent,
 } from './events';
 import { conversationReducer, initialConversation } from './reducer';
 
@@ -28,6 +34,8 @@ export interface ConversationHandlers {
   onAudio?: (clip: AudioEvent) => void;
   /** The conversation was cleared, on this device or another. */
   onCleared?: () => void;
+  /** A timer or reminder went off. */
+  onNotify?: (event: NotifyEvent) => void;
 }
 
 /**
@@ -79,6 +87,12 @@ export function useConversation(handlers: ConversationHandlers) {
       handlersRef.current.onCleared?.();
     });
     on('resync', () => void loadHistory());
+    on<JobsEvent>('jobs', ({ jobs }) => dispatch({ type: 'jobs', jobs }));
+    on<NotifyEvent>('notify', (event) => handlersRef.current.onNotify?.(event));
+    on<ToolStartedEvent>('tool.started', (event) => dispatch({ type: 'toolStarted', event }));
+    on<ToolFinishedEvent>('tool.finished', (event) => dispatch({ type: 'toolFinished', event }));
+    on<ToolConfirmEvent>('tool.confirm', (event) => dispatch({ type: 'confirm', event }));
+    on<ToolConfirmedEvent>('tool.confirmed', ({ callId }) => dispatch({ type: 'confirmed', callId }));
 
     // The connection dropped. EventSource retries by itself; 'ready' marks it open again.
     source.onerror = () => {
@@ -120,5 +134,13 @@ export function useConversation(handlers: ConversationHandlers) {
   );
   const startOver = useCallback(() => void conversationApi.startOver().catch(() => undefined), []);
 
-  return { ...state, send, sendSpoken, interrupt, startOver };
+  /** The jobs event that follows updates the list on every device. */
+  const cancelJob = useCallback((id: string) => void conversationApi.cancelJob(id).catch(() => undefined), []);
+
+  const answerConfirm = useCallback((callId: string, approve: boolean) => {
+    dispatch({ type: 'confirmed', callId });
+    void conversationApi.confirm(callId, approve).catch(() => undefined);
+  }, []);
+
+  return { ...state, send, sendSpoken, interrupt, startOver, cancelJob, answerConfirm };
 }

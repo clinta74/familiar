@@ -80,4 +80,34 @@ internal static partial class ServerLog
     // message to the first words and the first audio. -1 means not applicable (typed, or not spoken).
     [LoggerMessage(53, LogLevel.Information, "Turn: transcribe {TranscribeMs} ms, first text {FirstTextMs} ms, first audio {FirstAudioMs} ms, total {TotalMs} ms")]
     public static partial void TurnTiming(this ILogger logger, long transcribeMs, long firstTextMs, long firstAudioMs, long totalMs);
+
+    [LoggerMessage(60, LogLevel.Information, "Tools: {Tools}")]
+    public static partial void ToolsConfigured(this ILogger logger, string tools);
+
+    [LoggerMessage(61, LogLevel.Information, "Tool {Tool}: {Outcome} in {ElapsedMs} ms")]
+    public static partial void ToolRan(this ILogger logger, string tool, Familiar.Domain.Tools.ToolOutcome outcome, long elapsedMs);
+
+    [LoggerMessage(62, LogLevel.Warning, "The model asked for a tool that doesn't exist: {Tool}")]
+    public static partial void UnknownTool(this ILogger logger, string tool);
+
+    [LoggerMessage(63, LogLevel.Error, "Tool {Tool} failed")]
+    public static partial void ToolFailed(this ILogger logger, Exception exception, string tool);
+
+    [LoggerMessage(70, LogLevel.Information, "{Kind} {JobId} fired ({LateSeconds} s after it was due)")]
+    public static partial void JobFired(this ILogger logger, Familiar.Domain.Scheduling.JobKind kind, Guid jobId, long lateSeconds);
+
+    [LoggerMessage(71, LogLevel.Error, "Scheduler pass failed; retrying shortly")]
+    public static partial void SchedulerFailed(this ILogger logger, Exception exception);
+
+    [LoggerMessage(72, LogLevel.Error, "Couldn't announce job {JobId}")]
+    public static partial void AnnounceFailed(this ILogger logger, Exception exception, Guid jobId);
+
+    [LoggerMessage(80, LogLevel.Information, "Push subscription at {Host} is gone; removed it")]
+    public static partial void PushSubscriptionGone(this ILogger logger, string host);
+
+    [LoggerMessage(81, LogLevel.Warning, "Push service {Host} rejected a push: {Status} {Detail}")]
+    public static partial void PushRejected(this ILogger logger, string host, int status, string detail);
+
+    [LoggerMessage(82, LogLevel.Warning, "Couldn't reach push service {Host}: {Reason}")]
+    public static partial void PushFailed(this ILogger logger, string host, string reason);
 }

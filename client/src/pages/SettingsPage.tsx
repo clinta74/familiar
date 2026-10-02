@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { authApi, type Device } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { FamiliarSettings } from './FamiliarSettings';
+import { NotificationSettings } from './NotificationSettings';
 import { Shell } from './Shell';
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -101,6 +102,10 @@ export function SettingsPage() {
         <section className="card">
           <h2>Your familiar</h2>
           <FamiliarSettings />
+        </section>
+        <section className="card">
+          <h2>Notifications</h2>
+          <NotificationSettings />
         </section>
         <section className="card">
           <h2>Account</h2>

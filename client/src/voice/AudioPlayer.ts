@@ -65,6 +65,30 @@ export class AudioPlayer {
     if (this.context.state === 'suspended') void this.context.resume();
   }
 
+  /**
+   * A soft two-note chime, for a timer or reminder going off. Synthesised, so there's no file to
+   * fetch; silent until the page has been interacted with (see {@link unlock}).
+   */
+  chime(): void {
+    const context = this.context;
+    if (!context || context.state !== 'running') return;
+
+    const start = context.currentTime + 0.02;
+    [880, 1318.5].forEach((frequency, i) => {
+      const at = start + i * 0.22;
+      const tone = context.createOscillator();
+      const gain = context.createGain();
+      tone.type = 'sine';
+      tone.frequency.value = frequency;
+      gain.gain.setValueAtTime(0, at);
+      gain.gain.linearRampToValueAtTime(0.18, at + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.9);
+      tone.connect(gain).connect(context.destination);
+      tone.start(at);
+      tone.stop(at + 0.95);
+    });
+  }
+
   get isPlaying(): boolean {
     return this.playing;
   }

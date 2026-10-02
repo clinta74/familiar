@@ -8,6 +8,9 @@ using Familiar.Server.Auth;
 using Familiar.Server.Conversation;
 using Familiar.Server.Familiars;
 using Familiar.Server.Infrastructure;
+using Familiar.Server.Notifications;
+using Familiar.Server.Scheduling;
+using Familiar.Server.Tools;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,6 +51,19 @@ builder.Services.AddHttpClient<ITextToSpeech, KokoroTextToSpeech>(http =>
 builder.Services.AddSingleton<SpeechClipStore>();
 builder.Services.AddHostedService<SpeechWarmUp>();
 
+// Tools and the scheduler (PLAN.md §6): timers and reminders that fire with the tab closed, by
+// content-free Web Push.
+var pushOptions = builder.Configuration.GetSection(PushOptions.Section).Get<PushOptions>() ?? new PushOptions();
+builder.Services.AddSingleton(pushOptions);
+builder.Services.AddSingleton<SchedulerStore>();
+builder.Services.AddSingleton<SchedulerSignal>();
+builder.Services.AddSingleton<Scheduler>();
+builder.Services.AddFamiliarTools();
+builder.Services.AddSingleton<VapidKeys>();
+builder.Services.AddHttpClient(nameof(PushSender), http => http.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddSingleton<PushSender>();
+builder.Services.AddHostedService<SchedulerLoop>();
+
 builder.Services.AddSingleton<ConversationHub>();
 builder.Services.AddSingleton<ConversationStore>();
 builder.Services.AddSingleton<ConversationTurns>();
@@ -72,6 +88,7 @@ logger.AuthConfigured(authOptions.ToString());
 logger.ProxyConfigured(proxyOptions.Describe());
 logger.LlmConfigured(llmOptions.ToString());
 logger.SpeechConfigured(speechOptions.ToString());
+logger.ToolsConfigured(ToolRegistration.Describe(app.Services.GetRequiredService<Familiar.Agent.Tools.IToolExecutor>()));
 
 await StartupMigrator.MigrateAsync(app.Services, migrationBudget, logger, app.Lifetime.ApplicationStopping);
 
@@ -88,6 +105,8 @@ app.MapAuthEndpoints();
 app.MapDeviceEndpoints();
 app.MapFamiliarEndpoints();
 app.MapConversationEndpoints();
+app.MapJobEndpoints();
+app.MapNotificationEndpoints();
 
 await app.RunAsync();
 

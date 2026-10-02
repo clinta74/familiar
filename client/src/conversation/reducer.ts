@@ -1,5 +1,24 @@
 import type { Emotion } from '../avatar/types';
-import type { FamiliarState, MessageView, ReadyEvent, ReplyEndEvent } from './events';
+import type {
+  FamiliarState,
+  JobView,
+  MessageView,
+  ReadyEvent,
+  ReplyEndEvent,
+  ToolConfirmEvent,
+  ToolFinishedEvent,
+  ToolStartedEvent,
+} from './events';
+
+/** A tool the familiar used during a reply, shown as a chip on it. */
+export interface ToolChip {
+  callId: string;
+  tool: string;
+  /** Still running. */
+  running: boolean;
+  ok?: boolean;
+  summary?: string | null;
+}
 
 export interface ChatMessage {
   id: string;
@@ -9,6 +28,8 @@ export interface ChatMessage {
   interrupted?: boolean;
   /** The reply is still arriving. */
   streaming?: boolean;
+  /** Tools it used, in order. */
+  tools?: ToolChip[];
 }
 
 export type Connection = 'connecting' | 'open' | 'reconnecting';
@@ -22,6 +43,10 @@ export interface ConversationState {
   state: FamiliarState;
   messages: ChatMessage[];
   error: string | null;
+  /** Pending timers and reminders, soonest first. */
+  jobs: JobView[];
+  /** A tool waiting for the user's say-so. */
+  confirm: ToolConfirmEvent | null;
 }
 
 export const initialConversation: ConversationState = {
@@ -32,6 +57,8 @@ export const initialConversation: ConversationState = {
   state: 'idle',
   messages: [],
   error: null,
+  jobs: [],
+  confirm: null,
 };
 
 export type ConversationAction =
@@ -45,6 +72,11 @@ export type ConversationAction =
   | { type: 'replyEnd'; end: ReplyEndEvent }
   | { type: 'replyTruncated'; id: string; text: string }
   | { type: 'cleared' }
+  | { type: 'jobs'; jobs: JobView[] }
+  | { type: 'toolStarted'; event: ToolStartedEvent }
+  | { type: 'toolFinished'; event: ToolFinishedEvent }
+  | { type: 'confirm'; event: ToolConfirmEvent }
+  | { type: 'confirmed'; callId: string }
   | { type: 'error'; message: string | null };
 
 function fromView(view: MessageView): ChatMessage {
@@ -54,6 +86,18 @@ function fromView(view: MessageView): ChatMessage {
     text: view.text,
     emotion: view.emotion ?? undefined,
     interrupted: view.interrupted || undefined,
+  };
+}
+
+/** The reply's bubble, created if the tool ran before it said anything (the usual order). */
+function withChip(state: ConversationState, replyId: string, update: (chips: ToolChip[]) => ToolChip[]): ConversationState {
+  const exists = state.messages.some((m) => m.id === replyId);
+  const messages = exists
+    ? state.messages
+    : [...state.messages, { id: replyId, role: 'assistant' as const, text: '', streaming: true }];
+  return {
+    ...state,
+    messages: messages.map((m) => (m.id === replyId ? { ...m, tools: update(m.tools ?? []) } : m)),
   };
 }
 
@@ -86,6 +130,10 @@ export function conversationReducer(state: ConversationState, action: Conversati
     case 'state':
       return {
         ...state,
+        // Idle means nothing more is coming: a reply that only ran a tool and said nothing is done.
+        messages: action.state === 'idle' && state.messages.some((m) => m.streaming)
+          ? state.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m))
+          : state.messages,
         state: action.state,
         modelAvailable: action.state === 'resting' ? false : action.state === 'speaking' ? true : state.modelAvailable,
         error: action.state === 'thinking' ? null : state.error,
@@ -108,14 +156,16 @@ export function conversationReducer(state: ConversationState, action: Conversati
 
     case 'replyEnd': {
       const end = action.end;
+      const existing = state.messages.find((m) => m.id === end.id);
       const done: ChatMessage = {
         id: end.id,
         role: 'assistant',
         text: end.text,
         emotion: end.emotion,
         interrupted: end.interrupted || undefined,
+        tools: existing?.tools,
       };
-      const exists = state.messages.some((m) => m.id === end.id);
+      const exists = existing !== undefined;
       return {
         ...state,
         messages: exists ? state.messages.map((m) => (m.id === end.id ? done : m)) : [...state.messages, done],
@@ -130,7 +180,32 @@ export function conversationReducer(state: ConversationState, action: Conversati
       };
 
     case 'cleared':
-      return { ...state, messages: [], error: null };
+      return { ...state, messages: [], error: null, confirm: null };
+
+    case 'jobs':
+      return { ...state, jobs: action.jobs };
+
+    case 'toolStarted': {
+      const { replyId, callId, tool } = action.event;
+      return withChip(state, replyId, (chips) =>
+        chips.some((c) => c.callId === callId) ? chips : [...chips, { callId, tool, running: true }]);
+    }
+
+    case 'toolFinished': {
+      const { replyId, callId, tool, ok, summary } = action.event;
+      const finished: ToolChip = { callId, tool, running: false, ok, summary };
+      const next = withChip(state, replyId, (chips) =>
+        chips.some((c) => c.callId === callId)
+          ? chips.map((c) => (c.callId === callId ? finished : c))
+          : [...chips, finished]);
+      return state.confirm?.callId === callId ? { ...next, confirm: null } : next;
+    }
+
+    case 'confirm':
+      return { ...state, confirm: action.event };
+
+    case 'confirmed':
+      return state.confirm?.callId === action.callId ? { ...state, confirm: null } : state;
 
     case 'error':
       return { ...state, error: action.message };

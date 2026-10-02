@@ -22,6 +22,12 @@ public static class EventTypes
     public const string Audio = "audio";
     public const string AudioEnd = "audio.end";
     public const string ReplyTruncated = "reply.truncated";
+    public const string ToolStarted = "tool.started";
+    public const string ToolFinished = "tool.finished";
+    public const string ToolConfirm = "tool.confirm";
+    public const string ToolConfirmed = "tool.confirmed";
+    public const string Jobs = "jobs";
+    public const string Notify = "notify";
 }
 
 public enum FamiliarState
@@ -72,6 +78,13 @@ public sealed record ReplyTruncatedEvent(Guid Id, string Text);
 public sealed record AudioEndEvent(Guid ReplyId, int Clips);
 
 public sealed record EmptyEvent;
+
+/// <summary>A timer or reminder went off. The reply that announces it arrives as usual; this is for the chime.</summary>
+/// <param name="JobId">The job that fired.</param>
+/// <param name="Kind">Timer or reminder.</param>
+/// <param name="Label">What it was for.</param>
+/// <param name="Text">What the familiar says about it.</param>
+public sealed record NotifyEvent(Guid JobId, Familiar.Domain.Scheduling.JobKind Kind, string Label, string Text);
 
 /// <summary>A stored message, as both the history endpoint and the <c>message</c> event show it.</summary>
 public sealed record MessageView(

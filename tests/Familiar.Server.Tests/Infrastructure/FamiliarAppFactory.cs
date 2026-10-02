@@ -14,7 +14,8 @@ public sealed class FamiliarAppFactory(
     string connectionString,
     IReadOnlyDictionary<string, string>? settings = null,
     TimeProvider? clock = null,
-    FakeLlm? llm = null) : WebApplicationFactory<Program>
+    FakeLlm? llm = null,
+    Action<IServiceCollection>? services = null) : WebApplicationFactory<Program>
 {
     /// <summary>
     /// The model every test talks to. Never the real one: a test must not depend on Ollama being up,
@@ -52,15 +53,17 @@ public sealed class FamiliarAppFactory(
             builder.UseSetting(key, value);
         }
 
-        builder.ConfigureTestServices(services =>
+        builder.ConfigureTestServices(collection =>
         {
-            services.AddSingleton<ILlmClient>(Llm);
-            services.AddSingleton<ISpeechToText>(Stt);
-            services.AddSingleton<ITextToSpeech>(Tts);
+            collection.AddSingleton<ILlmClient>(Llm);
+            collection.AddSingleton<ISpeechToText>(Stt);
+            collection.AddSingleton<ITextToSpeech>(Tts);
             if (clock is not null)
             {
-                services.Replace(ServiceDescriptor.Singleton(clock));
+                collection.Replace(ServiceDescriptor.Singleton(clock));
             }
+
+            services?.Invoke(collection);
         });
 
         // The Windows event log provider's handle is shared across hosts in one process and closed

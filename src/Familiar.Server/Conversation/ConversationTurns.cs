@@ -1,8 +1,12 @@
 using Familiar.Agent.Llm;
 using Familiar.Agent.Prompting;
 using Familiar.Agent.Speech;
+using Familiar.Agent.Tools;
 using Familiar.Agent.Turns;
 using Familiar.Domain.Conversations;
+using Familiar.Domain.Expression;
+using Familiar.Domain.Scheduling;
+using Familiar.Server.Tools;
 
 namespace Familiar.Server.Conversation;
 
@@ -25,6 +29,7 @@ public sealed class ConversationTurns(
     ConversationHub hub,
     ConversationStore store,
     SpeechClipStore clips,
+    IToolExecutor tools,
     IServiceScopeFactory scopes,
     LlmOptions llmOptions,
     SpeechOptions speechOptions,
@@ -146,6 +151,106 @@ public sealed class ConversationTurns(
         }
     }
 
+    /// <summary>
+    /// A timer or reminder went off: the familiar says so, as a reply of its own (PLAN.md §6.2). It
+    /// waits for a reply in progress to finish rather than talking over it, and like any reply it can
+    /// be interrupted.
+    /// </summary>
+    public async Task AnnounceAsync(ScheduledJob job, string text, CancellationToken ct)
+    {
+        var channel = hub.For(job.AccountId);
+        await channel.TurnGate.WaitAsync(ct);
+        try
+        {
+            if (channel.TurnTask is { } running)
+            {
+                await running;
+            }
+
+            channel.TurnCancellation?.Dispose();
+
+            var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.ApplicationStopping);
+            channel.TurnCancellation = cancellation;
+            channel.TurnTask = Task.Run(() => SayAsync(channel, job, text, cancellation.Token), CancellationToken.None);
+        }
+        finally
+        {
+            channel.TurnGate.Release();
+        }
+    }
+
+    private async Task SayAsync(AccountChannel channel, ScheduledJob job, string text, CancellationToken ct)
+    {
+        var replyId = Guid.CreateVersion7();
+        VoicePipeline? voice = null;
+        await using var scope = scopes.CreateAsyncScope();
+
+        try
+        {
+            var profile = await store.ProfileAsync(job.AccountId, ct);
+            var conversation = await store.CurrentAsync(job.AccountId, ct);
+
+            var late = clock.GetUtcNow() - job.DueAt > TimeSpan.FromMinutes(1);
+            var (emotion, intensity, gesture) = (late, job.Kind) switch
+            {
+                (true, _) => (Emotion.Sad, 0.4, Gesture.Shrug),
+                (_, JobKind.Timer) => (Emotion.Joy, 0.7, Gesture.Excited),
+                _ => (Emotion.Relaxed, 0.6, Gesture.Nod),
+            };
+
+            voice = new VoicePipeline(
+                scope.ServiceProvider.GetRequiredService<ITextToSpeech>(),
+                clips,
+                channel,
+                job.AccountId,
+                replyId,
+                profile.Voice ?? speechOptions.DefaultVoice,
+                profile.VoiceSpeed,
+                clock,
+                logger,
+                ct);
+
+            channel.Publish(EventTypes.Notify, new NotifyEvent(job.Id, job.Kind, job.Label, text));
+            channel.Publish(EventTypes.Expression, new ExpressionEvent(emotion, Math.Round(intensity * profile.Expressiveness, 2)));
+            channel.Publish(EventTypes.ReplyStart, new ReplyStartEvent(replyId));
+            channel.Publish(EventTypes.State, new StateEvent(FamiliarState.Speaking));
+            channel.Publish(EventTypes.Gesture, new GestureEvent(gesture));
+            channel.Publish(EventTypes.ReplyDelta, new ReplyDeltaEvent(replyId, text));
+            voice.Add(text);
+
+            await store.AddAsync(new Message
+            {
+                Id = replyId,
+                ConversationId = conversation.Id,
+                Role = MessageRole.Assistant,
+                Content = text,
+                Emotion = emotion,
+                EmotionIntensity = intensity,
+                CreatedAt = clock.GetUtcNow(),
+            }, CancellationToken.None);
+
+            channel.Publish(EventTypes.ReplyEnd, new ReplyEndEvent(replyId, text, emotion, intensity, Interrupted: false));
+            await voice.CompleteAsync();
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Talked over, or the server is stopping.
+        }
+        catch (Exception exception)
+        {
+            logger.AnnounceFailed(exception, job.Id);
+        }
+        finally
+        {
+            if (voice is not null)
+            {
+                await voice.CompleteAsync();
+            }
+
+            channel.Publish(EventTypes.State, new StateEvent(FamiliarState.Idle));
+        }
+    }
+
     private static async Task InterruptLockedAsync(AccountChannel channel)
     {
         if (channel.TurnCancellation is not { } cancellation)
@@ -229,13 +334,22 @@ public sealed class ConversationTurns(
                     case TagIgnored ignored:
                         logger.TagIgnored(ignored.Tag);
                         break;
+
+                    case ToolStarted tool:
+                        channel.Publish(EventTypes.ToolStarted, new ToolStartedEvent(replyId, tool.CallId, tool.Tool));
+                        break;
+
+                    case ToolFinished tool:
+                        channel.Publish(EventTypes.ToolFinished, new ToolFinishedEvent(replyId, tool.CallId, tool.Tool, tool.Ok, tool.Summary));
+                        break;
                 }
 
                 return ValueTask.CompletedTask;
             }
 
             var runner = scope.ServiceProvider.GetRequiredService<TurnRunner>();
-            var result = await runner.RunAsync(prompt, Emit, ct);
+            var toolContext = new ToolContext(accountId, replyId, request.Zone, clock.GetUtcNow());
+            var result = await runner.RunAsync(prompt, Emit, ct, tools, toolContext);
 
             if (started || result.Text.Length > 0)
             {

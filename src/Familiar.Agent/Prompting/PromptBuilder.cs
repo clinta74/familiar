@@ -35,12 +35,25 @@ public sealed record PromptContext(
 /// the Qwen models answer tool requests in speech instead of calling the tool (bake-off,
 /// 2026-10-01); keep this wording when tools arrive, and re-run the bake-off when it changes.
 /// </para>
+/// <para>
+/// The tools paragraph is blunt on purpose. Worded politely ("call the tool; don't just say you
+/// will") familiar-chat called list and cancel tools but answered every "set a timer" with "I've
+/// set your timer" and no call, 0 times in 15; naming the tools and saying they're the only way
+/// anything happens took it to 15 in 15, with chit-chat still calling nothing (2026-10-02).
+/// </para>
 /// </remarks>
 public static class PromptBuilder
 {
     internal const string Rules = """
         You speak aloud through an animated avatar, so every reply is spoken. Talk the way a person
         talks: plain words, no markdown, lists, emoji, or stage directions.
+
+        You have tools, and they're the only way you can actually do things: a timer only exists if
+        you call set_timer, a reminder only if you call create_reminder. When the user asks for
+        something a tool does, call it straight away, before you say anything about it. Never say
+        you've done something unless a tool's result says it worked. After a tool runs, tell the
+        user what happened in a short sentence. If you need a detail you don't have (how long, what
+        time), ask for it; never guess one.
 
         Begin each spoken reply with exactly one emotion tag, [emotion:intensity], where emotion is
         one of joy, sad, angry, surprised, relaxed, neutral, thinking and intensity is between 0 and 1.
@@ -112,7 +125,7 @@ public static class PromptBuilder
         return text.ToString();
     }
 
-    /// <summary>"Wednesday evening, 1 October 2026, 17:30".</summary>
+    /// <summary>"Thursday evening, 1 October 2026, 17:30".</summary>
     internal static string Situation(DateTimeOffset now, TimeZoneInfo zone)
     {
         var local = TimeZoneInfo.ConvertTime(now, zone);

@@ -1,6 +1,10 @@
 using Familiar.Domain.Accounts;
 using Familiar.Domain.Conversations;
 using Familiar.Domain.Familiars;
+using Familiar.Domain.Notifications;
+using Familiar.Domain.Scheduling;
+using Familiar.Domain.Tools;
+using Familiar.Persistence.Configurations;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,6 +22,14 @@ public sealed class FamiliarDbContext(DbContextOptions<FamiliarDbContext> option
     public DbSet<Conversation> Conversations => Set<Conversation>();
 
     public DbSet<Message> Messages => Set<Message>();
+
+    public DbSet<ScheduledJob> ScheduledJobs => Set<ScheduledJob>();
+
+    public DbSet<ToolInvocation> ToolInvocations => Set<ToolInvocation>();
+
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
+
+    public DbSet<ServerSecret> ServerSecrets => Set<ServerSecret>();
 
     /// <summary>
     /// ASP.NET Data Protection's key ring. Kept in the database rather than a container path, so

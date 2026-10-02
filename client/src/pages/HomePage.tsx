@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AvatarState } from '../avatar/types';
 import { AvatarStage, type AvatarHandle } from '../components/AvatarStage';
 import { ChatPanel } from '../components/ChatPanel';
+import { TimersPanel } from '../components/TimersPanel';
 import { useConversation } from '../conversation/useConversation';
 import { AudioPlayer } from '../voice/AudioPlayer';
 import { HandsFree } from '../voice/HandsFree';
@@ -83,6 +84,8 @@ export function HomePage() {
       if (voiceOnRef.current) player.enqueue(clip);
     },
     onCleared: () => player.stop(),
+    // The announcement itself arrives as a reply; this is the bell before it.
+    onNotify: () => player.chime(),
   });
 
   const busy = conversation.state === 'thinking' || conversation.state === 'speaking' || audible;
@@ -206,6 +209,7 @@ export function HomePage() {
             {conversation.familiarName}
             {status && <span className="familiar-status"> · {status}</span>}
           </p>
+          <TimersPanel jobs={conversation.jobs} onCancel={conversation.cancelJob} />
         </section>
         <ChatPanel
           familiarName={conversation.familiarName}
@@ -219,6 +223,8 @@ export function HomePage() {
             conversation.startOver();
           }}
           onTyping={setTyping}
+          confirm={conversation.confirm}
+          onConfirm={conversation.answerConfirm}
           voice={{
             available: conversation.speechAvailable && Recorder.supported,
             on: voiceOn,

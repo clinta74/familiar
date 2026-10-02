@@ -2,6 +2,8 @@ using Familiar.Agent.Llm;
 using Familiar.Agent.Speech;
 using Familiar.Server.Auth;
 using Familiar.Server.Infrastructure;
+using Familiar.Server.Scheduling;
+using Familiar.Server.Tools;
 using Microsoft.AspNetCore.Http.Features;
 
 namespace Familiar.Server.Conversation;
@@ -14,6 +16,10 @@ public sealed record SendMessageRequest(string? Text, string? TimeZone, bool? Sp
 /// <param name="ReplyId">The reply that was playing when the user interrupted.</param>
 /// <param name="Heard">What of it they heard: the reply is cut to this.</param>
 public sealed record InterruptRequest(Guid? ReplyId, string? Heard);
+
+/// <param name="CallId">The tool call being answered, from the <c>tool.confirm</c> event.</param>
+/// <param name="Approve">Whether the user allows it.</param>
+public sealed record ConfirmRequest(string? CallId, bool Approve);
 
 public static class ConversationEndpoints
 {
@@ -40,6 +46,10 @@ public static class ConversationEndpoints
         group.MapGet("/audio/{clipId:guid}", ClipAsync);
         group.MapPost("/interrupt", InterruptAsync);
         group.MapPost("/new", StartOverAsync);
+        group.MapPost("/confirm", (ConfirmRequest request, HttpContext http, ToolConfirmations confirmations) =>
+            request.CallId is { } callId && confirmations.Answer(http.User.AccountId()!.Value, callId, request.Approve)
+                ? Results.NoContent()
+                : Results.NotFound());
     }
 
     /// <summary>
@@ -53,6 +63,7 @@ public static class ConversationEndpoints
         ILlmClient llm,
         ISpeechToText stt,
         ITextToSpeech tts,
+        Scheduler scheduler,
         CancellationToken ct)
     {
         var accountId = http.User.AccountId()!.Value;
@@ -91,6 +102,11 @@ public static class ConversationEndpoints
                 new FamiliarSummary(profile.Result.Name, profile.Result.Expressiveness),
                 model.Result,
                 hearing.Result && voices.Result.Count > 0);
+
+            // The timers and reminders as they are now (changes follow as events), then ready: once
+            // a client has ready, it has everything.
+            var jobs = await scheduler.PendingAsync(accountId, null, ct);
+            await WriteAsync(http, ConversationHub.Frame(EventTypes.Jobs, new JobsEvent([.. jobs.Select(JobView.From)])), ct);
             await WriteAsync(http, ConversationHub.Frame(EventTypes.Ready, ready), ct);
 
             Task<bool>? waiting = null;

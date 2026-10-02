@@ -31,4 +31,9 @@ export const conversationApi = {
       ? { body: { replyId: heard.replyId, heard: heard.text } }
       : { method: 'POST' }),
   startOver: () => api<void>('/api/conversation/new', { method: 'POST' }),
+
+  cancelJob: (id: string) => api<void>(`/api/jobs/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+  /** Allow, or don't, a tool the familiar asked about. */
+  confirm: (callId: string, approve: boolean) => api<void>('/api/conversation/confirm', { body: { callId, approve } }),
 };

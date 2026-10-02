@@ -627,6 +627,27 @@ browser (all seven shapes, 39 distinct mouth forms in one sentence); VAD on synt
 (start 0.4 s in, end 0.55 s after). Not verified with a real microphone (none in the test
 browser) — that's the thing to try first.
 
+**Phase 4 (2026-10-02):** built. *Tools*: Ollama's native tool calling; the turn runs a tool round
+loop (at most four rounds, the last offered no tools so the model has to answer) and anything said
+before a call stays part of the reply. Four tools: `set_timer`, `create_reminder`,
+`list_scheduled`, `cancel_scheduled` (matched by label; asks "which one?" when ambiguous). Every
+call is audited in `tool_invocations`; `WriteExternal` tools ask first (`tool.confirm`, answered
+from any device, 60 s then no) — none exist yet, the flow is tested with a fake. The client shows
+tool chips on the reply ("Timer: pasta, 10 minutes") and a live timers panel under the familiar
+with countdowns and cancel. *Scheduler*: jobs in Postgres, claimed with `FOR UPDATE SKIP LOCKED`;
+the loop sleeps until the next due job (≤ 30 s, woken early by new ones), and a job that came due
+while the server was down fires on startup and says it's late. Firing is an ordinary reply from the
+familiar (stored, spoken, gesture, a chime) plus a *content-free* Web Push: VAPID only, no payload,
+so the vendor's push service learns nothing; the service worker fetches
+`/api/notifications/recent` and stays quiet if a familiar window is visible. Findings: worded
+politely, the tools rule got list/cancel calls but **0 of 15** "set a timer" requests — the model
+just said "I've set your timer"; naming the tools as the only way anything happens fixed it (15/15,
+chit-chat still calls nothing). Given "23:55" the model misread the time, so tool results speak a
+12-hour clock and timers report only their length. Verified live with familiar-chat: timer set by
+voice-style request, chip, countdown, announced on time. **Not yet verified:** a real push to a
+closed tab — the test browser denies notifications; try it in Chrome over `localhost` or trusted
+https (a self-signed certificate the browser doesn't trust blocks service workers).
+
 | Phase | Delivers | Done when |
 |---|---|---|
 | **0. Scaffold** | Solution, auth, local compose + GPU overlay, Dockerfiles, CI image build, NAS compose, model bake-off, NAS VRAM measurement | Register/login works locally **and** from the published images on the NAS; `ollama show` confirms tool capability on the chosen model |

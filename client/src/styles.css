@@ -265,7 +265,7 @@ button.link:hover:not(:disabled) {
 
 .stage-panel {
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr auto auto;
   justify-items: center;
   min-height: 0;
 }
@@ -433,6 +433,60 @@ button.link:hover:not(:disabled) {
   font-size: 0.95rem;
 }
 
+/* --- timers and reminders --- */
+
+.timers {
+  width: min(100%, 360px);
+  margin-top: 8px;
+}
+
+.timers ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.job {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.95rem;
+}
+
+.job-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-when {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.job.timer .job-when {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.job-cancel {
+  padding: 2px 8px;
+  color: var(--muted);
+}
+
+.push-nudge {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
 /* --- chat --- */
 
 .chat {
@@ -503,6 +557,69 @@ button.link:hover:not(:disabled) {
 
 .chat-error {
   padding: 0 16px 8px;
+}
+
+/* What the familiar did during a reply: "Timer: pasta, 10 minutes". */
+.tool-chips {
+  list-style: none;
+  margin: 0 0 2px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  white-space: normal;
+}
+
+.tool-chip {
+  font-size: 0.8rem;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.tool-chip.done {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 35%, var(--border));
+}
+
+.tool-chip.failed {
+  color: var(--error);
+  border-color: color-mix(in srgb, var(--error) 35%, var(--border));
+}
+
+.tool-chip.running {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.bubble.tools-only {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.confirm {
+  margin: 0 12px 10px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--accent);
+}
+
+.confirm p {
+  margin: 0;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .composer {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import type { ChatMessage } from '../conversation/reducer';
+import type { ToolConfirmEvent } from '../conversation/events';
+import type { ChatMessage, ToolChip } from '../conversation/reducer';
 
 export interface VoiceControls {
   /** Speech recognition and synthesis are reachable, and this browser can record. */
@@ -29,6 +30,9 @@ interface Props {
   onStartOver: () => void;
   onTyping: (typing: boolean) => void;
   voice: VoiceControls;
+  /** A tool waiting for the user's say-so. */
+  confirm: ToolConfirmEvent | null;
+  onConfirm: (callId: string, approve: boolean) => void;
 }
 
 const emotionLabels: Record<string, string> = {
@@ -39,6 +43,33 @@ const emotionLabels: Record<string, string> = {
   relaxed: 'relaxed',
   thinking: 'thoughtful',
 };
+
+/** What a tool is doing, while it does it. */
+const toolDoing: Record<string, string> = {
+  set_timer: 'Setting a timer',
+  create_reminder: 'Making a reminder',
+  list_scheduled: 'Checking your timers',
+  cancel_scheduled: 'Cancelling',
+};
+
+function Chip({ chip }: { chip: ToolChip }) {
+  const doing = toolDoing[chip.tool] ?? chip.tool.replace(/_/g, ' ');
+  const text = chip.running ? `${doing}…` : chip.summary ?? doing;
+  const status = chip.running ? 'running' : chip.ok ? 'done' : 'failed';
+  return <li className={`tool-chip ${status}`}>{text}</li>;
+}
+
+function ConfirmCard({ confirm, onConfirm }: { confirm: ToolConfirmEvent; onConfirm: Props['onConfirm'] }) {
+  return (
+    <div className="confirm card" role="alertdialog" aria-label="Allow this?">
+      <p>{confirm.description}?</p>
+      <div className="confirm-actions">
+        <button type="button" onClick={() => onConfirm(confirm.callId, true)}>Allow</button>
+        <button type="button" className="secondary" onClick={() => onConfirm(confirm.callId, false)}>Don’t</button>
+      </div>
+    </div>
+  );
+}
 
 function MicIcon() {
   return (
@@ -60,7 +91,9 @@ function SpeakerIcon({ on }: { on: boolean }) {
   );
 }
 
-export function ChatPanel({ familiarName, messages, busy, error, onSend, onInterrupt, onStartOver, onTyping, voice }: Props) {
+export function ChatPanel({
+  familiarName, messages, busy, error, onSend, onInterrupt, onStartOver, onTyping, voice, confirm, onConfirm,
+}: Props) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const transcript = useRef<HTMLOListElement>(null);
@@ -106,14 +139,21 @@ export function ChatPanel({ familiarName, messages, busy, error, onSend, onInter
           </li>
         )}
         {messages.map((m) => (
-          <li key={m.id} className={`bubble ${m.role}${m.streaming ? ' streaming' : ''}`}>
-            <span className="bubble-text">{m.text}{m.interrupted && '…'}</span>
+          <li key={m.id} className={`bubble ${m.role}${m.streaming ? ' streaming' : ''}${m.text ? '' : ' tools-only'}`}>
+            {m.tools && m.tools.length > 0 && (
+              <ul className="tool-chips" aria-label="What it did">
+                {m.tools.map((chip) => <Chip key={chip.callId} chip={chip} />)}
+              </ul>
+            )}
+            {(m.text || !m.tools?.length) && <span className="bubble-text">{m.text}{m.interrupted && '…'}</span>}
             {m.role === 'assistant' && m.emotion && emotionLabels[m.emotion] && !m.streaming && (
               <span className="bubble-meta">{emotionLabels[m.emotion]}</span>
             )}
           </li>
         ))}
       </ol>
+
+      {confirm && <ConfirmCard confirm={confirm} onConfirm={onConfirm} />}
 
       {error && <p className="error chat-error" role="alert">{error}</p>}
 

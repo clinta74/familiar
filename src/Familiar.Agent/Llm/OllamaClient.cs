@@ -1,21 +1,28 @@
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
+using Familiar.Agent.Tools;
 
 namespace Familiar.Agent.Llm;
 
 /// <summary>
-/// Ollama's native chat API, streamed. Native rather than OpenAI-compatible because only the
-/// native API takes <c>think</c> and <c>keep_alive</c>.
+/// Ollama's native chat API, streamed, with tool calling. Native rather than OpenAI-compatible because
+/// only the native API takes <c>think</c> and <c>keep_alive</c>.
 /// </summary>
 /// <remarks>
+/// <para>
 /// <c>think: false</c> on every request: familiar-chat's base is a thinking model, and reasoning
 /// before every spoken reply costs seconds a conversation doesn't have (bake-off, 2026-10-01).
+/// </para>
+/// <para>
+/// Tool calls arrive whole, in a single chunk, each with an id; the results go back as <c>tool</c>
+/// messages naming the tool and the call.
+/// </para>
 /// </remarks>
 public sealed class OllamaClient(HttpClient http, LlmOptions options) : ILlmClient
 {
-    public async IAsyncEnumerable<string> StreamAsync(
-        IReadOnlyList<ChatMessage> messages, [EnumeratorCancellation] CancellationToken ct)
+    public async IAsyncEnumerable<LlmChunk> StreamAsync(
+        IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDefinition>? tools, [EnumeratorCancellation] CancellationToken ct)
     {
         var body = new JsonObject
         {
@@ -24,17 +31,22 @@ public sealed class OllamaClient(HttpClient http, LlmOptions options) : ILlmClie
             ["think"] = false,
             ["keep_alive"] = -1,
             ["options"] = new JsonObject { ["temperature"] = options.Temperature },
-            ["messages"] = new JsonArray([.. messages.Select(m => (JsonNode)new JsonObject
-            {
-                ["role"] = m.Role switch
-                {
-                    ChatRole.System => "system",
-                    ChatRole.Assistant => "assistant",
-                    _ => "user",
-                },
-                ["content"] = m.Content,
-            })]),
+            ["messages"] = new JsonArray([.. messages.Select(ToJson)]),
         };
+
+        if (tools is { Count: > 0 })
+        {
+            body["tools"] = new JsonArray([.. tools.Select(t => (JsonNode)new JsonObject
+            {
+                ["type"] = "function",
+                ["function"] = new JsonObject
+                {
+                    ["name"] = t.Name,
+                    ["description"] = t.Description,
+                    ["parameters"] = t.Parameters.DeepClone(),
+                },
+            })]);
+        }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "api/chat") { Content = JsonContent.Create(body) };
         var response = await SendAsync(request, ct);
@@ -57,9 +69,14 @@ public sealed class OllamaClient(HttpClient http, LlmOptions options) : ILlmClie
                     throw new LlmUnavailableException($"Ollama: {error}");
                 }
 
+                if (chunk?["message"]?["tool_calls"] is JsonArray { Count: > 0 } calls)
+                {
+                    yield return new ToolCallsChunk([.. calls.Select(ParseCall).OfType<ToolCall>()]);
+                }
+
                 if (chunk?["message"]?["content"]?.GetValue<string>() is { Length: > 0 } content)
                 {
-                    yield return content;
+                    yield return new TextChunk(content);
                 }
 
                 if (chunk?["done"]?.GetValue<bool>() == true)
@@ -83,6 +100,62 @@ public sealed class OllamaClient(HttpClient http, LlmOptions options) : ILlmClie
         {
             return false;
         }
+    }
+
+    private static JsonNode ToJson(ChatMessage message)
+    {
+        var json = new JsonObject
+        {
+            ["role"] = message.Role switch
+            {
+                ChatRole.System => "system",
+                ChatRole.Assistant => "assistant",
+                ChatRole.Tool => "tool",
+                _ => "user",
+            },
+            ["content"] = message.Content,
+        };
+
+        if (message.ToolCalls is { Count: > 0 } calls)
+        {
+            json["tool_calls"] = new JsonArray([.. calls.Select(c => (JsonNode)new JsonObject
+            {
+                ["id"] = c.Id,
+                ["function"] = new JsonObject { ["name"] = c.Name, ["arguments"] = c.Arguments.DeepClone() },
+            })]);
+        }
+
+        if (message.ToolName is { } name)
+        {
+            json["tool_name"] = name;
+        }
+
+        if (message.ToolCallId is { } id)
+        {
+            json["tool_call_id"] = id;
+        }
+
+        return json;
+    }
+
+    private static ToolCall? ParseCall(JsonNode? node)
+    {
+        var function = node?["function"];
+        if (function?["name"]?.GetValue<string>() is not { Length: > 0 } name)
+        {
+            return null;
+        }
+
+        // Arguments normally arrive as an object; some models send a JSON string instead.
+        var arguments = function["arguments"] switch
+        {
+            JsonObject o => (JsonObject)o.DeepClone(),
+            JsonValue v when v.TryGetValue<string>(out var text) && JsonNode.Parse(text) is JsonObject parsed => parsed,
+            _ => new JsonObject(),
+        };
+
+        var id = node?["id"]?.GetValue<string>() is { Length: > 0 } given ? given : $"call_{Guid.NewGuid():N}";
+        return new ToolCall(id, name, arguments);
     }
 
     private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
