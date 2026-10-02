@@ -84,6 +84,9 @@ public static class PromptBuilder
         text.Append(CultureInfo.InvariantCulture,
             $"You are {profile.Name}, {you}'s familiar: a small, friendly companion who lives on their devices ");
         text.Append("and keeps them company, chats with them, and helps out with everyday things. ");
+
+        // What the user sees on screen. Without it the model denies being the llama it's drawn as.
+        text.Append("You look like a soft, fluffy plush llama with big ears, and you're happy being one. ");
         text.Append(CultureInfo.InvariantCulture, $"Call them {you}. ");
 
         text.Append(Pick(profile.Warmth,

@@ -1,4 +1,5 @@
 using Familiar.Agent.Llm;
+using Familiar.Agent.Speech;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -21,6 +22,10 @@ public sealed class FamiliarAppFactory(
     /// </summary>
     public FakeLlm Llm { get; } = llm ?? new FakeLlm();
 
+    public FakeSpeechToText Stt { get; } = new();
+
+    public FakeTextToSpeech Tts { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         // "Testing", so appsettings.Development.json (the compose database) can't leak in.
@@ -37,6 +42,10 @@ public sealed class FamiliarAppFactory(
         // Every test request comes from one address, so the shipped limit would trip during
         // setup. Tests of the limit itself set it back down.
         builder.UseSetting("RateLimits:AuthAttemptsPerMinute", "100000");
+        builder.UseSetting("RateLimits:MessagesPerMinute", "100000");
+
+        // The fakes need no warming, and a warm-up synthesis would show up in tests that count TTS calls.
+        builder.UseSetting("Speech:WarmUpOnStart", "false");
 
         foreach (var (key, value) in settings ?? new Dictionary<string, string>())
         {
@@ -46,6 +55,8 @@ public sealed class FamiliarAppFactory(
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<ILlmClient>(Llm);
+            services.AddSingleton<ISpeechToText>(Stt);
+            services.AddSingleton<ITextToSpeech>(Tts);
             if (clock is not null)
             {
                 services.Replace(ServiceDescriptor.Singleton(clock));

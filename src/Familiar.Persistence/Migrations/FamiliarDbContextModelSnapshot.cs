@@ -268,6 +268,17 @@ namespace Familiar.Persistence.Migrations
                         .HasColumnType("double precision")
                         .HasColumnName("verbosity");
 
+                    b.Property<string>("Voice")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("voice");
+
+                    b.Property<double>("VoiceSpeed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("double precision")
+                        .HasDefaultValue(1.0)
+                        .HasColumnName("voice_speed");
+
                     b.Property<double>("Warmth")
                         .HasColumnType("double precision")
                         .HasColumnName("warmth");

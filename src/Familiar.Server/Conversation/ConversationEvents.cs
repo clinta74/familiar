@@ -19,6 +19,8 @@ public static class EventTypes
     public const string Error = "turn.error";
     public const string Cleared = "cleared";
     public const string Resync = "resync";
+    public const string Audio = "audio";
+    public const string AudioEnd = "audio.end";
 }
 
 public enum FamiliarState
@@ -31,7 +33,7 @@ public enum FamiliarState
     Resting,
 }
 
-public sealed record ReadyEvent(FamiliarSummary Familiar, bool ModelAvailable);
+public sealed record ReadyEvent(FamiliarSummary Familiar, bool ModelAvailable, bool SpeechAvailable);
 
 public sealed record FamiliarSummary(string Name, double Expressiveness);
 
@@ -48,6 +50,12 @@ public sealed record ExpressionEvent(Emotion Emotion, double Intensity);
 public sealed record GestureEvent(Gesture Gesture);
 
 public sealed record ErrorEvent(string Code, string Message);
+
+/// <summary>A spoken sentence is ready to fetch. Played in <c>Seq</c> order; <c>Text</c> is what it says.</summary>
+public sealed record AudioEvent(Guid ReplyId, int Seq, string Url, string Text);
+
+/// <summary>The reply has no more clips coming: <c>Clips</c> were announced in total.</summary>
+public sealed record AudioEndEvent(Guid ReplyId, int Clips);
 
 public sealed record EmptyEvent;
 

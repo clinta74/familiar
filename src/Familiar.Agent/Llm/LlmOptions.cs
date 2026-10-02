@@ -6,7 +6,7 @@ public sealed class LlmOptions
     public const string Section = "Llm";
 
     /// <summary>Familiar's own Ollama (PLAN.md §4.2). 11435 locally; http://ollama:11434 on the NAS.</summary>
-    public string BaseUrl { get; set; } = "http://localhost:11435";
+    public string BaseUrl { get; set; } = "http://127.0.0.1:11435";
 
     /// <summary>
     /// The derived model, not its base: <c>gemma4:12b</c> would answer too, with Ollama's 4096-token

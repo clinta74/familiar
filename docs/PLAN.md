@@ -489,6 +489,12 @@ runs only published images.**
 `docker-compose.yml` runs the infrastructure; the server and client run on the host with
 `dotnet run` and `npm run dev` for fast iteration and debugging.
 
+**Port mappings never name a host address** — no `127.0.0.1:` or `localhost:` prefix, on any
+compose file. A loopback-bound mapping listens on IPv4 only, and .NET on Windows resolves
+`localhost` to `::1` first: every new connection waited ~2 s for the fallback (2,095 ms vs 4 ms,
+measured), which pushed a spoken turn from 1.5 s to over 4. A port that shouldn't be reachable is
+not published at all. The server's own connection strings use `127.0.0.1`.
+
 | Service | Image | Host port | Notes |
 |---|---|---|---|
 | postgres | `pgvector/pgvector:pg18` | 5433 | 5432 is muwbta's. Volume at `/var/lib/postgresql` (PG 18 layout). |
@@ -532,7 +538,7 @@ backup script and Modelfile:
 |---|---|---|
 | client | **7280:443** | muwbta has 7180. Front proxy terminates public TLS. |
 | server | compose network only | Reached by client nginx. `mem_limit` set so the GC sizes to it. |
-| postgres | 127.0.0.1:5435 (optional) | Loopback only, like muwbta. |
+| postgres | not published | Network only; `docker exec` for psql. Never a loopback-only port mapping: it listens on IPv4 only and stalls clients that try `::1` first. |
 | ollama | network only | Models on the **SSD pool** (mmap'd weights), `KEEP_ALIVE=-1`. |
 | stt, tts | network only | |
 | backup | — | Nightly dump, test restore, keep 30 — muwbta's backup pattern. |
@@ -591,6 +597,18 @@ when a model is dropped at `client/public/avatars/familiar.vrm`. Two deviations 
 the situation (time) rides on the last user message, not in the system prompt (§4.3, so the cached
 prefix survives), and the avatar lives in `client/src/avatar/` (framework-free) until the phone
 apps need it as a package. The VRM path is untested until there's a model to test it with.
+
+**Phase 2 (2026-10-01):** built, and the "done when" is met. Push-to-talk records an utterance and
+POSTs it; Speaches (faster-distil-whisper-small.en) transcribes it; the reply is cut into sentences
+as it streams and each goes to Kokoro, announced by an `audio` event and fetched by URL; the client
+plays the clips in order through Web Audio and drives the llama's mouth from the measured
+loudness. Pressing talk interrupts the familiar. Voice and speed are per-familiar settings with a
+preview; "Voice on/off" is per device. Measured on the 5070 Ti, end of speech to first spoken
+sentence ready: **1.3–1.5 s warm** (STT ~250 ms, first words ~1 s, TTS ~70 ms per sentence).
+Findings: Kokoro needs its cu128 image on Blackwell; Docker ports must not be bound to loopback
+(§10.1); the persona has to say it's a llama or the model denies it. The STT model downloads itself
+at startup (`SpeechWarmUp`). The microphone UI itself is untested by automation (no mic in the
+test browser); the spoken path was tested with a synthesised WAV through the same endpoint.
 
 | Phase | Delivers | Done when |
 |---|---|---|

@@ -176,3 +176,10 @@ public sealed class TurnRunnerTests
     public async Task A_model_that_is_down_surfaces_as_unavailable() =>
         await Assert.ThrowsAsync<LlmUnavailableException>(() => Run(new FakeLlm { Down = true }));
 }
+
+public sealed class PersonaTests
+{
+    [Fact]
+    public void The_familiar_knows_what_it_looks_like() =>
+        Assert.Contains("plush llama", PromptBuilder.Persona(new FamiliarProfile { Name = "Pip" }, "alice"), StringComparison.Ordinal);
+}

@@ -1,9 +1,17 @@
 using Familiar.Agent.Llm;
 using Familiar.Agent.Prompting;
+using Familiar.Agent.Speech;
 using Familiar.Agent.Turns;
 using Familiar.Domain.Conversations;
 
 namespace Familiar.Server.Conversation;
+
+/// <summary>How a message arrived, and whether its reply should be spoken.</summary>
+/// <param name="Zone">The user's time zone.</param>
+/// <param name="Speak">Synthesise the reply (PLAN.md §3.2).</param>
+/// <param name="ReceivedAt">When the user finished speaking or typing - the start of the latency clock.</param>
+/// <param name="TranscribeMs">For a spoken message, how long speech-to-text took.</param>
+public sealed record TurnRequest(TimeZoneInfo Zone, bool Speak, long ReceivedAt, long? TranscribeMs = null);
 
 /// <summary>
 /// Starts, runs and interrupts turns. One turn at a time per account: a new message interrupts the
@@ -16,13 +24,15 @@ namespace Familiar.Server.Conversation;
 public sealed class ConversationTurns(
     ConversationHub hub,
     ConversationStore store,
+    SpeechClipStore clips,
     IServiceScopeFactory scopes,
     LlmOptions llmOptions,
+    SpeechOptions speechOptions,
     TimeProvider clock,
     IHostApplicationLifetime lifetime,
     ILogger<ConversationTurns> logger)
 {
-    public async Task<Message> SubmitAsync(Guid accountId, string text, TimeZoneInfo zone, CancellationToken ct)
+    public async Task<Message> SubmitAsync(Guid accountId, string text, TurnRequest request, CancellationToken ct)
     {
         var channel = hub.For(accountId);
         await channel.TurnGate.WaitAsync(ct);
@@ -43,7 +53,7 @@ public sealed class ConversationTurns(
 
             var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.ApplicationStopping);
             channel.TurnCancellation = cancellation;
-            channel.TurnTask = Task.Run(() => RunAsync(channel, accountId, message, zone, cancellation.Token), CancellationToken.None);
+            channel.TurnTask = Task.Run(() => RunAsync(channel, accountId, message, request, cancellation.Token), CancellationToken.None);
 
             return message;
         }
@@ -51,6 +61,38 @@ public sealed class ConversationTurns(
         {
             channel.TurnGate.Release();
         }
+    }
+
+    /// <summary>
+    /// A spoken message: transcribe it, then carry on as if it had been typed - except that the reply
+    /// is always spoken. Null when there were no words in it.
+    /// </summary>
+    /// <exception cref="SpeechUnavailableException">Speech-to-text can't be used.</exception>
+    public async Task<Message?> SubmitSpokenAsync(Guid accountId, byte[] audio, string contentType, TimeZoneInfo zone, CancellationToken ct)
+    {
+        var receivedAt = clock.GetTimestamp();
+        var channel = hub.For(accountId);
+
+        // Listening is over; the familiar is working on it. (Before the gate: a reply still being
+        // spoken is interrupted by SubmitAsync, not made to wait for transcription.)
+        channel.Publish(EventTypes.State, new StateEvent(FamiliarState.Thinking));
+
+        string text;
+        await using (var scope = scopes.CreateAsyncScope())
+        {
+            text = await scope.ServiceProvider.GetRequiredService<ISpeechToText>().TranscribeAsync(audio, contentType, ct);
+        }
+
+        var transcribeMs = (long)clock.GetElapsedTime(receivedAt).TotalMilliseconds;
+
+        if (text.Length == 0)
+        {
+            channel.Publish(EventTypes.Error, new ErrorEvent("no-speech", "I didn't catch that - could you say it again?"));
+            channel.Publish(EventTypes.State, new StateEvent(FamiliarState.Idle));
+            return null;
+        }
+
+        return await SubmitAsync(accountId, text, new TurnRequest(zone, Speak: true, receivedAt, transcribeMs), ct);
     }
 
     /// <summary>Stops the reply in progress, if there is one, and waits until it has been stored.</summary>
@@ -104,10 +146,15 @@ public sealed class ConversationTurns(
         channel.TurnTask = null;
     }
 
-    private async Task RunAsync(AccountChannel channel, Guid accountId, Message userMessage, TimeZoneInfo zone, CancellationToken ct)
+    private async Task RunAsync(AccountChannel channel, Guid accountId, Message userMessage, TurnRequest request, CancellationToken ct)
     {
         var replyId = Guid.CreateVersion7();
         var started = false;
+        long? firstTextMs = null;
+        VoicePipeline? voice = null;
+
+        // Outlives the try: the voice worker uses the scope's TTS client until it's completed in finally.
+        await using var scope = scopes.CreateAsyncScope();
 
         try
         {
@@ -116,7 +163,22 @@ public sealed class ConversationTurns(
             var profile = await store.ProfileAsync(accountId, ct);
             var username = await store.UsernameAsync(accountId, ct);
             var history = await store.HistoryAsync(userMessage.ConversationId, userMessage.Id, llmOptions.HistoryMessages, ct);
-            var prompt = PromptBuilder.Build(new PromptContext(profile, username, history, userMessage.Content, clock.GetUtcNow(), zone));
+            var prompt = PromptBuilder.Build(new PromptContext(profile, username, history, userMessage.Content, clock.GetUtcNow(), request.Zone));
+
+            if (request.Speak)
+            {
+                voice = new VoicePipeline(
+                    scope.ServiceProvider.GetRequiredService<ITextToSpeech>(),
+                    clips,
+                    channel,
+                    accountId,
+                    replyId,
+                    profile.Voice ?? speechOptions.DefaultVoice,
+                    profile.VoiceSpeed,
+                    clock,
+                    logger,
+                    ct);
+            }
 
             ValueTask Emit(TurnEvent turnEvent)
             {
@@ -126,11 +188,13 @@ public sealed class ConversationTurns(
                         if (!started)
                         {
                             started = true;
+                            firstTextMs = (long)clock.GetElapsedTime(request.ReceivedAt).TotalMilliseconds;
                             channel.Publish(EventTypes.ReplyStart, new ReplyStartEvent(replyId));
                             channel.Publish(EventTypes.State, new StateEvent(FamiliarState.Speaking));
                         }
 
                         channel.Publish(EventTypes.ReplyDelta, new ReplyDeltaEvent(replyId, delta.Text));
+                        voice?.Add(delta.Text);
                         break;
 
                     case ExpressionChanged expression:
@@ -147,7 +211,6 @@ public sealed class ConversationTurns(
                 return ValueTask.CompletedTask;
             }
 
-            await using var scope = scopes.CreateAsyncScope();
             var runner = scope.ServiceProvider.GetRequiredService<TurnRunner>();
             var result = await runner.RunAsync(prompt, Emit, ct);
 
@@ -170,10 +233,21 @@ public sealed class ConversationTurns(
                     new ReplyEndEvent(replyId, result.Text, result.Emotion, result.Intensity, result.Interrupted));
             }
 
+            if (voice is not null)
+            {
+                await voice.CompleteAsync();
+            }
+
             if (!result.EmotionWasTagged && !result.Interrupted)
             {
                 logger.ReplyUntagged(accountId);
             }
+
+            logger.TurnTiming(
+                request.TranscribeMs ?? -1,
+                firstTextMs ?? -1,
+                voice?.FirstAudioAt is { } firstAudio ? (long)clock.GetElapsedTime(request.ReceivedAt, firstAudio).TotalMilliseconds : -1,
+                (long)clock.GetElapsedTime(request.ReceivedAt).TotalMilliseconds);
 
             channel.Publish(EventTypes.State, new StateEvent(FamiliarState.Idle));
         }
@@ -194,6 +268,13 @@ public sealed class ConversationTurns(
             logger.TurnFailed(exception, accountId);
             channel.Publish(EventTypes.Error, new ErrorEvent("failed", "Something went wrong on my side. Please try again."));
             channel.Publish(EventTypes.State, new StateEvent(FamiliarState.Idle));
+        }
+        finally
+        {
+            if (voice is not null)
+            {
+                await voice.CompleteAsync();
+            }
         }
     }
 }

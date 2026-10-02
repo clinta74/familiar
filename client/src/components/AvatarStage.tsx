@@ -5,8 +5,10 @@ import type { AvatarDriver, AvatarState, Emotion, Gesture } from '../avatar/type
 export interface AvatarHandle {
   express(emotion: Emotion, intensity: number): void;
   gesture(gesture: Gesture): void;
-  /** A piece of speech arrived; moves the mouth in proportion to how much was said. */
+  /** A piece of reply text arrived and there's no audio: moves the mouth with the text. */
   speak(text: string): void;
+  /** Loudness of the voice being played, 0-1, every frame: moves the mouth with the audio. */
+  mouth(level: number): void;
 }
 
 /**
@@ -47,9 +49,10 @@ export const AvatarStage = forwardRef<AvatarHandle, { state: AvatarState }>(func
   useImperativeHandle(ref, () => ({
     express: (emotion, intensity) => driver.current?.setExpression(emotion, intensity),
     gesture: (gesture) => driver.current?.playGesture(gesture),
+    mouth: (level) => driver.current?.setMouthOpen(level),
     speak: (text) => {
-      // No audio until phase 2, so the mouth follows the text: a pulse per fragment, bigger for
-      // longer ones, quieter at punctuation.
+      // Without audio the mouth follows the text: a pulse per fragment, bigger for longer ones,
+      // quieter at punctuation.
       const words = text.trim().length;
       if (words === 0) return;
       const level = /[.,!?;:]$/.test(text.trim()) ? 0.35 : Math.min(1, 0.45 + words / 12);

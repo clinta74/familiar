@@ -16,7 +16,7 @@ const fallbackMessages: Record<number, string> = {
   429: 'Too many attempts. Wait a moment and try again.',
 };
 
-async function errorFrom(response: Response): Promise<ApiError> {
+export async function errorFrom(response: Response): Promise<ApiError> {
   let message = fallbackMessages[response.status] ?? `Something went wrong (${response.status}).`;
   try {
     const body: unknown = await response.json();

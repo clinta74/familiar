@@ -1,7 +1,7 @@
 // Phase 0 model bake-off (PLAN.md §4.1): which base model should Familiar run?
 //
 //   dotnet run tools/ollama/bakeoff.cs -- --models qwen3:8b,llama3.1:8b,mistral-nemo:12b
-//   dotnet run tools/ollama/bakeoff.cs -- --url http://localhost:11435 --models qwen3:8b --runs 3
+//   dotnet run tools/ollama/bakeoff.cs -- --url http://127.0.0.1:11435 --models qwen3:8b --runs 3
 //
 // Pull the candidates first (`docker exec familiar-ollama ollama pull <model>`). Each model is
 // scored on what Familiar needs from it:
@@ -23,7 +23,7 @@ using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-var url = Arg("--url") ?? "http://localhost:11435";
+var url = Arg("--url") ?? "http://127.0.0.1:11435";
 var models = (Arg("--models") ?? "qwen3:8b").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 var runs = int.Parse(Arg("--runs") ?? "2", CultureInfo.InvariantCulture);
 var numCtx = int.Parse(Arg("--ctx") ?? "8192", CultureInfo.InvariantCulture);

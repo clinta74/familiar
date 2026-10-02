@@ -19,6 +19,7 @@ export interface MessageView {
 export interface ReadyEvent {
   familiar: { name: string; expressiveness: number };
   modelAvailable: boolean;
+  speechAvailable: boolean;
 }
 
 export interface StateEvent {
@@ -54,4 +55,12 @@ export interface GestureEvent {
 export interface ErrorEvent {
   code: string;
   message: string;
+}
+
+/** A spoken sentence is ready to fetch and play, in `seq` order. */
+export interface AudioEvent {
+  replyId: string;
+  seq: number;
+  url: string;
+  text: string;
 }

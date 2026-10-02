@@ -17,6 +17,8 @@ export interface ConversationState {
   connection: Connection;
   familiarName: string;
   modelAvailable: boolean;
+  /** Speech-to-text and text-to-speech are both reachable. */
+  speechAvailable: boolean;
   state: FamiliarState;
   messages: ChatMessage[];
   error: string | null;
@@ -26,6 +28,7 @@ export const initialConversation: ConversationState = {
   connection: 'connecting',
   familiarName: 'your familiar',
   modelAvailable: true,
+  speechAvailable: false,
   state: 'idle',
   messages: [],
   error: null,
@@ -68,6 +71,7 @@ export function conversationReducer(state: ConversationState, action: Conversati
         connection: 'open',
         familiarName: action.ready.familiar.name,
         modelAvailable: action.ready.modelAvailable,
+        speechAvailable: action.ready.speechAvailable,
         state: action.ready.modelAvailable ? state.state : 'resting',
       };
 

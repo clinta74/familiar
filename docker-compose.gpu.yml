@@ -41,7 +41,10 @@ services:
       LD_LIBRARY_PATH: /usr/lib/wsl/lib
 
   tts:
-    image: ghcr.io/remsky/kokoro-fastapi-gpu:${TTS_GPU_TAG:-latest}
+    # cu128: the RTX 5070 Ti is Blackwell (sm_120), and PyTorch only has kernels for it from CUDA
+    # 12.8 builds. The default GPU tag is cu126 and fails at startup with "no kernel image is
+    # available for execution on the device". (The NAS 3060 is Ampere and runs the default tag.)
+    image: ghcr.io/remsky/kokoro-fastapi-gpu:${TTS_GPU_TAG:-latest-cu128}
     devices: [/dev/dxg]
     volumes: [/usr/lib/wsl:/usr/lib/wsl:ro]
     environment:

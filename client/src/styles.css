@@ -618,3 +618,73 @@ button.link:hover:not(:disabled) {
 .device-list .muted {
   font-size: 0.85rem;
 }
+
+/* --- voice --- */
+
+.composer button.mic {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  flex: none;
+}
+
+.composer button.mic:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.composer button.mic.recording {
+  background: var(--error);
+  border-color: var(--error);
+  color: #fff;
+  animation: listening 1.4s ease-in-out infinite;
+}
+
+@keyframes listening {
+  50% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--error) 25%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer button.mic.recording {
+    animation: none;
+  }
+}
+
+.chat-footer {
+  justify-content: space-between;
+}
+
+.voice-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voice-row {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.voice-row label {
+  flex: 1;
+  min-width: 180px;
+}
+
+select {
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}

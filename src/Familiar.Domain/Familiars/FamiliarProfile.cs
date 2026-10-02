@@ -37,6 +37,16 @@ public sealed class FamiliarProfile
     /// <summary>How strongly the avatar shows emotion: a multiplier on every expression's intensity.</summary>
     public double Expressiveness { get; set; } = 0.8;
 
+    public const int MaxVoiceLength = 64;
+    public const double MinVoiceSpeed = 0.7;
+    public const double MaxVoiceSpeed = 1.4;
+
+    /// <summary>A TTS voice id (Kokoro's, e.g. "af_heart"). Null means the server's default.</summary>
+    public string? Voice { get; set; }
+
+    /// <summary>Speaking rate, 1 = normal.</summary>
+    public double VoiceSpeed { get; set; } = 1.0;
+
     public DateTimeOffset CreatedAt { get; init; }
 
     public DateTimeOffset UpdatedAt { get; set; }

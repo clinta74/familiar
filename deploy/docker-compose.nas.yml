@@ -10,7 +10,7 @@ name: familiar
 # Reached from phones over the VPN (PLAN.md §10.4); nothing here is meant to face the internet.
 #
 # Runs alongside muwbta on the same box, so every host port differs from muwbta's:
-#     client 7280 (muwbta 7180), postgres 5435 loopback (muwbta 5434).
+#     client 7280 (muwbta 7180). Postgres is not published at all.
 #
 # Nothing depends on ollama, stt or tts. The server starts and serves sign-in, settings and history
 # without them, and the conversation degrades to "resting" rather than the stack refusing to start.
@@ -29,9 +29,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-familiar}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_INITDB_ARGS: -c timezone=UTC
-    ports:
-      # Loopback only, for psql on the NAS itself. The server reaches postgres over the network.
-      - 127.0.0.1:${POSTGRES_PORT:-5435}:5432
+    # No published port: the server reaches postgres over the compose network, and for psql on the
+    # NAS use `docker exec -it familiar-postgres psql -U familiar`. (Not a loopback-only mapping
+    # either - those listen on IPv4 only and stall anything that tries ::1 first.)
     volumes:
       # PG 18 layout: /var/lib/postgresql, not .../data.
       - ${FAMILIAR_DATA_DIR:-./data}/postgres:/var/lib/postgresql
@@ -70,6 +70,8 @@ services:
       # exist (tools/ollama/create-models.sh) - its base model would answer with a 4096-token window.
       Llm__BaseUrl: http://ollama:11434
       Llm__Model: familiar-chat
+      Speech__SttBaseUrl: http://stt:8000
+      Speech__TtsBaseUrl: http://tts:8880
     volumes:
       - ${FAMILIAR_DATA_DIR:-./data}/logs:/app/logs
     # The .NET GC sizes its heap from the cgroup limit; without one it sizes against the whole NAS.

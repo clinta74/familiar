@@ -2,6 +2,7 @@ import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { Emotion, Gesture } from '../avatar/types';
 import { conversationApi } from './conversationApi';
 import type {
+  AudioEvent,
   ErrorEvent,
   ExpressionEvent,
   GestureEvent,
@@ -18,8 +19,14 @@ import { conversationReducer, initialConversation } from './reducer';
 export interface ConversationHandlers {
   onExpression?: (emotion: Emotion, intensity: number) => void;
   onGesture?: (gesture: Gesture) => void;
-  /** Each piece of spoken text as it arrives - what moves the mouth until there's audio. */
+  /** Each piece of reply text as it arrives - what moves the mouth when there's no audio. */
   onSpeech?: (text: string) => void;
+  /** A new reply has started: anything still being spoken from the last one should stop. */
+  onReplyStart?: (id: string) => void;
+  /** A spoken sentence is ready to play. */
+  onAudio?: (clip: AudioEvent) => void;
+  /** The conversation was cleared, on this device or another. */
+  onCleared?: () => void;
 }
 
 /**
@@ -52,7 +59,10 @@ export function useConversation(handlers: ConversationHandlers) {
     on<ReadyEvent>('ready', (ready) => dispatch({ type: 'ready', ready }));
     on<StateEvent>('state', ({ state }) => dispatch({ type: 'state', state }));
     on<MessageView>('message', (message) => dispatch({ type: 'message', message }));
-    on<ReplyStartEvent>('reply.start', ({ id }) => dispatch({ type: 'replyStart', id }));
+    on<ReplyStartEvent>('reply.start', ({ id }) => {
+      dispatch({ type: 'replyStart', id });
+      handlersRef.current.onReplyStart?.(id);
+    });
     on<ReplyDeltaEvent>('reply.delta', ({ id, text }) => {
       dispatch({ type: 'replyDelta', id, text });
       handlersRef.current.onSpeech?.(text);
@@ -61,7 +71,11 @@ export function useConversation(handlers: ConversationHandlers) {
     on<ExpressionEvent>('expression', ({ emotion, intensity }) => handlersRef.current.onExpression?.(emotion, intensity));
     on<GestureEvent>('gesture', ({ gesture }) => handlersRef.current.onGesture?.(gesture));
     on<ErrorEvent>('turn.error', ({ message }) => dispatch({ type: 'error', message }));
-    on('cleared', () => dispatch({ type: 'cleared' }));
+    on<AudioEvent>('audio', (clip) => handlersRef.current.onAudio?.(clip));
+    on('cleared', () => {
+      dispatch({ type: 'cleared' });
+      handlersRef.current.onCleared?.();
+    });
     on('resync', () => void loadHistory());
 
     // The connection dropped. EventSource retries by itself; 'ready' marks it open again.
@@ -75,10 +89,10 @@ export function useConversation(handlers: ConversationHandlers) {
     };
   }, []);
 
-  const send = useCallback(async (text: string) => {
+  const send = useCallback(async (text: string, speak: boolean) => {
     dispatch({ type: 'error', message: null });
     try {
-      const message = await conversationApi.send(text);
+      const message = await conversationApi.send(text, speak);
       dispatch({ type: 'message', message });
     } catch (error) {
       dispatch({ type: 'error', message: error instanceof Error ? error.message : 'Could not send that.' });
@@ -86,8 +100,18 @@ export function useConversation(handlers: ConversationHandlers) {
     }
   }, []);
 
+  const sendSpoken = useCallback(async (recording: Blob) => {
+    dispatch({ type: 'error', message: null });
+    try {
+      const message = await conversationApi.sendSpoken(recording);
+      if (message) dispatch({ type: 'message', message });
+    } catch (error) {
+      dispatch({ type: 'error', message: error instanceof Error ? error.message : 'Could not send that.' });
+    }
+  }, []);
+
   const interrupt = useCallback(() => void conversationApi.interrupt().catch(() => undefined), []);
   const startOver = useCallback(() => void conversationApi.startOver().catch(() => undefined), []);
 
-  return { ...state, send, interrupt, startOver };
+  return { ...state, send, sendSpoken, interrupt, startOver };
 }

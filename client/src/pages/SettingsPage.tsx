@@ -107,7 +107,7 @@ export function SettingsPage() {
           <dl className="facts">
             <dt>Username</dt><dd>{account?.username}</dd>
             <dt>Email</dt><dd>{account?.email}</dd>
-            <dt>Role</dt><dd>{account?.role}</dd>
+            <dt>Role</dt><dd>{account?.role === 'admin' ? 'Administrator' : 'Member'}</dd>
           </dl>
         </section>
         <section className="card">

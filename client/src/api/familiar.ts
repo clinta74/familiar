@@ -8,9 +8,19 @@ export interface FamiliarProfile {
   verbosity: number;
   formality: number;
   expressiveness: number;
+  voice: string | null;
+  voiceSpeed: number;
+}
+
+export interface Voices {
+  voices: string[];
+  default: string;
 }
 
 export const familiarApi = {
   get: () => api<FamiliarProfile>('/api/familiar'),
   save: (profile: FamiliarProfile) => api<FamiliarProfile>('/api/familiar', { method: 'PUT', body: profile }),
+  voices: () => api<Voices>('/api/familiar/voices'),
+  previewUrl: (voice: string, speed: number) =>
+    `/api/familiar/voice-preview?voice=${encodeURIComponent(voice)}&speed=${speed}`,
 };

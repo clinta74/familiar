@@ -59,6 +59,22 @@ The GPU overlay uses WSL2's `/dev/dxg`, not the NVIDIA toolkit; see the comments
 [docker-compose.gpu.yml](docker-compose.gpu.yml). Choosing the model is the Phase 0 bake-off:
 [tools/ollama/README.md](tools/ollama/README.md).
 
+**Voice.** On startup the server downloads the speech-to-text model into Speaches if it's missing
+and warms Kokoro (`Speech:WarmUpOnStart`), so there's no manual step. Two things worth knowing:
+
+- The dev box's RTX 5070 Ti is Blackwell; Kokoro needs the `latest-cu128` image there (the GPU
+  overlay's default). The standard image fails with *"no kernel image is available"*.
+- After the containers are recreated, the first turn waits for Ollama to reload ~9 GB of weights
+  (about a minute here). Turns after that are warm.
+
+Measured on the dev box, end of speech to the first spoken sentence ready: **~1.3–1.5 s**
+(speech-to-text ~250 ms, first words from the model ~1 s, first sentence synthesised ~70 ms).
+
+**Ports are never bound to `127.0.0.1` / `localhost`** in the compose files, and the server
+reaches the sidecars at `127.0.0.1`. A loopback-only mapping listens on IPv4 only; .NET on
+Windows tries `::1` first and waited ~2 s per connection for the fallback, which on its own
+pushed a spoken turn past 4 s.
+
 ### Why the client proxies the API
 
 Browser sessions are an HttpOnly, `SameSite=Lax` cookie, and the conversation's event stream

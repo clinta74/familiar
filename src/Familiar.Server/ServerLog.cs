@@ -55,4 +55,21 @@ internal static partial class ServerLog
     // the tag grammar, which is worth knowing when changing either (tools/ollama/README.md).
     [LoggerMessage(43, LogLevel.Debug, "Reply for account {AccountId} had no emotion tag; used the fallback")]
     public static partial void ReplyUntagged(this ILogger logger, Guid accountId);
+
+    [LoggerMessage(50, LogLevel.Information, "Speech: {Options}")]
+    public static partial void SpeechConfigured(this ILogger logger, string options);
+
+    [LoggerMessage(51, LogLevel.Warning, "Speech unavailable: {Reason}")]
+    public static partial void SpeechUnavailable(this ILogger logger, string reason);
+
+    [LoggerMessage(54, LogLevel.Information, "Downloaded speech-to-text model {Model}")]
+    public static partial void SttModelDownloaded(this ILogger logger, string model);
+
+    [LoggerMessage(52, LogLevel.Debug, "Synthesised {Chars} chars in {ElapsedMs} ms")]
+    public static partial void SentenceSynthesized(this ILogger logger, int chars, long elapsedMs);
+
+    // The numbers phase 2's "done when" is measured by (PLAN.md §11): from the user finishing their
+    // message to the first words and the first audio. -1 means not applicable (typed, or not spoken).
+    [LoggerMessage(53, LogLevel.Information, "Turn: transcribe {TranscribeMs} ms, first text {FirstTextMs} ms, first audio {FirstAudioMs} ms, total {TotalMs} ms")]
+    public static partial void TurnTiming(this ILogger logger, long transcribeMs, long firstTextMs, long firstAudioMs, long totalMs);
 }

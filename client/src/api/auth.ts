@@ -1,6 +1,6 @@
 import { api } from './client';
 
-export type AccountRole = 'User' | 'Admin';
+export type AccountRole = 'user' | 'admin';
 
 export interface Account {
   id: string;

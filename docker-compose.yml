@@ -10,6 +10,11 @@ name: familiar-dev
 # Layer docker-compose.gpu.yml over this for the GPU (see that file). Everything here is CPU by
 # default so a machine without a usable card can still bring the whole stack up.
 #
+# Ports are published without a host address - never 127.0.0.1 or localhost. Bound to loopback, the
+# port forwarder (Rancher Desktop's, here) listens on IPv4 only; anything that resolves "localhost" to
+# ::1 first - .NET on Windows does - then waits ~2 s per connection for the IPv4 fallback. Measured:
+# 2095 ms vs 4 ms, and it pushed a spoken turn from ~1.5 s to over 4.
+#
 # Every host port is a variable and none collides with muwbta's dev stack, so both can run at once:
 #
 #     service    familiar   muwbta
@@ -38,7 +43,7 @@ services:
       POSTGRES_INITDB_ARGS: >-
         -c timezone=UTC
     ports:
-      - 127.0.0.1:${POSTGRES_PORT:-5433}:5432
+      - ${POSTGRES_PORT:-5433}:5432
     volumes:
       # PostgreSQL 18 images keep data under /var/lib/postgresql, not /var/lib/postgresql/data as
       # through PG 17. Mounting the old path makes the container unhealthy.
@@ -64,7 +69,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - 127.0.0.1:${ADMINER_PORT:-8081}:8080
+      - ${ADMINER_PORT:-8081}:8080
     environment:
       ADMINER_DEFAULT_SERVER: postgres
     logging: *logging
@@ -80,7 +85,7 @@ services:
     profiles: [llm]
     restart: unless-stopped
     ports:
-      - 127.0.0.1:${OLLAMA_PORT:-11435}:11434
+      - ${OLLAMA_PORT:-11435}:11434
     environment:
       # Never unload: a voice turn cannot wait for a model load.
       OLLAMA_KEEP_ALIVE: "-1"
@@ -109,7 +114,7 @@ services:
     profiles: [speech]
     restart: unless-stopped
     ports:
-      - 127.0.0.1:${STT_PORT:-8001}:8000
+      - ${STT_PORT:-8001}:8000
     volumes:
       - hf-cache:/home/ubuntu/.cache/huggingface/hub
     logging: *logging
@@ -122,7 +127,7 @@ services:
     profiles: [speech]
     restart: unless-stopped
     ports:
-      - 127.0.0.1:${TTS_PORT:-8002}:8880
+      - ${TTS_PORT:-8002}:8880
     logging: *logging
 
 volumes:

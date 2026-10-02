@@ -239,3 +239,26 @@ public sealed class ConversationTests(PostgresFixture postgres)
         Assert.Equal("Moss", (await (await client.GetAsync("/api/familiar")).ReadAsync<FamiliarView>()).Name);
     }
 }
+
+[Collection(PostgresCollection.Name)]
+public sealed class WireFormatTests(PostgresFixture postgres)
+{
+    [Fact]
+    public async Task Enums_are_camelCase_over_http_exactly_as_on_the_stream()
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        var client = app.CreateClient();
+        var registered = await client.RegisterAsync("wire");
+        await using var stream = await SseClient.ConnectAsync(client);
+        await stream.ReadUntilAsync(EventTypes.Ready);
+        await client.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("Hi", null));
+        await stream.ReadUntilStateAsync(FamiliarState.Idle);
+
+        Assert.Contains("\"role\":\"admin\"", await registered.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        var history = await (await client.GetAsync("/api/conversation/messages")).Content.ReadAsStringAsync();
+        Assert.Contains("\"role\":\"user\"", history, StringComparison.Ordinal);
+        Assert.Contains("\"role\":\"assistant\"", history, StringComparison.Ordinal);
+        Assert.Contains("\"emotion\":\"joy\"", history, StringComparison.Ordinal);
+    }
+}
