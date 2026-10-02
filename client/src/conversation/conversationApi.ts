@@ -25,6 +25,10 @@ export const conversationApi = {
     return response.status === 204 ? null : ((await response.json()) as MessageView);
   },
 
-  interrupt: () => api<void>('/api/conversation/interrupt', { method: 'POST' }),
+  /** Stop. `heard` cuts the stored reply to what the user heard of it before talking over it. */
+  interrupt: (heard?: { replyId: string; text: string }) =>
+    api<void>('/api/conversation/interrupt', heard
+      ? { body: { replyId: heard.replyId, heard: heard.text } }
+      : { method: 'POST' }),
   startOver: () => api<void>('/api/conversation/new', { method: 'POST' }),
 };

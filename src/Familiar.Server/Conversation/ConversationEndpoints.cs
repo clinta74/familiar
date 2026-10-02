@@ -11,6 +11,10 @@ namespace Familiar.Server.Conversation;
 /// <param name="Speak">Speak the reply as well as showing it. Spoken messages are always answered aloud.</param>
 public sealed record SendMessageRequest(string? Text, string? TimeZone, bool? Speak = null);
 
+/// <param name="ReplyId">The reply that was playing when the user interrupted.</param>
+/// <param name="Heard">What of it they heard: the reply is cut to this.</param>
+public sealed record InterruptRequest(Guid? ReplyId, string? Heard);
+
 public static class ConversationEndpoints
 {
     public const int MaxMessageLength = 4000;
@@ -181,9 +185,14 @@ public static class ConversationEndpoints
             ? TypedResults.File(clip.Audio, clip.ContentType)
             : TypedResults.NotFound();
 
-    private static async Task<IResult> InterruptAsync(HttpContext http, ConversationTurns turns)
+    /// <summary>
+    /// Stop. Optionally with what was heard of the reply that was playing, so it's stored as the user
+    /// experienced it (hands-free barge-in, PLAN.md §3.2). The body is optional.
+    /// </summary>
+    private static async Task<IResult> InterruptAsync(InterruptRequest? request, HttpContext http, ConversationTurns turns)
     {
-        await turns.InterruptAsync(http.User.AccountId()!.Value);
+        var heard = request?.Heard is { Length: <= MaxMessageLength } text ? text : null;
+        await turns.InterruptAsync(http.User.AccountId()!.Value, request?.ReplyId, heard);
         return TypedResults.NoContent();
     }
 

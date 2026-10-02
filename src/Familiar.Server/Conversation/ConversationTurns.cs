@@ -92,17 +92,36 @@ public sealed class ConversationTurns(
             return null;
         }
 
+        // The familiar hearing its own voice through the speakers (hands-free keeps the mic open).
+        if (EchoDetector.IsEcho(text, await store.LastReplyAsync(accountId, ct)))
+        {
+            logger.EchoIgnored(text);
+            channel.Publish(EventTypes.State, new StateEvent(FamiliarState.Idle));
+            return null;
+        }
+
         return await SubmitAsync(accountId, text, new TurnRequest(zone, Speak: true, receivedAt, transcribeMs), ct);
     }
 
-    /// <summary>Stops the reply in progress, if there is one, and waits until it has been stored.</summary>
-    public async Task InterruptAsync(Guid accountId)
+    /// <summary>
+    /// Stops the reply in progress, if there is one, and waits until it has been stored. With
+    /// <paramref name="heard"/>, the reply is then cut to what the user actually heard of it: the model
+    /// usually finishes writing long before the familiar finishes speaking, so the stored reply would
+    /// otherwise "remember" saying things the user never heard.
+    /// </summary>
+    public async Task InterruptAsync(Guid accountId, Guid? replyId = null, string? heard = null)
     {
         var channel = hub.For(accountId);
         await channel.TurnGate.WaitAsync();
         try
         {
             await InterruptLockedAsync(channel);
+
+            if (replyId is { } id && heard is not null
+                && await store.TruncateReplyAsync(accountId, id, heard, CancellationToken.None) is { } cut)
+            {
+                channel.Publish(EventTypes.ReplyTruncated, new ReplyTruncatedEvent(cut.Id, cut.Content));
+            }
         }
         finally
         {

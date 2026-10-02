@@ -43,6 +43,7 @@ export type ConversationAction =
   | { type: 'replyStart'; id: string }
   | { type: 'replyDelta'; id: string; text: string }
   | { type: 'replyEnd'; end: ReplyEndEvent }
+  | { type: 'replyTruncated'; id: string; text: string }
   | { type: 'cleared' }
   | { type: 'error'; message: string | null };
 
@@ -120,6 +121,13 @@ export function conversationReducer(state: ConversationState, action: Conversati
         messages: exists ? state.messages.map((m) => (m.id === end.id ? done : m)) : [...state.messages, done],
       };
     }
+
+    case 'replyTruncated':
+      return {
+        ...state,
+        messages: state.messages.map((m) =>
+          m.id === action.id ? { ...m, text: action.text, interrupted: true, streaming: false } : m),
+      };
 
     case 'cleared':
       return { ...state, messages: [], error: null };

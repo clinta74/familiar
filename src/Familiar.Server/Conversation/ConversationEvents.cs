@@ -21,6 +21,7 @@ public static class EventTypes
     public const string Resync = "resync";
     public const string Audio = "audio";
     public const string AudioEnd = "audio.end";
+    public const string ReplyTruncated = "reply.truncated";
 }
 
 public enum FamiliarState
@@ -51,8 +52,21 @@ public sealed record GestureEvent(Gesture Gesture);
 
 public sealed record ErrorEvent(string Code, string Message);
 
-/// <summary>A spoken sentence is ready to fetch. Played in <c>Seq</c> order; <c>Text</c> is what it says.</summary>
-public sealed record AudioEvent(Guid ReplyId, int Seq, string Url, string Text);
+/// <summary>A spoken sentence is ready to fetch.</summary>
+/// <param name="ReplyId">The reply it belongs to.</param>
+/// <param name="Seq">Its position in the reply; clips are played in this order.</param>
+/// <param name="Url">Where to fetch the audio.</param>
+/// <param name="Text">What it says.</param>
+/// <param name="Words">When each word is spoken, if the TTS service says - for mouth shapes.</param>
+public sealed record AudioEvent(Guid ReplyId, int Seq, string Url, string Text, IReadOnlyList<SpokenWord>? Words = null);
+
+public sealed record SpokenWord(string Word, double Start, double End);
+
+/// <summary>
+/// The user talked over a reply, so it was cut to what they actually heard (the model had usually
+/// finished writing it long before the familiar finished saying it).
+/// </summary>
+public sealed record ReplyTruncatedEvent(Guid Id, string Text);
 
 /// <summary>The reply has no more clips coming: <c>Clips</c> were announced in total.</summary>
 public sealed record AudioEndEvent(Guid ReplyId, int Clips);

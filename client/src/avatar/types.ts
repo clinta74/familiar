@@ -1,3 +1,5 @@
+import type { Viseme } from './visemes';
+
 // The avatar layer is framework-free on purpose (no React imports anywhere under src/avatar): the
 // Android and iOS apps will host the same renderer in a WebView (MOBILE.md §1.1), and it moves to
 // its own package when they do.
@@ -21,5 +23,10 @@ export interface AvatarDriver {
   playGesture(gesture: Gesture): void;
   /** Mouth openness 0-1. Decays on its own, so callers just keep feeding it while talking. */
   setMouthOpen(level: number): void;
+  /**
+   * The mouth shape being spoken now, from word timings, with `weight` 0-1 (the audio's loudness,
+   * so silence still closes it). Null between words. Called every frame while speaking.
+   */
+  setViseme(viseme: Viseme | null, weight: number): void;
   dispose(): void;
 }

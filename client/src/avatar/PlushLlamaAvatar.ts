@@ -1,5 +1,6 @@
 import { approach, faceFor, neutralFace, type FaceParams } from './faceExpressions';
 import type { AvatarDriver, AvatarState, Emotion, Gesture } from './types';
+import { visemeMouth, type Viseme } from './visemes';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -203,6 +204,8 @@ export class PlushLlamaAvatar implements AvatarDriver {
   private state: AvatarState = 'idle';
   private idleSince = performance.now();
   private mouth = 0;
+  private viseme: Viseme | null = null;
+  private visemeWeight = 0;
   private gesture: { name: Gesture; start: number } | null = null;
   private blinkAt = performance.now() + 2500;
   private gazeAt = performance.now() + 3000;
@@ -234,6 +237,11 @@ export class PlushLlamaAvatar implements AvatarDriver {
 
   setMouthOpen(level: number): void {
     this.mouth = Math.max(this.mouth, Math.min(1, level));
+  }
+
+  setViseme(viseme: Viseme | null, weight: number): void {
+    this.viseme = viseme;
+    this.visemeWeight = Math.min(1, Math.max(0, weight));
   }
 
   dispose(): void {
@@ -336,6 +344,18 @@ export class PlushLlamaAvatar implements AvatarDriver {
     target.mouthOpen = Math.max(target.mouthOpen, this.mouth * 0.9);
 
     approach(this.face, target, dt, 8);
+
+    // Speech: the shape of the sound being made, scaled by how loud it is. Letters last ~60 ms, so
+    // the mouth follows much faster than expressions do; a pause between words closes it.
+    this.visemeWeight *= Math.exp(-dt * 6);
+    if (this.visemeWeight > 0.02) {
+      const shape = this.viseme ? visemeMouth[this.viseme] : visemeMouth.closed;
+      const k = 1 - Math.exp(-dt * 28);
+      const w = Math.min(1, 0.4 + this.visemeWeight);
+      this.face.mouthOpen += (shape.open * w - this.face.mouthOpen) * k;
+      this.face.mouthWidth += (shape.width - this.face.mouthWidth) * k * w;
+      this.face.mouthCurve += (Math.max(shape.curve, target.mouthCurve * 0.6) - this.face.mouthCurve) * k * w;
+    }
   }
 
   private render(now: number) {

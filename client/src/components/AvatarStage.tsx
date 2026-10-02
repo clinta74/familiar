@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { createAvatar } from '../avatar/createAvatar';
 import type { AvatarDriver, AvatarState, Emotion, Gesture } from '../avatar/types';
+import type { Viseme } from '../avatar/visemes';
 
 export interface AvatarHandle {
   express(emotion: Emotion, intensity: number): void;
@@ -9,6 +10,8 @@ export interface AvatarHandle {
   speak(text: string): void;
   /** Loudness of the voice being played, 0-1, every frame: moves the mouth with the audio. */
   mouth(level: number): void;
+  /** The mouth shape being spoken (from word timings) at a loudness, every frame. */
+  viseme(viseme: Viseme | null, level: number): void;
 }
 
 /**
@@ -50,6 +53,7 @@ export const AvatarStage = forwardRef<AvatarHandle, { state: AvatarState }>(func
     express: (emotion, intensity) => driver.current?.setExpression(emotion, intensity),
     gesture: (gesture) => driver.current?.playGesture(gesture),
     mouth: (level) => driver.current?.setMouthOpen(level),
+    viseme: (viseme, level) => driver.current?.setViseme(viseme, level),
     speak: (text) => {
       // Without audio the mouth follows the text: a pulse per fragment, bigger for longer ones,
       // quieter at punctuation.

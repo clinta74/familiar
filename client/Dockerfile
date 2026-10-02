@@ -9,6 +9,7 @@ RUN npm ci
 # All three tsconfigs: the root one only references the other two, and `tsc -b` fails with TS5083
 # (which names nothing useful) when they're missing.
 COPY tsconfig*.json vite.config.ts index.html ./
+COPY scripts ./scripts
 COPY src ./src
 COPY public ./public
 RUN npm run build

@@ -2,6 +2,20 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { VRMExpressionPresetName, VRMLoaderPlugin, VRMUtils, type VRM } from '@pixiv/three-vrm';
 import type { AvatarDriver, AvatarState, Emotion, Gesture } from './types';
+import type { Viseme } from './visemes';
+
+/** Visemes onto VRM's mouth presets. Closed is all of them at zero; teeth is a little ih. */
+const VISEME_PRESETS: Record<Viseme, [VRMExpressionPresetName, number][]> = {
+  aa: [[VRMExpressionPresetName.Aa, 1]],
+  ih: [[VRMExpressionPresetName.Ih, 1]],
+  ou: [[VRMExpressionPresetName.Ou, 1]],
+  ee: [[VRMExpressionPresetName.Ee, 1]],
+  oh: [[VRMExpressionPresetName.Oh, 1]],
+  closed: [],
+  teeth: [[VRMExpressionPresetName.Ih, 0.3]],
+};
+
+const MOUTH_PRESETS = [VRMExpressionPresetName.Aa, VRMExpressionPresetName.Ih, VRMExpressionPresetName.Ou, VRMExpressionPresetName.Ee, VRMExpressionPresetName.Oh];
 
 /** Emotions onto VRM's preset expressions (PLAN.md §5.1). Thinking has no preset; it's a look. */
 const PRESETS: Partial<Record<Emotion, VRMExpressionPresetName>> = {
@@ -31,6 +45,8 @@ export class VrmAvatar implements AvatarDriver {
   private intensity = 0.5;
   private state: AvatarState = 'idle';
   private mouth = 0;
+  private viseme: Viseme | null = null;
+  private visemeWeight = 0;
   private gesture: { name: Gesture; start: number } | null = null;
   private blinkAt = 2.5;
   private frame = 0;
@@ -102,6 +118,11 @@ export class VrmAvatar implements AvatarDriver {
     this.mouth = Math.max(this.mouth, Math.min(1, level));
   }
 
+  setViseme(viseme: Viseme | null, weight: number): void {
+    this.viseme = viseme;
+    this.visemeWeight = Math.min(1, Math.max(0, weight));
+  }
+
   dispose(): void {
     cancelAnimationFrame(this.frame);
     this.resize.disconnect();
@@ -145,7 +166,17 @@ export class VrmAvatar implements AvatarDriver {
     vrm.expressionManager?.setValue(VRMExpressionPresetName.Blink, emotion === 'joy' ? 0 : blink);
 
     this.mouth *= Math.exp(-dt * 9);
-    this.ease(VRMExpressionPresetName.Aa, this.mouth * 0.8, dt * 3);
+    this.visemeWeight *= Math.exp(-dt * 6);
+    if (this.visemeWeight > 0.02) {
+      // Speech with word timings: the right shape, fast.
+      const shapes = this.viseme ? VISEME_PRESETS[this.viseme] : [];
+      for (const preset of MOUTH_PRESETS) {
+        const weight = shapes.find(([p]) => p === preset)?.[1] ?? 0;
+        this.ease(preset, weight * Math.min(1, 0.4 + this.visemeWeight), dt * 3.5);
+      }
+    } else {
+      this.ease(VRMExpressionPresetName.Aa, this.mouth * 0.8, dt * 3);
+    }
 
     // Gaze: at the viewer, or up and away while thinking.
     const thinking = emotion === 'thinking';

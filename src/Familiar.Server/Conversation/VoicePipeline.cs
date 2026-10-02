@@ -57,7 +57,12 @@ public sealed class VoicePipeline
                     FirstAudioAt ??= clock.GetTimestamp();
                     logger.SentenceSynthesized(text.Length, (long)clock.GetElapsedTime(started).TotalMilliseconds);
 
-                    channel.Publish(EventTypes.Audio, new AudioEvent(replyId, sequence++, $"/api/conversation/audio/{clipId}", text));
+                    channel.Publish(EventTypes.Audio, new AudioEvent(
+                        replyId,
+                        sequence++,
+                        $"/api/conversation/audio/{clipId}",
+                        text,
+                        clip.Words?.Select(w => new SpokenWord(w.Word, Math.Round(w.Start, 3), Math.Round(w.End, 3))).ToList()));
                 }
                 catch (SpeechUnavailableException exception)
                 {

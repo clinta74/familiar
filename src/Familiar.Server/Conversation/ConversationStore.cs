@@ -84,6 +84,42 @@ public sealed class ConversationStore(IDbContextFactory<FamiliarDbContext> facto
         return recent;
     }
 
+    /// <summary>
+    /// Cuts a reply down to what the user heard before talking over it, and marks it interrupted.
+    /// Null if there's no such reply on this account, or nothing to cut.
+    /// </summary>
+    public async Task<Message?> TruncateReplyAsync(Guid accountId, Guid replyId, string heard, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var reply = await db.Messages
+            .Where(m => m.Id == replyId && m.Role == MessageRole.Assistant)
+            .Join(db.Conversations.Where(c => c.AccountId == accountId), m => m.ConversationId, c => c.Id, (m, _) => m)
+            .SingleOrDefaultAsync(ct);
+
+        var text = heard.Trim();
+        if (reply is null || text.Length >= reply.Content.Length)
+        {
+            return null;
+        }
+
+        reply.Content = text;
+        reply.Interrupted = true;
+        await db.SaveChangesAsync(ct);
+        return reply;
+    }
+
+    /// <summary>What the familiar said last in the current conversation, for the echo guard.</summary>
+    public async Task<string?> LastReplyAsync(Guid accountId, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.Messages
+            .Where(m => m.Role == MessageRole.Assistant)
+            .Join(db.Conversations.Where(c => c.AccountId == accountId), m => m.ConversationId, c => c.Id, (m, _) => m)
+            .OrderByDescending(m => m.CreatedAt)
+            .Select(m => m.Content)
+            .FirstOrDefaultAsync(ct);
+    }
+
     /// <summary>The account's familiar, created with defaults the first time.</summary>
     public async Task<FamiliarProfile> ProfileAsync(Guid accountId, CancellationToken ct)
     {

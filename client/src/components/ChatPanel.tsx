@@ -9,6 +9,13 @@ export interface VoiceControls {
   recording: boolean;
   onToggle: () => void;
   onMic: () => void;
+  handsFree: {
+    available: boolean;
+    on: boolean;
+    /** The user is talking right now (hands-free heard them start). */
+    hearing: boolean;
+    onToggle: () => void;
+  };
 }
 
 interface Props {
@@ -95,7 +102,7 @@ export function ChatPanel({ familiarName, messages, busy, error, onSend, onInter
       <ol className="transcript" ref={transcript} aria-live="polite">
         {messages.length === 0 && (
           <li className="transcript-empty muted">
-            Say hello to {familiarName}{voice.available ? ' — type, or press the microphone and talk.' : '.'}
+            Say hello to {familiarName}{voice.handsFree.on ? ' — just talk.' : voice.available ? ' — type, or press the microphone and talk.' : '.'}
           </li>
         )}
         {messages.map((m) => (
@@ -111,7 +118,16 @@ export function ChatPanel({ familiarName, messages, busy, error, onSend, onInter
       {error && <p className="error chat-error" role="alert">{error}</p>}
 
       <form className="composer" onSubmit={submit}>
-        {voice.available && (
+        {voice.handsFree.on ? (
+          <span
+            className={`mic hands-free${voice.handsFree.hearing ? ' hearing' : ''}`}
+            role="status"
+            aria-label={voice.handsFree.hearing ? 'Hearing you' : 'Hands-free: listening'}
+            title="Hands-free: just talk"
+          >
+            <MicIcon />
+          </span>
+        ) : voice.available && (
           <button
             type="button"
             className={`mic${voice.recording ? ' recording' : ''}`}
@@ -145,12 +161,20 @@ export function ChatPanel({ familiarName, messages, busy, error, onSend, onInter
       </form>
 
       <div className="chat-footer">
-        {voice.available && (
-          <button type="button" className="link voice-toggle" onClick={voice.onToggle} aria-pressed={voice.on}>
-            <SpeakerIcon on={voice.on} />
-            {voice.on ? 'Voice on' : 'Voice off'}
-          </button>
-        )}
+        <span className="voice-toggles">
+          {voice.available && (
+            <button type="button" className="link voice-toggle" onClick={voice.onToggle} aria-pressed={voice.on}>
+              <SpeakerIcon on={voice.on} />
+              {voice.on ? 'Voice on' : 'Voice off'}
+            </button>
+          )}
+          {voice.handsFree.available && (
+            <button type="button" className="link voice-toggle" onClick={voice.handsFree.onToggle} aria-pressed={voice.handsFree.on}>
+              <MicIcon />
+              {voice.handsFree.on ? 'Hands-free on' : 'Hands-free off'}
+            </button>
+          )}
+        </span>
         <button type="button" className="link" onClick={onStartOver} disabled={messages.length === 0}>
           New conversation
         </button>

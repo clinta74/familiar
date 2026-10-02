@@ -27,6 +27,12 @@ public sealed class SpeechOptions
     /// <summary>MP3: every browser and both phone platforms decode it.</summary>
     public string TtsFormat { get; set; } = "mp3";
 
+    /// <summary>
+    /// Ask Kokoro for per-word timestamps (its <c>/dev/captioned_speech</c>), so the avatar's mouth
+    /// can make the right shapes at the right moments. Falls back to plain speech if unsupported.
+    /// </summary>
+    public bool TtsWordTimings { get; set; } = true;
+
     public int RequestTimeoutSeconds { get; set; } = 30;
 
     /// <summary>
@@ -39,8 +45,14 @@ public sealed class SpeechOptions
         $"STT {SttModel} at {SttBaseUrl}; TTS {TtsModel}/{DefaultVoice} ({TtsFormat}) at {TtsBaseUrl}";
 }
 
+/// <summary>When a word is spoken within a clip, in seconds from its start.</summary>
+public sealed record WordTiming(string Word, double Start, double End);
+
 /// <summary>Synthesised speech, ready to serve.</summary>
-public sealed record SpeechClip(byte[] Audio, string ContentType);
+/// <param name="Audio">The encoded audio (MP3 by default).</param>
+/// <param name="ContentType">Its media type.</param>
+/// <param name="Words">Per-word timing, when the TTS service provides it: what drives mouth shapes.</param>
+public sealed record SpeechClip(byte[] Audio, string ContentType, IReadOnlyList<WordTiming>? Words = null);
 
 /// <summary>A speech service can't be used right now. Voice degrades to text; nothing else breaks.</summary>
 public sealed class SpeechUnavailableException(string message, Exception? inner = null) : Exception(message, inner);

@@ -63,4 +63,11 @@ export interface AudioEvent {
   seq: number;
   url: string;
   text: string;
+  words?: { word: string; start: number; end: number }[] | null;
+}
+
+/** The reply was cut to what the user heard before talking over it. */
+export interface ReplyTruncatedEvent {
+  id: string;
+  text: string;
 }

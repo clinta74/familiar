@@ -256,3 +256,121 @@ public sealed class KokoroClientTests
     public async Task An_unexpected_shape_means_no_voices_not_an_exception() =>
         Assert.Empty(await VoicesFrom("""{"voices":[42]}"""));
 }
+
+public sealed class EchoDetectorTests
+{
+    private const string Reply = "Oh my gosh, that is the best news ever! I'm so happy for you.";
+
+    [Theory]
+    [InlineData("that is the best news ever")]
+    [InlineData("Oh my gosh, that is the best news ever.")]
+    [InlineData("I'm so happy for you")]
+    public void Its_own_words_are_echo(string transcript) => Assert.True(EchoDetector.IsEcho(transcript, Reply));
+
+    [Theory]
+    [InlineData("What's the weather like tomorrow?")]
+    [InlineData("thanks")]
+    [InlineData("is that the best you've got though")]
+    public void The_users_words_are_not(string transcript) => Assert.False(EchoDetector.IsEcho(transcript, Reply));
+
+    [Fact]
+    public void Nothing_said_yet_means_nothing_to_echo() => Assert.False(EchoDetector.IsEcho("hello there friend", null));
+}
+
+[Collection(PostgresCollection.Name)]
+public sealed class BargeInTests(PostgresFixture postgres)
+{
+    private static async Task<HttpClient> SignedInAsync(FamiliarAppFactory app, string name = "barger")
+    {
+        var client = app.CreateClient();
+        (await client.RegisterAsync(name)).EnsureSuccessStatusCode();
+        return client;
+    }
+
+    [Fact]
+    public async Task Audio_events_carry_word_timings()
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        var client = await SignedInAsync(app);
+        await using var stream = await SseClient.ConnectAsync(client);
+        await stream.ReadUntilAsync(EventTypes.Ready);
+
+        await client.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("Hi", null, Speak: true));
+        var clip = (await stream.ReadUntilAsync(EventTypes.Audio))[^1].Payload<AudioEvent>();
+
+        Assert.Equal(["Hello", "there!"], clip.Words!.Select(w => w.Word));
+        Assert.Equal(0.3, clip.Words![1].Start, 3);
+    }
+
+    [Fact]
+    public async Task Talking_over_a_reply_cuts_it_to_what_was_heard()
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        app.Llm.Fragments = ["[joy:0.7] Llamas hum to each other.", " They also spit when annoyed.", " And they're great guards."];
+        var client = await SignedInAsync(app);
+        await using var stream = await SseClient.ConnectAsync(client);
+        await stream.ReadUntilAsync(EventTypes.Ready);
+
+        await client.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("Llama facts?", null, Speak: true));
+        var replyId = (await stream.ReadUntilAsync(EventTypes.ReplyEnd))[^1].Payload<ReplyEndEvent>().Id;
+        await stream.ReadUntilStateAsync(FamiliarState.Idle);
+
+        // The reply is fully written and stored, but the user only heard the first sentence and a bit.
+        (await client.PostAsJsonAsync("/api/conversation/interrupt", new InterruptRequest(replyId, "Llamas hum to each other. They also")))
+            .EnsureSuccessStatusCode();
+
+        var truncated = (await stream.ReadUntilAsync(EventTypes.ReplyTruncated))[^1].Payload<ReplyTruncatedEvent>();
+        Assert.Equal("Llamas hum to each other. They also", truncated.Text);
+
+        var stored = (await (await client.GetAsync("/api/conversation/messages")).ReadAsync<List<MessageView>>())[^1];
+        Assert.Equal(("Llamas hum to each other. They also", true), (stored.Text, stored.Interrupted));
+    }
+
+    [Fact]
+    public async Task An_interrupt_without_a_body_still_just_stops()
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        var client = await SignedInAsync(app);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsync("/api/conversation/interrupt", null)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Someone_elses_reply_cannot_be_truncated()
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        var owner = await SignedInAsync(app, "owner");
+        var other = await SignedInAsync(app, "other");
+        await using var stream = await SseClient.ConnectAsync(owner);
+        await stream.ReadUntilAsync(EventTypes.Ready);
+        await owner.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("Hi", null));
+        var replyId = (await stream.ReadUntilAsync(EventTypes.ReplyEnd))[^1].Payload<ReplyEndEvent>().Id;
+        await stream.ReadUntilStateAsync(FamiliarState.Idle);
+
+        await other.PostAsJsonAsync("/api/conversation/interrupt", new InterruptRequest(replyId, "He"));
+
+        var stored = (await (await owner.GetAsync("/api/conversation/messages")).ReadAsync<List<MessageView>>())[^1];
+        Assert.Equal("Hello there!", stored.Text);
+    }
+
+    [Fact]
+    public async Task The_familiar_ignores_its_own_voice()
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        app.Llm.Fragments = ["[joy:0.8] That is wonderful news, I'm so happy for you!"];
+        var client = await SignedInAsync(app);
+        await using var stream = await SseClient.ConnectAsync(client);
+        await stream.ReadUntilAsync(EventTypes.Ready);
+        await client.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("I passed!", null));
+        await stream.ReadUntilStateAsync(FamiliarState.Idle);
+
+        // The mic picked up the speakers.
+        app.Stt.Transcript = "that is wonderful news I'm so happy for you";
+        var body = new ByteArrayContent([1, 2, 3]);
+        body.Headers.ContentType = new MediaTypeHeaderValue("audio/wav");
+        var response = await client.PostAsync("/api/conversation/audio", body);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(2, (await (await client.GetAsync("/api/conversation/messages")).ReadAsync<List<MessageView>>()).Count);
+    }
+}

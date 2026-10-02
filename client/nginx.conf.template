@@ -20,6 +20,10 @@ http {
 
     types {
         application/manifest+json webmanifest;
+        # The ONNX runtime loads its WebAssembly glue as an ES module (hands-free listening); a
+        # module script served as octet-stream is refused by the browser.
+        text/javascript mjs;
+        application/wasm wasm;
     }
 
     log_format main '$remote_addr - $remote_user [$time_local] "$request" '

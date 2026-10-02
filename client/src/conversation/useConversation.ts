@@ -4,6 +4,7 @@ import { conversationApi } from './conversationApi';
 import type {
   AudioEvent,
   ErrorEvent,
+  ReplyTruncatedEvent,
   ExpressionEvent,
   GestureEvent,
   MessageView,
@@ -72,6 +73,7 @@ export function useConversation(handlers: ConversationHandlers) {
     on<GestureEvent>('gesture', ({ gesture }) => handlersRef.current.onGesture?.(gesture));
     on<ErrorEvent>('turn.error', ({ message }) => dispatch({ type: 'error', message }));
     on<AudioEvent>('audio', (clip) => handlersRef.current.onAudio?.(clip));
+    on<ReplyTruncatedEvent>('reply.truncated', ({ id, text }) => dispatch({ type: 'replyTruncated', id, text }));
     on('cleared', () => {
       dispatch({ type: 'cleared' });
       handlersRef.current.onCleared?.();
@@ -110,7 +112,12 @@ export function useConversation(handlers: ConversationHandlers) {
     }
   }, []);
 
-  const interrupt = useCallback(() => void conversationApi.interrupt().catch(() => undefined), []);
+  /** Stop the reply. With `heard`, the stored reply is cut to what was actually heard of it. */
+  const interrupt = useCallback(
+    (heard?: { replyId: string; text: string } | null) =>
+      void conversationApi.interrupt(heard ?? undefined).catch(() => undefined),
+    [],
+  );
   const startOver = useCallback(() => void conversationApi.startOver().catch(() => undefined), []);
 
   return { ...state, send, sendSpoken, interrupt, startOver };

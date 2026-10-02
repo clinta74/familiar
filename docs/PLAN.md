@@ -610,6 +610,23 @@ Findings: Kokoro needs its cu128 image on Blackwell; Docker ports must not be bo
 at startup (`SpeechWarmUp`). The microphone UI itself is untested by automation (no mic in the
 test browser); the spoken path was tested with a synthesised WAV through the same endpoint.
 
+**Phase 3 (2026-10-01):** built. *Hands-free* runs Silero VAD (v5, `@ricky0123/vad-web`) in the
+browser and sends each utterance as WAV when the user stops talking; the model and ONNX runtime
+(~17 MB, copied to `public/vad/` at build) load only when it's switched on. *Barge-in*: speech
+while the familiar talks stops playback at once and interrupts with what the user actually heard
+(finished sentences plus the words of the current one, from Kokoro's timings); the server cuts the
+stored reply to that and broadcasts `reply.truncated` — because the model has usually finished
+*writing* long before the familiar finishes *saying*, an interrupt that only cancelled generation
+would leave a reply the user never heard. While the familiar talks the VAD needs firmer speech,
+and the server drops a transcript that is mostly the familiar's own last reply (echo through the
+speakers). *Mouth shapes*: Kokoro's `/dev/captioned_speech` gives per-word timings at no extra
+cost (~75 ms per sentence either way); the client maps the letter being spoken to one of seven
+shapes (aa ih ou ee oh closed teeth) scaled by loudness — VRM's presets directly, the llama's
+mouth by opening/width. Verified: live barge-in truncation; visemes on real Kokoro audio in a
+browser (all seven shapes, 39 distinct mouth forms in one sentence); VAD on synthesised speech
+(start 0.4 s in, end 0.55 s after). Not verified with a real microphone (none in the test
+browser) — that's the thing to try first.
+
 | Phase | Delivers | Done when |
 |---|---|---|
 | **0. Scaffold** | Solution, auth, local compose + GPU overlay, Dockerfiles, CI image build, NAS compose, model bake-off, NAS VRAM measurement | Register/login works locally **and** from the published images on the NAS; `ollama show` confirms tool capability on the chosen model |

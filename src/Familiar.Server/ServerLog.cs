@@ -67,6 +67,9 @@ internal static partial class ServerLog
     [LoggerMessage(51, LogLevel.Warning, "Speech unavailable: {Reason}")]
     public static partial void SpeechUnavailable(this ILogger logger, string reason);
 
+    [LoggerMessage(55, LogLevel.Information, "Ignored a transcript that was the familiar's own voice: {Transcript}")]
+    public static partial void EchoIgnored(this ILogger logger, string transcript);
+
     [LoggerMessage(54, LogLevel.Information, "Downloaded speech-to-text model {Model}")]
     public static partial void SttModelDownloaded(this ILogger logger, string model);
 

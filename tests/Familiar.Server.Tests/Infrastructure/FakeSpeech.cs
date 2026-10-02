@@ -42,7 +42,12 @@ public sealed class FakeTextToSpeech : ITextToSpeech
         }
 
         Requests.Enqueue((text, voice, speed));
-        return Task.FromResult(new SpeechClip(Encoding.UTF8.GetBytes(text), "audio/mpeg"));
+
+        // A word every 0.3 s, like Kokoro's captioned endpoint.
+        var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select((w, i) => new WordTiming(w, i * 0.3, (i + 1) * 0.3))
+            .ToList();
+        return Task.FromResult(new SpeechClip(Encoding.UTF8.GetBytes(text), "audio/mpeg", words));
     }
 
     public Task<IReadOnlyList<string>> VoicesAsync(CancellationToken ct) =>
