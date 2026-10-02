@@ -8,7 +8,7 @@ const LINGER_MS = 8000;
 /** What an emotion softens to once it has lingered. */
 const SOFTENED = 0.4;
 
-const GESTURE_MS: Record<Gesture, number> = { nod: 900, shake: 900, tilt: 1600, wave: 1600, shrug: 1000 };
+const GESTURE_MS: Record<Gesture, number> = { nod: 900, shake: 900, tilt: 1600, wave: 1600, shrug: 1000, laugh: 1400 };
 
 // Feature positions, in viewBox units. The head is centred on the origin; the muzzle sits below,
 // and the neck runs from behind the head down past the bottom of the stage.
@@ -275,6 +275,18 @@ export class PlushLlamaAvatar implements AvatarDriver {
       target.gazeY += this.idleGaze.y;
     }
 
+    // Laughing takes over the face: eyes squeezed into ^ ^, a big open grin, ears up.
+    if (this.gesture?.name === 'laugh') {
+      const u = (now - this.gesture.start) / GESTURE_MS.laugh;
+      const env = Math.sin(Math.PI * Math.min(1, u));
+      target.eyeSmile = Math.max(target.eyeSmile, env);
+      target.mouthCurve = Math.max(target.mouthCurve, env);
+      target.mouthWidth = Math.max(target.mouthWidth, 1 + 0.25 * env);
+      target.mouthOpen = Math.max(target.mouthOpen, (0.45 + 0.25 * Math.abs(Math.sin(u * Math.PI * 7))) * env);
+      target.blush = Math.max(target.blush, env);
+      target.earLift = Math.max(target.earLift, 0.6 * env);
+    }
+
     this.mouth *= Math.exp(-dt * 9);
     target.mouthOpen = Math.max(target.mouthOpen, this.mouth * 0.9);
 
@@ -345,6 +357,15 @@ export class PlushLlamaAvatar implements AvatarDriver {
             browBoost = 0.7 * env;
             earWiggle -= 12 * env;
             break;
+          case 'laugh': {
+            // Quick bouncing chuckles, the head rocking back a little, ears flapping.
+            const chuckle = Math.abs(Math.sin(u * Math.PI * 7));
+            dy -= chuckle * 6 * env * motion;
+            squash += chuckle * 0.03 * env * motion;
+            rotate += Math.sin(u * Math.PI * 3.5) * 4 * env * motion;
+            earWiggle += Math.sin(u * Math.PI * 7) * 9 * env * motion;
+            break;
+          }
         }
       }
     }

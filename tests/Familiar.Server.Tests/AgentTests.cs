@@ -46,7 +46,6 @@ public sealed class ExpressionParserTests
     [InlineData("An array [1, 2, 3] of numbers.")]
     [InlineData("A [very long bracketed aside that goes on and on] here.")]
     [InlineData("Unclosed [joy:0.5 never ends")]
-    [InlineData("Not a gesture: [gesture:dance].")]
     public void Brackets_that_are_not_known_tags_are_spoken_unchanged(string text)
     {
         var tokens = Parse(text);
@@ -62,6 +61,29 @@ public sealed class ExpressionParserTests
     [InlineData("[ thinking : 0.3 ]", Emotion.Thinking, 0.3)]
     public void Emotion_tags_are_normalised(string tag, Emotion emotion, double intensity) =>
         Assert.Equal(new EmotionToken(emotion, intensity), ExpressionParser.TryParseTag(tag));
+
+    [Fact]
+    public void An_unknown_gesture_is_dropped_never_spoken()
+    {
+        var tokens = Parse("Ha! [gesture:dance] That's funny.");
+
+        Assert.Equal("Ha! That's funny.", Spoken(tokens));
+        Assert.Contains(tokens, t => t is IgnoredTag);
+    }
+
+    [Theory]
+    [InlineData("[gesture:laugh]", Gesture.Laugh)]
+    [InlineData("[gesture:Giggles]", Gesture.Laugh)]
+    [InlineData("[laughs]", Gesture.Laugh)]
+    [InlineData("[nods]", Gesture.Nod)]
+    [InlineData("[gesture:shakes head]", Gesture.Shake)]
+    [InlineData("[waves]", Gesture.Wave)]
+    public void Gesture_words_the_model_reaches_for_are_understood(string tag, Gesture gesture) =>
+        Assert.Equal(new GestureToken(gesture), ExpressionParser.TryParseTag(tag));
+
+    [Fact]
+    public void A_known_emotion_with_a_garbled_intensity_is_still_that_emotion() =>
+        Assert.Equal(new EmotionToken(Emotion.Joy, ExpressionParser.DefaultIntensity), ExpressionParser.TryParseTag("[joy:lots]"));
 
     [Fact]
     public void A_numeric_emotion_is_not_mistaken_for_an_enum_value() =>

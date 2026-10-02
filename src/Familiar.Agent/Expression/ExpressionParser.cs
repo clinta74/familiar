@@ -12,6 +12,9 @@ public sealed record EmotionToken(Emotion Emotion, double Intensity) : Expressio
 
 public sealed record GestureToken(Gesture Gesture) : ExpressionToken;
 
+/// <summary>A tag that is clearly a tag but means nothing we can show. Neither spoken nor acted.</summary>
+public sealed record IgnoredTag(string Tag) : ExpressionToken;
+
 /// <summary>
 /// Splits the model's streamed output into speech and the expression tags it's asked to write
 /// (PLAN.md §4.4): <c>[joy:0.8]</c>, <c>[sad]</c>, <c>[gesture:nod]</c>.
@@ -137,11 +140,17 @@ public sealed class ExpressionParser
         var name = (colon < 0 ? inner : inner[..colon]).Trim().ToString();
         var value = colon < 0 ? string.Empty : inner[(colon + 1)..].Trim().ToString();
 
+        // "[gesture:x]" is unambiguously a tag, so it's never spoken: a gesture we can't perform
+        // ("[gesture:dance]") is dropped rather than read out.
         if (name.Equals("gesture", StringComparison.OrdinalIgnoreCase))
         {
-            return Enum.TryParse<Gesture>(value, ignoreCase: true, out var gesture) && Enum.IsDefined(gesture)
-                ? new GestureToken(gesture)
-                : null;
+            return TryParseGesture(value, out var gesture) ? new GestureToken(gesture) : new IgnoredTag(tag);
+        }
+
+        // Stage directions the model writes despite being asked not to: "[laughs]", "[nods]".
+        if (value.Length == 0 && TryParseGesture(name, out var direction))
+        {
+            return new GestureToken(direction);
         }
 
         if (!TryParseEmotion(name, out var emotion))
@@ -149,14 +158,26 @@ public sealed class ExpressionParser
             return null;
         }
 
-        if (value.Length == 0)
-        {
-            return new EmotionToken(emotion, DefaultIntensity);
-        }
-
-        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var intensity)
+        // A known emotion with a garbled intensity is still that emotion.
+        return value.Length > 0 && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var intensity)
             ? new EmotionToken(emotion, Math.Clamp(intensity, 0, 1))
-            : null;
+            : new EmotionToken(emotion, DefaultIntensity);
+    }
+
+    private static bool TryParseGesture(string name, out Gesture gesture)
+    {
+        gesture = name.Trim().ToLowerInvariant() switch
+        {
+            "nod" or "nods" or "nodding" or "agree" => Gesture.Nod,
+            "shake" or "shakes" or "headshake" or "shakes head" or "shake head" => Gesture.Shake,
+            "tilt" or "tilts" or "head tilt" or "tilts head" or "tilt head" or "ponder" => Gesture.Tilt,
+            "wave" or "waves" or "waving" => Gesture.Wave,
+            "shrug" or "shrugs" or "shrugging" => Gesture.Shrug,
+            "laugh" or "laughs" or "laughing" or "giggle" or "giggles" or "chuckle" or "chuckles" or "haha" => Gesture.Laugh,
+            _ => (Gesture)(-1),
+        };
+
+        return Enum.IsDefined(gesture);
     }
 
     private static bool TryParseEmotion(string name, out Emotion emotion)

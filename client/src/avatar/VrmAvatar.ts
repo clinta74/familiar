@@ -12,7 +12,7 @@ const PRESETS: Partial<Record<Emotion, VRMExpressionPresetName>> = {
   relaxed: VRMExpressionPresetName.Relaxed,
 };
 
-const GESTURE_MS: Record<Gesture, number> = { nod: 900, shake: 900, tilt: 1600, wave: 1500, shrug: 1000 };
+const GESTURE_MS: Record<Gesture, number> = { nod: 900, shake: 900, tilt: 1600, wave: 1500, shrug: 1000, laugh: 1400 };
 
 /**
  * A VRM model (VRoid Studio exports, or any VRM 0.x/1.0) driven through the same interface as the
@@ -175,6 +175,11 @@ export class VrmAvatar implements AvatarDriver {
             if (rightArm) rightArm.rotation.set(0, 0, 1.2 - 2.3 * env + Math.sin(u * Math.PI * 8) * 0.25 * env);
             break;
           case 'shrug': if (head) head.rotation.x = -0.1 * env; break;
+          case 'laugh':
+            if (head) head.rotation.x = -0.08 * env + Math.sin(u * Math.PI * 7) * 0.05 * env;
+            vrm.expressionManager?.setValue(VRMExpressionPresetName.Happy, Math.max(this.weights.get(VRMExpressionPresetName.Happy) ?? 0, env));
+            vrm.expressionManager?.setValue(VRMExpressionPresetName.Aa, 0.4 * env * Math.abs(Math.sin(u * Math.PI * 7)));
+            break;
         }
       }
     }

@@ -23,4 +23,5 @@ public enum Gesture
     Tilt = 2,
     Wave = 3,
     Shrug = 4,
+    Laugh = 5,
 }

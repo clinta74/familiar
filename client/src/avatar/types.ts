@@ -4,14 +4,14 @@
 
 export type Emotion = 'neutral' | 'joy' | 'sad' | 'angry' | 'surprised' | 'relaxed' | 'thinking';
 
-export type Gesture = 'nod' | 'shake' | 'tilt' | 'wave' | 'shrug';
+export type Gesture = 'nod' | 'shake' | 'tilt' | 'wave' | 'shrug' | 'laugh';
 
 /** What the familiar is doing, which shapes its idle behaviour. */
 export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'resting';
 
 export const emotions: readonly Emotion[] = ['neutral', 'joy', 'sad', 'angry', 'surprised', 'relaxed', 'thinking'];
 
-export const gestures: readonly Gesture[] = ['nod', 'shake', 'tilt', 'wave', 'shrug'];
+export const gestures: readonly Gesture[] = ['nod', 'shake', 'tilt', 'wave', 'shrug', 'laugh'];
 
 /** PLAN.md §5.3. Every renderer - the built-in plush llama, VRM, later 2D - implements this. */
 export interface AvatarDriver {
