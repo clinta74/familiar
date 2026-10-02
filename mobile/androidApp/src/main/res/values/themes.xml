@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Only the window behind Compose: the app draws everything else itself. -->
+    <style name="Theme.Familiar" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+    </style>
+    <color name="background">#14131B</color>
+    <color name="accent">#7C5CFF</color>
+</resources>

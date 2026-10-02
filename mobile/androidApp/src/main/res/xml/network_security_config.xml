@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Familiar servers live at home: the NAS over a VPN (docs/PLAN.md §10.4) or the dev box on the LAN.
+  So plain http is allowed (the sign-in screen says when a connection isn't encrypted), and
+  certificates the user installed on the phone are trusted - that's how the NAS's self-signed
+  certificate becomes acceptable without turning verification off.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

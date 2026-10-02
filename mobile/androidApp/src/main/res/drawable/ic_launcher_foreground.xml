@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The plush llama, as a badge: two tall ears and a woolly head, in the 72dp safe zone of 108. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#FDFAF5" android:pathData="M38,52 C34,40 36,26 41,20 C46,26 47,40 46,50 Z" />
+    <path android:fillColor="#FDFAF5" android:pathData="M70,52 C74,40 72,26 67,20 C62,26 61,40 62,50 Z" />
+    <path android:fillColor="#FDFAF5" android:pathData="M54,40 C70,40 78,52 78,62 C78,76 67,86 54,86 C41,86 30,76 30,62 C30,52 38,40 54,40 Z" />
+    <path android:fillColor="#E4D6CC" android:pathData="M54,50 C64,50 69,58 69,66 C69,75 62,81 54,81 C46,81 39,75 39,66 C39,58 44,50 54,50 Z" />
+    <path android:fillColor="#181210" android:pathData="M47,61 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+    <path android:fillColor="#181210" android:pathData="M61,61 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+    <path android:fillColor="#7A6157" android:pathData="M50,69 C50,67 58,67 58,69 C58,72 56,73 54,73 C52,73 50,72 50,69 Z" />
+</vector>

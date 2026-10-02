@@ -39,6 +39,29 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
+  # The Android app (docs/MOBILE.md): shared tests, and a debug APK to sideload, kept as an artifact.
+  # Signed release APKs come once there's a signing key in the repository secrets.
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      # Compose 1.12 compiles against API 37; the runner image may not have it yet.
+      - run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" > /dev/null
+      - run: ./gradlew :shared:testAndroidHostTest :androidApp:assembleDebug --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: familiar-android-debug
+          path: mobile/androidApp/build/outputs/apk/debug/*.apk
+          retention-days: 30
+
   # Images are built on every run (so a broken Dockerfile fails the PR) but pushed only from main
   # and version tags.
   images:

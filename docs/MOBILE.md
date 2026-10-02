@@ -140,6 +140,19 @@ stale. REST uses the server's OpenAPI document the same way.
 Mobile work starts once the server has text + voice (PLAN.md phases 1–2), since the app is
 mostly a client for those.
 
+**M0 (2026-10-02): Android half built.** `mobile/`: Kotlin 2.4, AGP 9.4 (its KMP library plugin),
+Compose Multiplatform 1.12, Ktor 3.6, Gradle 9.8; min API 29, compiled against 37 (Compose 1.12
+requires it). The shared module has the protocol (hand-written for now), a Ktor client (device
+sign-in, REST, and the SSE stream with `Authorization: Bearer` and Last-Event-ID reconnects), the
+conversation reducer ported from the web client, and the Compose UI: sign-in (server address,
+username, password) and a typed chat with tool chips. The token and server address are encrypted
+with a Keystore AES key. Network security allows plain http (home/VPN) and user-installed CAs (the
+NAS's self-signed certificate). Verified on an emulator against the dev server: sign-in, live
+greeting, a timer set by tool and announced two minutes later, the session surviving a restart
+(stored values encrypted), sign-out revoking the token. CI runs the shared tests and keeps a debug
+APK. **Not yet:** the iOS CI build and TestFlight (needs the Apple Developer account), and the
+schema-generated protocol (§6).
+
 | Phase | Delivers | Done when |
 |---|---|---|
 | **M0. Scaffold** | KMP project, Android app, iOS CI build → TestFlight, server URL + login, schema-generated protocol | Log in on an Android phone; an empty iOS build arrives in TestFlight |
