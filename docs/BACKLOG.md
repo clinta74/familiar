@@ -20,7 +20,7 @@ Nothing is built until the look is known; a pulsing glow holds the place and the
 in. The last look is remembered per account (`localStorage` on the web, the secure store on
 Android), so a returning visit builds the right one straight away.
 
-### 5. Warm the prompt, not just the model
+### 5. Warm the prompt, not just the model — measured; blocked on the model
 
 `LlmWarmUp` / `OllamaWarmUp` load the chat model at startup and keep it loaded, but the first turn
 after a restart still pays to **prefill the whole system prompt** (persona, rules, look). Muwbta's
@@ -42,6 +42,25 @@ holds it, and re-send only when it changes.
   turn evict each other's persona prefix. Measure prefill time per turn on the NAS first; if it
   matters, raise parallelism (costs VRAM per slot) or warm only the most recently active familiar.
 - Measure: log `prompt_eval_count` / `prompt_eval_duration` from the first real turn before and after.
+
+**Measured first (2026-10-03, dev box, Ollama 0.35.0, familiar-chat on gemma4:12b): there's no prefix
+cache to warm.** Identical requests sent back to back each re-evaluate the whole prompt -
+`prompt_eval_count` 761 of 761 tokens without tools, 1,240 of 1,240 with eight tool definitions,
+0.7-1.0 s each - and changing only the end of the system message or the user message costs the same
+as changing nothing. So a warm-up request would leave nothing behind for the next turn to reuse, and
+it hasn't been built. (Likely gemma4's sliding-window attention or the draft model the derived model
+uses: Ollama reuses the cache for other model families. Not confirmed - only gemma4 is installed.)
+
+What would actually cut the ~1 s of prefill before the first word:
+
+- **Fewer prompt tokens.** The tool definitions are about 480 of ~1,250; shorter descriptions, or
+  only offering tools when the message could need one, would save the most.
+- **A model whose cache Ollama reuses** (a Qwen or Llama family model): then this item applies as
+  written above. Needs the bake-off re-run (tool calling, tags).
+- **llama.cpp's `llama-server`** with `cache_prompt`, which also has slot save/restore across
+  restarts.
+
+Decision needed: which of these is worth it.
 
 ---
 
