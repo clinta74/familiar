@@ -240,20 +240,35 @@ back when cross, flicking now and then while idle — on top of the shared expre
 (eyes, lids, brows, mouth, blush, tear, gaze) every renderer blends between. Gestures: nod,
 shake, tilt, shrug (arms out), and a wave with its right arm.
 
-**In 3D (2026-10-03, prototype).** `style: "3d"` in the appearance (the studio's Style switch)
-draws the llama with three.js instead (`client/src/avatar/PlushLlama3D.ts`): a whole plush toy
-sitting on the stage floor with a contact shadow - neck, chest, round bottom, folded hind legs,
-forelegs standing in front - in shell fur (12 offset layers per furry shape, strands cut from a
-tufted noise texture, darker at the roots, drooping slightly), over lumpy base shapes so the
-outline is fleece. The face is the 2D llama's in depth: button eyes with hemispherical lids (the
-upper closes for blinks and winks, a big smile swaps the buttons for stitched arches), thread
-brows, and the mouth and cheeks painted onto front-projected textures from the 2D drawing. It
-reuses `PlushCharacter`, so every expression, gesture and the lip-sync behave as in 2D, and its
-body moves as the flat sitting bodies do (breathing, a sad slump, leaning into a tilt, a shrug,
-legs kicking with a hop); the head also turns to look where the eyes would, and the right foreleg
-waves. Same colours and
-accessories. About 120 draw calls and 310k triangles; three.js loads only for 3D or VRM. No WebGL
-falls back to the flat llama. The other characters get 3D versions next, in the same style.
+**In 3D (2026-10-03).** `style: "3d"` in the appearance (the studio's Style switch) draws any of
+the built-in characters with three.js instead, as soft toys sitting on the stage floor with a
+contact shadow. `client/src/avatar/plush3d/Plush3D.ts` is what they share, built from each 2D
+character's own numbers (face layout, body spec, accessory anchors), so the two styles stay the
+same character:
+
+- **Fur:** shell fur, 12 offset layers per furry shape with strands cut from a tufted noise
+  texture, darker at the roots and drooping slightly, over lumpy base shapes so outlines are
+  fleece. It can be coloured by a painted texture (the fox's face), vary in length over a shape
+  (none over the hedgehog's face), grow finer on big shapes, and bristle live (a shader uniform).
+- **Faces:** button or googly eyes with hemispherical lids (the upper closes for blinks and winks; a
+  big smile swaps the eyes for stitched arches), thread brows, and the mouth (fangs for the
+  monster) and cheeks painted onto front-projected textures from the 2D drawing.
+- **Bodies:** a torso, arms bent at the elbow with paws forward on the tummy (a shrug turns the
+  forearms up; a wave lifts the upper arm and waves from the elbow), and hind feet. The toy
+  breathes, slumps when sad and leans into a tilt; the head turns to look where its eyes would.
+
+The characters:
+- `PlushLlama3D`: fleece, a topknot, and hooves.
+- `PlushFox3D`: a tapered muzzle with a black nose, pointed cream cheek tufts, and a swishing,
+  white-tipped tail.
+- `PlushHedgehog3D`: the ball is the toy, in dark-tipped prickles that bristle and lie flat, with a
+  cream ruff and a button nose.
+- `PlushMonster3D`: shaggy fur that stands on end, googly eyes, and ridged horns.
+- `Spot3D`: a glossy blob shaped in the vertex shader by the same model as the flat spot
+  (`spotFrame`, shared), lit warm from within, with a halo and sparkles.
+
+A character is about 100-120 draw calls and 300k triangles. three.js loads only for 3D or VRM, and
+without WebGL a character falls back to its flat self.
 
 ### 5.1 3D: VRM
 

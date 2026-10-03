@@ -125,6 +125,108 @@ export function blendShape(mood: Record<Emotion, number>): SpotShape & SpotSurfa
   return out;
 }
 
+/** Everything about how the spot looks this frame, from its mood and pose. */
+export interface SpotFrame {
+  shape: SpotShape & SpotSurface;
+  /** A moment's brightening: a laugh, a wink, excitement. */
+  flash: number;
+  /** Its colour, tinted by mood; the lit centre and the darker rim of its body; its halo. */
+  colour: string;
+  centre: string;
+  rim: string;
+  glow: string;
+  haloOpacity: number;
+  /** How much the sparkles are out, 0-1. */
+  sparkle: number;
+}
+
+/**
+ * The spot this frame, worked out from the mood and the pose alone, so the flat and the 3D spot
+ * feel the same: the mood's blended shape, the voice, listening and resting, breathing, gestures
+ * done with shape alone, and the colours.
+ */
+export function spotFrame(pose: Pose, base: string, accent: string): SpotFrame {
+  const shape = blendShape(pose.mood);
+
+  // Speaking: it swells and shivers with the voice.
+  shape.size *= 1 + pose.voice * 0.07;
+  shape.jiggle += pose.voice * 0.02;
+
+  // Listening: it brightens towards you. Resting: it dims and slows right down.
+  if (pose.state === 'listening') shape.glow += 0.3;
+  if (pose.state === 'resting') {
+    shape.glow *= 0.3;
+    shape.speed *= 0.3;
+    shape.size *= 0.95;
+  }
+
+  // Breathing: a slow swell.
+  const breath = Math.sin(pose.t * Math.PI * 2 / 3.8) * 0.015 * pose.motion;
+  shape.sx *= 1 + breath;
+  shape.sy *= 1 + breath;
+
+  // Gestures, done in place with shape alone.
+  let flash = 0;
+  if (pose.gesture) {
+    const { name, u } = pose.gesture;
+    const env = Math.sin(Math.PI * u);
+    switch (name) {
+      case 'nod':
+        shape.sy *= 1 - Math.max(0, Math.sin(u * Math.PI * 4)) * 0.1 * pose.motion;
+        break;
+      case 'shake':
+        shape.sx *= 1 + Math.sin(u * Math.PI * 6) * 0.08 * env * pose.motion;
+        break;
+      case 'tilt':
+        shape.lobe += 0.12 * env;
+        shape.lobeAngle = -Math.PI / 4;
+        break;
+      case 'wave':
+        // A pseudopod reaching out to the side and back, twice.
+        shape.lobe += 0.3 * Math.abs(Math.sin(u * Math.PI * 2)) * env;
+        shape.lobeAngle = -0.35;
+        break;
+      case 'shrug':
+        shape.sy *= 1 - 0.1 * env;
+        shape.sx *= 1 + 0.06 * env;
+        break;
+      case 'laugh':
+        shape.jiggle += 0.05 * env * pose.motion;
+        flash = 0.4 * env;
+        break;
+      case 'wink':
+        shape.lobe += 0.08 * env;
+        shape.lobeAngle = Math.PI * 0.15;
+        flash = 0.5 * env;
+        break;
+      case 'sigh':
+        shape.size *= 1 - 0.1 * env;
+        shape.sag += 0.08 * env;
+        break;
+      case 'yawn':
+        shape.sy *= 1 + 0.18 * env;
+        shape.sx *= 1 - 0.08 * env;
+        break;
+      case 'excited':
+        shape.size *= 1 + Math.abs(Math.sin(u * Math.PI * 4)) * 0.1 * env * pose.motion;
+        flash = 0.7 * env;
+        break;
+    }
+  }
+
+  // Colour: the user's colour tinted by mood, lit from the top left, darker at the rim; the
+  // halo in their accent colour, tinted the same way.
+  const colour = spotColour(base, pose.mood);
+  const dim = pose.state === 'resting' ? 0.35 : 0;
+  const centre = mix(spotCore(colour, pose.mood.joy, 0.35 + shape.gloss * 0.2 + flash * 0.3), '#202028', dim);
+  const rim = mix(mix(colour, lightness(colour) > 0.5 ? '#3a3040' : '#000000', 0.25), '#202028', dim);
+
+  const glow = spotGlow(accent, pose.mood);
+  const haloOpacity = Math.min(1, shape.glow * 0.7 + flash * 0.3);
+  const sparkle = Math.min(1, pose.mood.joy * 0.6 + pose.mood.surprised * 0.4 + flash);
+  return { shape, flash, colour, centre, rim, glow, haloOpacity, sparkle };
+}
+
 /**
  * A spot of colour with no face (PLAN.md §5.5): it stays where it is and shows how it feels with its
  * shape, its surface and its colour. Happy, it's bright, warm, glossy and bouncy; sad, it sags, goes
@@ -183,93 +285,20 @@ export class SpotAvatar extends PlushCharacter {
   }
 
   protected draw(pose: Pose): void {
-    const shape = blendShape(pose.mood);
     const dt = Math.max(0, Math.min(0.1, pose.t - this.lastT));
     this.lastT = pose.t;
-
     // Thinking turns the lobes slowly round, like turning something over.
     this.swirl += dt * (0.2 + pose.mood.thinking * 1.2) * pose.motion;
 
-    // Speaking: it swells and shivers with the voice.
-    shape.size *= 1 + pose.voice * 0.07;
-    shape.jiggle += pose.voice * 0.02;
-
-    // Listening: it brightens towards you. Resting: it dims and slows right down.
-    if (pose.state === 'listening') shape.glow += 0.3;
-    if (pose.state === 'resting') {
-      shape.glow *= 0.3;
-      shape.speed *= 0.3;
-      shape.size *= 0.95;
-    }
-
-    // Breathing: a slow swell.
-    const breath = Math.sin(pose.t * Math.PI * 2 / 3.8) * 0.015 * pose.motion;
-    shape.sx *= 1 + breath;
-    shape.sy *= 1 + breath;
-
-    // Gestures, done in place with shape alone.
-    let flash = 0;
-    if (pose.gesture) {
-      const { name, u } = pose.gesture;
-      const env = Math.sin(Math.PI * u);
-      switch (name) {
-        case 'nod':
-          shape.sy *= 1 - Math.max(0, Math.sin(u * Math.PI * 4)) * 0.1 * pose.motion;
-          break;
-        case 'shake':
-          shape.sx *= 1 + Math.sin(u * Math.PI * 6) * 0.08 * env * pose.motion;
-          break;
-        case 'tilt':
-          shape.lobe += 0.12 * env;
-          shape.lobeAngle = -Math.PI / 4;
-          break;
-        case 'wave':
-          // A pseudopod reaching out to the side and back, twice.
-          shape.lobe += 0.3 * Math.abs(Math.sin(u * Math.PI * 2)) * env;
-          shape.lobeAngle = -0.35;
-          break;
-        case 'shrug':
-          shape.sy *= 1 - 0.1 * env;
-          shape.sx *= 1 + 0.06 * env;
-          break;
-        case 'laugh':
-          shape.jiggle += 0.05 * env * pose.motion;
-          flash = 0.4 * env;
-          break;
-        case 'wink':
-          shape.lobe += 0.08 * env;
-          shape.lobeAngle = Math.PI * 0.15;
-          flash = 0.5 * env;
-          break;
-        case 'sigh':
-          shape.size *= 1 - 0.1 * env;
-          shape.sag += 0.08 * env;
-          break;
-        case 'yawn':
-          shape.sy *= 1 + 0.18 * env;
-          shape.sx *= 1 - 0.08 * env;
-          break;
-        case 'excited':
-          shape.size *= 1 + Math.abs(Math.sin(u * Math.PI * 4)) * 0.1 * env * pose.motion;
-          flash = 0.7 * env;
-          break;
-      }
-    }
-
-    // Colour: the user's colour tinted by mood, lit from the top left, darker at the rim; the
-    // halo in their accent colour, tinted the same way.
-    const colour = spotColour(this.base, pose.mood);
-    const dim = pose.state === 'resting' ? 0.35 : 0;
-    const centre = mix(spotCore(colour, pose.mood.joy, 0.35 + shape.gloss * 0.2 + flash * 0.3), '#202028', dim);
-    const rim = mix(mix(colour, lightness(colour) > 0.5 ? '#3a3040' : '#000000', 0.25), '#202028', dim);
+    const { shape, flash, centre, rim, glow, haloOpacity, sparkle } = spotFrame(pose, this.base, this.accent);
     this.stops[0].setAttribute('stop-color', centre);
     this.stops[1].setAttribute('stop-color', rim);
 
     const path = spotPath(shape, pose.t, this.swirl);
     this.body.setAttribute('d', path);
     this.halo.setAttribute('d', path);
-    this.halo.setAttribute('fill', spotGlow(this.accent, pose.mood));
-    this.halo.setAttribute('opacity', f(Math.min(1, shape.glow * 0.7 + flash * 0.3)));
+    this.halo.setAttribute('fill', glow);
+    this.halo.setAttribute('opacity', f(haloOpacity));
     this.displacement.setAttribute('scale', f(shape.roughness * (pose.motion < 1 ? 0.5 : 1)));
 
     // The shine: big and bright when glossy (happy, surprised), small and faint when matte (sad).
@@ -278,7 +307,6 @@ export class SpotAvatar extends PlushCharacter {
     this.sheen.setAttribute('opacity', f(0.15 + shape.gloss * 0.45 + flash * 0.2));
 
     // Sparkles come out when it's delighted or excited.
-    const sparkle = Math.min(1, pose.mood.joy * 0.6 + pose.mood.surprised * 0.4 + flash);
     this.sparkles.setAttribute('opacity', f(sparkle));
     Array.from(this.sparkles.children).forEach((s, i) => {
       const twinkle = 0.5 + 0.5 * Math.sin(pose.t * 5 + i * 1.7);

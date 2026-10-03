@@ -120,6 +120,7 @@ export const characters: readonly CharacterInfo[] = [
     ],
     colourLabels: { wool: 'Colour', accent: 'Glow' },
     accessories: ['none'],
+    has3d: true,
   },
 ];
 

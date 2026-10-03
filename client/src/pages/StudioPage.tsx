@@ -220,7 +220,7 @@ export function StudioPage() {
                       </button>
                     ))}
                   </div>
-                  <p className="muted small">3D is new, and the llama is the first to have it. It needs a little more from the device.</p>
+                  <p className="muted small">3D is modelled and lit, in soft fur. It needs a little more from the device; older phones show it flat.</p>
                 </fieldset>
               )}
 
