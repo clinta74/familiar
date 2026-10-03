@@ -96,8 +96,7 @@ public sealed class ConversationStore(IDbContextFactory<FamiliarDbContext> facto
             .Join(db.Conversations.Where(c => c.AccountId == accountId), m => m.ConversationId, c => c.Id, (m, _) => m)
             .SingleOrDefaultAsync(ct);
 
-        var text = heard.Trim();
-        if (reply is null || text.Length >= reply.Content.Length)
+        if (reply is null || HeardPart(reply.Content, heard) is not { } text)
         {
             return null;
         }
@@ -106,6 +105,37 @@ public sealed class ConversationStore(IDbContextFactory<FamiliarDbContext> facto
         reply.Interrupted = true;
         await db.SaveChangesAsync(ct);
         return reply;
+    }
+
+    /// <summary>
+    /// The start of <paramref name="content"/> that was heard: as many of its words as
+    /// <paramref name="heard"/> has. Counted rather than copied, because the player rebuilds what
+    /// was heard from the speech's word timings, which drop punctuation and symbols ("hf_tester" is
+    /// said as "hftester"); the stored reply keeps its own spelling. Null when it was all heard.
+    /// </summary>
+    internal static string? HeardPart(string content, string heard)
+    {
+        var count = heard.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+        var end = 0;
+        for (var word = 0; word < count; word++)
+        {
+            while (end < content.Length && char.IsWhiteSpace(content[end]))
+            {
+                end++;
+            }
+
+            if (end == content.Length)
+            {
+                return null;
+            }
+
+            while (end < content.Length && !char.IsWhiteSpace(content[end]))
+            {
+                end++;
+            }
+        }
+
+        return content[end..].Trim().Length == 0 ? null : content[..end].Trim();
     }
 
     /// <summary>What the familiar said last in the current conversation, for the echo guard.</summary>

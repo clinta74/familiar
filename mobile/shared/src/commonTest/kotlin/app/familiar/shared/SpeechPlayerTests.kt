@@ -77,6 +77,20 @@ class SpeechPlayerTests {
     }
 
     @Test
+    fun a_reply_heard_to_the_end_has_nothing_left_to_cut() = runTest {
+        val audio = FakeAudio()
+        val player = SpeechPlayer(audio, this) { url -> ByteArray(url.toInt()) }
+
+        player.enqueue(clip("r1", 0, 2, "One."))
+        player.enqueue(clip("r1", 1, 2, "Two."))
+        advanceTimeBy(2_000)
+        runCurrent()
+
+        // Stopping the next reply (still being thought about) mustn't cut this one short.
+        assertNull(player.heard())
+    }
+
+    @Test
     fun a_new_reply_cuts_off_the_last() = runTest {
         val audio = FakeAudio()
         val player = SpeechPlayer(audio, this) { url -> ByteArray(url.toInt()) }

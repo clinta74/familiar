@@ -36,6 +36,8 @@ kotlin {
         }
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
+            // Silero, for hands-free's speech detection.
+            implementation(libs.onnxruntime.android)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

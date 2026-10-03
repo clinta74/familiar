@@ -16,6 +16,9 @@ android {
         targetSdk = libs.versions.android.target.sdk.get().toInt()
         versionCode = 1
         versionName = "0.1.0"
+
+        // Phones (arm64) and the emulator (x86_64): ONNX Runtime's native code is a few MB per ABI.
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
 
     buildFeatures {
@@ -36,6 +39,7 @@ android {
 
 // The avatar page (client/avatar.html, docs/MOBILE.md §1.1) is built from the web client's avatar
 // code and bundled as assets/avatar/: the app renders it offline and never loads it from a server.
+// Hands-free's voice-activity model is the web client's too, bundled as assets/vad/.
 val client: Directory = rootProject.layout.projectDirectory.dir("../client")
 
 val buildAvatarPage = tasks.register<Exec>("buildAvatarPage") {
@@ -53,6 +57,9 @@ abstract class AvatarAssets : DefaultTask() {
     @get:InputDirectory
     abstract val page: DirectoryProperty
 
+    @get:InputFile
+    abstract val vad: RegularFileProperty
+
     @get:OutputDirectory
     abstract val output: DirectoryProperty
 
@@ -62,8 +69,9 @@ abstract class AvatarAssets : DefaultTask() {
     @TaskAction
     fun copy() {
         files.sync {
-            from(page)
-            into(output.dir("avatar"))
+            into(output)
+            from(page) { into("avatar") }
+            from(vad) { into("vad") }
         }
     }
 }
@@ -71,6 +79,7 @@ abstract class AvatarAssets : DefaultTask() {
 val avatarAssets = tasks.register<AvatarAssets>("avatarAssets") {
     dependsOn(buildAvatarPage)
     page.set(client.dir("dist-embed"))
+    vad.set(client.file("public/vad/silero_vad_v5.onnx"))
 }
 
 androidComponents {

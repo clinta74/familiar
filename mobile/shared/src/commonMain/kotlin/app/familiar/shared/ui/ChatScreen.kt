@@ -2,23 +2,26 @@ package app.familiar.shared.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -29,13 +32,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,33 +46,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.dp
-import app.familiar.shared.api.FamiliarApi
-import app.familiar.shared.avatar.AvatarController
-import app.familiar.shared.avatar.AvatarView
-import app.familiar.shared.auth.SignedIn
-import app.familiar.shared.conversation.ChatMessage
-import app.familiar.shared.conversation.Connection
-import app.familiar.shared.conversation.ConversationController
-import app.familiar.shared.conversation.ToolChip
-import app.familiar.shared.platform.DeviceCalendar
-import app.familiar.shared.platform.SecureStore
-import app.familiar.shared.voice.Microphone
-import app.familiar.shared.voice.SpeechAudio
-import app.familiar.shared.voice.wav
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import app.familiar.shared.voice.SpeechPlayer
-import app.familiar.shared.protocol.ServerEvent
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.dp
+import app.familiar.shared.avatar.AvatarView
+import app.familiar.shared.conversation.ChatMessage
+import app.familiar.shared.conversation.Connection
+import app.familiar.shared.conversation.ToolChip
+import app.familiar.shared.session.FamiliarSession
 import kotlinx.coroutines.launch
 
 private val emotionLabels = mapOf(
@@ -93,103 +80,35 @@ private val toolDoing = mapOf(
     "forget" to "Forgetting",
 )
 
-/** "off" when the user turned replies' voice off; on by default. */
-private const val VOICE_KEY = "voice"
-
-/** Shorter than this is a tap on the mic button, not something said. */
-private const val MIN_SPOKEN_SECONDS = 0.35
-
-/** How the familiar looked last time, per account: the avatar starts as that, not a stand-in. */
-private fun lookKey(username: String) = "look:$username"
-
 /** States the avatar page knows; anything newer from the server reads as busy. */
 private val avatarStates = setOf("idle", "listening", "thinking", "speaking", "resting")
 
 /**
  * The familiar and the conversation: the avatar above the chat on a phone, beside it on a wide
- * screen (an unfolded Fold, a tablet). Replies are spoken through the phone's own audio when the
- * voice is on; talking to it is the rest of phase M1 (docs/MOBILE.md §7).
+ * screen (an unfolded Fold, a tablet). Everything here is the [session]'s, which outlives this
+ * screen - a hands-free conversation carries on with the screen off.
  */
 @Composable
-fun ChatScreen(
-    signedIn: SignedIn,
-    store: SecureStore,
-    calendar: DeviceCalendar?,
-    speechAudio: SpeechAudio?,
-    microphone: Microphone?,
-    onSignedOut: () -> Unit,
-) {
+fun ChatScreen(session: FamiliarSession) {
     val scope = rememberCoroutineScope()
-    val api = remember(signedIn) { FamiliarApi(signedIn.server, signedIn.token) }
-    val controller = remember(signedIn) { ConversationController(api, scope, onSignedOut, calendar) }
+    val controller = session.controller
+    val avatar = session.avatar
     val state by controller.state.collectAsState()
     val calendarOn by controller.calendarOn.collectAsState()
-    val avatar = remember(signedIn) {
-        AvatarController().also { controller ->
-            store.read(lookKey(signedIn.username))
-                ?.let { runCatching { Json.parseToJsonElement(it) as? JsonObject }.getOrNull() }
-                ?.let(controller::look)
-        }
-    }
+    val voiceOn by session.voiceOn.collectAsState()
+    val audible by session.audible.collectAsState()
+    val recording by session.recording.collectAsState()
+    val micLevel by session.micLevel.collectAsState()
+    val handsFreeOn by session.handsFreeOn.collectAsState()
+    val userSpeaking by session.userSpeaking.collectAsState()
 
-    var voiceOn by remember { mutableStateOf(store.read(VOICE_KEY) != "off") }
-    var audible by remember { mutableStateOf(false) }
-    val player = remember(signedIn) {
-        speechAudio?.let { audio ->
-            SpeechPlayer(audio, scope) { url -> api.clip(url) }.apply {
-                // With word timings the page makes the words' shapes; without, the mouth follows loudness.
-                onClip = { words -> avatar.clip(words, 0) }
-                onLevel = avatar::level
-                onPlayingChange = { playing ->
-                    audible = playing
-                    if (!playing) avatar.silence()
-                }
-            }
-        }
-    }
-    val speaking by rememberUpdatedState(voiceOn && player != null)
-    // Before the stream starts (below), so a hello is spoken too.
-    SideEffect { controller.speak = speaking }
-
-    // How it looks is the studio's business (on the web); here it's read, and again on each
-    // reconnect so a change made there shows up.
-    // It's remembered for next time; if it can't be read and there's nothing remembered, the default.
-    suspend fun refreshLook() {
-        val appearance = runCatching { api.familiar()["appearance"] as? JsonObject }.getOrNull()
-        when {
-            appearance != null -> {
-                avatar.look(appearance)
-                store.write(lookKey(signedIn.username), appearance.toString())
-            }
-            !avatar.hasLook -> avatar.look(JsonObject(emptyMap()))
-        }
-    }
-    LaunchedEffect(controller) {
-        controller.onEvent = { event ->
-            avatar.handle(event, audible = player?.isPlaying == true)
-            when (event) {
-                is ServerEvent.Ready -> scope.launch { refreshLook() }
-                is ServerEvent.Audio -> if (speaking) player?.enqueue(event.clip)
-                is ServerEvent.ReplyStart, ServerEvent.Cleared -> player?.stop()
-                else -> Unit
-            }
-        }
-        refreshLook()
-    }
-
-    DisposableEffect(controller) {
-        controller.start()
-        onDispose {
-            controller.stop()
-            player?.stop()
-        }
+    DisposableEffect(session) {
+        session.start()
+        onDispose { }
     }
 
     var draft by remember { mutableStateOf("") }
     var menu by remember { mutableStateOf(false) }
-    /** Push-to-talk: the button is held and the microphone is recording; how loud it hears. */
-    var recording by remember { mutableStateOf(false) }
-    var micLevel by remember { mutableStateOf(0.0) }
     val list = rememberLazyListState()
 
     // Follow the conversation as it grows. A conversation that arrives all at once (restored on
@@ -209,67 +128,23 @@ fun ChatScreen(
         recording -> "listening… let go to send"
         state.connection == Connection.Reconnecting -> "reconnecting…"
         state.connection == Connection.Connecting -> "connecting…"
+        userSpeaking -> "listening…"
         state.state == "thinking" -> "thinking…"
         state.state == "speaking" || audible -> "talking"
         state.state == "resting" -> "resting - the model isn't reachable"
+        handsFreeOn -> "hands-free - just talk"
         else -> null
     }
 
-    // Typing reads as the familiar listening.
+    // Typing reads as the familiar listening, and so does hearing the user hands-free.
     val avatarState = when {
-        recording -> "listening"
+        recording || userSpeaking -> "listening"
         audible -> "speaking"
         state.state == "idle" && draft.isNotBlank() -> "listening"
         state.state in avatarStates -> state.state
         else -> "thinking"
     }
     LaunchedEffect(avatarState) { avatar.state(avatarState) }
-
-    /** Stop talking, and tell the server how much was heard so the stored reply matches. */
-    fun stopReply() {
-        val heard = player?.heard()
-        player?.stop()
-        controller.interrupt(heard)
-    }
-
-    /**
-     * The mic button went down: talking over the familiar stops it (and keeps what was heard), as
-     * on the web. The first time, it asks for the microphone instead of recording.
-     */
-    suspend fun startTalking(): Boolean {
-        val mic = microphone ?: return false
-        if (!mic.canRecord()) {
-            if (!mic.requestAccess()) controller.showError("${state.familiarName} needs the microphone to hear you. You can allow it in the app's settings.")
-            return false
-        }
-        if (busy) stopReply()
-        return try {
-            mic.start { level -> micLevel = level }
-            controller.showError(null)
-            recording = true
-            true
-        } catch (exception: IllegalStateException) {
-            controller.showError(exception.message ?: "Couldn't open the microphone.")
-            false
-        }
-    }
-
-    /** Let go: send what was said, unless it was too short to be anything (a tap). */
-    suspend fun stopTalking(send: Boolean) {
-        val mic = microphone ?: return
-        recording = false
-        micLevel = 0.0
-        if (!send) {
-            mic.cancel()
-            return
-        }
-        val pcm = mic.stop() ?: return
-        if (pcm.seconds < MIN_SPOKEN_SECONDS) {
-            controller.showError("Hold the microphone button while you talk, then let go.")
-            return
-        }
-        controller.sendSpoken(wav(pcm))
-    }
 
     fun send() {
         val text = draft.trim()
@@ -301,29 +176,38 @@ fun ChatScreen(
             Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
         }
 
-        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (microphone != null) {
+        Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (session.microphone != null) {
                 // Hold to talk: recording while it's pressed, sent on release; a slide off cancels.
+                // Hands-free has the microphone, so it's dimmed then and lights up as it hears you.
                 val ring = MaterialTheme.colorScheme.primary
+                val lit = recording || userSpeaking
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .padding(end = 8.dp)
                         .size(52.dp)
                         .clip(CircleShape)
-                        .background(if (recording) ring.copy(alpha = 0.25f + 0.5f * micLevel.toFloat()) else MaterialTheme.colorScheme.surfaceVariant)
-                        .border(2.dp, if (recording) ring else MaterialTheme.colorScheme.outline, CircleShape)
-                        .semantics { contentDescription = "Hold to talk to ${state.familiarName}" }
-                        .pointerInput(microphone) {
+                        .background(
+                            when {
+                                recording -> ring.copy(alpha = 0.25f + 0.5f * micLevel.toFloat())
+                                userSpeaking -> ring.copy(alpha = 0.5f)
+                                else -> MaterialTheme.colorScheme.surfaceVariant
+                            },
+                        )
+                        .border(2.dp, if (lit || handsFreeOn) ring else MaterialTheme.colorScheme.outline, CircleShape)
+                        .semantics { contentDescription = if (handsFreeOn) "Hands-free is listening" else "Hold to talk to ${state.familiarName}" }
+                        .pointerInput(session, handsFreeOn) {
+                            if (handsFreeOn) return@pointerInput
                             detectTapGestures(onPress = {
-                                if (startTalking()) {
+                                if (session.startTalking()) {
                                     val released = tryAwaitRelease()
-                                    stopTalking(send = released)
+                                    session.stopTalking(send = released)
                                 }
                             })
                         },
                 ) {
-                    Text(if (recording) "●" else "🎤", style = MaterialTheme.typography.titleMedium)
+                    Text(if (lit) "●" else "🎤", style = MaterialTheme.typography.titleMedium)
                 }
             }
             OutlinedTextField(
@@ -336,13 +220,28 @@ fun ChatScreen(
                 modifier = Modifier.weight(1f),
             )
             if (busy) {
-                OutlinedButton(onClick = { stopReply() }, modifier = Modifier.padding(start = 8.dp)) { Text("Stop") }
+                OutlinedButton(onClick = { session.stopReply() }, modifier = Modifier.padding(start = 8.dp)) { Text("Stop") }
             } else {
                 Button(onClick = { send() }, enabled = draft.isNotBlank(), modifier = Modifier.padding(start = 8.dp)) { Text("Send") }
             }
         }
+
+        if (session.handsFree != null) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    if (handsFreeOn) "Hands-free: just talk. It keeps listening with the screen off." else "Hands-free",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(checked = handsFreeOn, onCheckedChange = { on -> scope.launch { session.setHandsFree(on) } })
+            }
+        }
     }
-    val loadModel: suspend (String) -> ByteArray? = { id -> runCatching { api.avatarModel(id) }.getOrNull() }
+    val loadModel: suspend (String) -> ByteArray? = { id -> runCatching { session.api.avatarModel(id) }.getOrNull() }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
@@ -358,15 +257,13 @@ fun ChatScreen(
                             menu = false
                             controller.startOver()
                         })
-                        if (player != null) {
+                        if (session.player != null) {
                             DropdownMenuItem(text = { Text(if (voiceOn) "Turn voice off" else "Turn voice on") }, onClick = {
                                 menu = false
-                                voiceOn = !voiceOn
-                                store.write(VOICE_KEY, if (voiceOn) null else "off")
-                                if (!voiceOn) player.stop()
+                                session.setVoice(!voiceOn)
                             })
                         }
-                        if (calendar != null) {
+                        if (session.calendar != null) {
                             DropdownMenuItem(
                                 text = { Text(if (calendarOn) "Refresh phone calendar" else "Use this phone's calendar") },
                                 onClick = {
@@ -375,12 +272,9 @@ fun ChatScreen(
                                 },
                             )
                         }
-                        DropdownMenuItem(text = { Text("Sign out of ${signedIn.username}") }, onClick = {
+                        DropdownMenuItem(text = { Text("Sign out of ${session.signedIn.username}") }, onClick = {
                             menu = false
-                            scope.launch {
-                                runCatching { if (signedIn.deviceId.isNotEmpty()) api.revokeDevice(signedIn.deviceId) }
-                                onSignedOut()
-                            }
+                            session.signOut()
                         })
                     }
                 }

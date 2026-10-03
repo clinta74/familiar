@@ -83,12 +83,13 @@ class SpeechPlayer(
 
     /**
      * What has been heard of the reply being spoken: every finished sentence and the words of the
-     * current one said so far. Null when nothing is being spoken.
+     * current one said so far. Null when nothing is being spoken - including once a reply has been
+     * heard to the end, so stopping the next one (still being thought about) doesn't cut this one.
      */
     fun heard(): InterruptRequest? {
         val reply = replyId ?: return null
         val playing = current
-        if (playing == null && finished.isEmpty()) return null
+        if (playing == null && (finished.isEmpty() || pending.isEmpty())) return null
 
         val parts = finished.toMutableList()
         if (playing != null) {

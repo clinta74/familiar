@@ -332,6 +332,20 @@ public sealed class BargeInTests(PostgresFixture postgres)
         Assert.Equal(("Llamas hum to each other. They also", true), (stored.Text, stored.Interrupted));
     }
 
+    [Theory]
+    // Rebuilt from word timings: no punctuation, symbols dropped - the stored words are kept.
+    [InlineData("Oh, hey there hf_tester! Nice to see you.", "Oh hey there hftester", "Oh, hey there hf_tester!")]
+    [InlineData("Llamas hum. They spit.", "Llamas hum They", "Llamas hum. They")]
+    // All of it heard (stopping after it finished): nothing to cut.
+    [InlineData("Oh, hey there hf_tester! Nice to see you.", "Oh hey there hftester Nice to see you", null)]
+    [InlineData("Hello there!", "Hello there", null)]
+    // Nothing heard yet.
+    [InlineData("Hello there!", "", "")]
+    public void What_was_heard_is_counted_in_the_replys_own_words(string content, string heard, string? expected)
+    {
+        Assert.Equal(expected, ConversationStore.HeardPart(content, heard));
+    }
+
     [Fact]
     public async Task An_interrupt_without_a_body_still_just_stops()
     {

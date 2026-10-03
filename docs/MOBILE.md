@@ -192,6 +192,35 @@ the dev server with a throwaway account: the permission prompt on the first pres
 tap, "listening" while held, and on release the recording transcribed and answered aloud.
 **M1 is done** apart from trying it on a real phone (backlog item 8).
 
+**M2: hands-free (2026-10-03).** A "Hands-free" switch under the message box: the microphone stays
+open and each utterance is sent when the user stops talking, with the screen off too.
+- *The session outlives the screen.* `FamiliarSession` (shared) now owns the stream, the voice, the
+  avatar's state and the microphone; `FamiliarSessions` keeps it for as long as the device is signed
+  in, so rotating, unfolding or the activity being recreated doesn't drop the conversation, and the
+  chat screen only shows it. The platform services are made once per process (`AppServices`), and
+  permission prompts go to whichever activity is showing.
+- *Speech detection* is the web client's: `SpeechDetector` (shared, tested) is vad-web's frame
+  processor ported - the same thresholds, 700 ms of quiet to end, 300 ms minimum, 300 ms kept
+  before the first word, firmer while the familiar talks, and a 30 s cap - and the model is the same
+  Silero v5 file, bundled as `assets/vad/` and run with ONNX Runtime on a 512-sample frame plus the
+  last 64 of the previous one. Checked against the model offline: a spoken sentence with a pause in
+  it is one utterance; silence and hiss are nothing.
+- *Android:* `AndroidHandsFree` reads the microphone from the voice-communication source (echo
+  cancellation takes the familiar's own voice out; the server's echo guard catches what leaks), and
+  `HandsFreeService` is a foreground service of type microphone with a "Pip is listening"
+  notification and Stop, a partial wake lock while listening, and a media session so a headset's
+  button stops the familiar mid-sentence. Talking over it does the same (barge-in), keeping what was
+  heard. RECORD_AUDIO and (13+) POST_NOTIFICATIONS are asked the first time.
+- Verified on an emulator: the prompts, the service in the foreground with its notification, the
+  microphone still recording (and not silenced) after 20 s with the screen asleep, the headset button
+  stopping a reply, Stop in the notification switching it off in the app. Not yet: real speech -
+  the emulator's microphone hears nothing - so barge-in by voice, and battery over a long session,
+  wait for the phone (backlog item 8). ONNX Runtime adds ~40 MB to the debug APK (arm64 + x86_64).
+- Fixed on the way, web and phone: stopping a reply that was still being thought about sent "what was
+  heard" of the previous, finished one, and the server cut that to its spoken words ("hf_tester"
+  became "hftester"). Players now report nothing heard once a reply has played out, and the server
+  counts the heard words and keeps the stored reply's own spelling, cutting nothing if all was heard.
+
 **Device calendar (2026-10-03), the first of M3.** "Use this phone's calendar" in the chat menu asks
 for READ/WRITE_CALENDAR. Once allowed, the app reads `CalendarContract.Instances` (visible
 calendars; declined and cancelled left out) from 12 hours ago to 14 days ahead and uploads it on
@@ -218,6 +247,6 @@ Turning it off is the system's app-permission screen.
 1. ~~Play Store or sideload~~ — **decided: sideload** for now. Signed release APKs from CI,
    installed by hand. Play's policy review of exact-alarm and assistant-role permissions is
    deferred until there's a reason to publish.
-2. **FCM or UnifiedPush/ntfy** as the default Android push — Google dependency vs. one more
-   container on the NAS.
+2. ~~FCM or UnifiedPush/ntfy~~ — **decided (2026-10-03): ntfy on the NAS** (UnifiedPush): no
+   Google account or Firebase project, works on de-Googled phones; one more container.
 3. **Minimum OS versions** — proposed Android 10 (API 29), iOS 17 (AlarmKit features gated to 26+).

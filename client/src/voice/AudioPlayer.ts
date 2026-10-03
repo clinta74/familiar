@@ -111,7 +111,9 @@ export class AudioPlayer {
    * the current one that have been said. Null if nothing is being spoken.
    */
   heard(): Heard | null {
-    if (!this.replyId || (!this.current && this.finished.length === 0)) return null;
+    // Nothing playing and nothing queued: the reply was heard to the end (or not at all), so
+    // stopping the next one, still being thought about, mustn't cut this one.
+    if (!this.replyId || (!this.current && (this.finished.length === 0 || this.decoded.size === 0))) return null;
 
     const parts = [...this.finished];
     if (this.current && this.context) {
