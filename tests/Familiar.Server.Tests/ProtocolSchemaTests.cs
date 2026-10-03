@@ -67,8 +67,11 @@ public sealed class ProtocolSchemaTests
 
         Assert.True(File.Exists(SchemaPath()), $"{SchemaPath()} is missing: run with FAMILIAR_WRITE_PROTOCOL=1.");
         var committed = File.ReadAllText(SchemaPath()).ReplaceLineEndings("\n");
+        var (lines, at) = committed.Split('\n').Zip(expected.Split('\n')).Select((pair, i) => (pair, i))
+            .FirstOrDefault(x => x.pair.First != x.pair.Second);
         Assert.True(committed == expected,
             "protocol/familiar.schema.json is out of date with the server's records: run the protocol tests with " +
-            "FAMILIAR_WRITE_PROTOCOL=1, then `npm run protocol` in client/.");
+            "FAMILIAR_WRITE_PROTOCOL=1, then `npm run protocol` in client/. " +
+            $"First difference, line {at + 1}: committed `{lines.First}`, now `{lines.Second}`.");
     }
 }
