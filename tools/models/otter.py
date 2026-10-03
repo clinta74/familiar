@@ -10,7 +10,7 @@ import math
 from blendkit import (ball, blob, capsule, chain, ellipsoid, fur_mask, node, parent_to, place, role,
                       shaped, surface, tuft)
 
-from blendkit import foreleg, hind_foot, limb_masses  # noqa: E402
+from blendkit import foreleg, hind_leg, limb_masses  # noqa: E402
 
 FRAME = (-0.35, 1.95)
 FACE = (0, -0.08, 0.55, 0.52)
@@ -20,8 +20,8 @@ def build():
     head = node("head")
 
     # The broad head, in short sleek fur, thinning onto the face.
-    fur = blob("head_fur", [ellipsoid((0, 0.0, -0.12), (0.62, 0.54, 0.5))], lumps=0.008, faces=3500)
-    role(parent_to(fur, head), "fur", "wool", 0.05)
+    fur = blob("head_fur", [ellipsoid((0, -0.02, -0.12), (0.64, 0.5, 0.5))], lumps=0.006, faces=3500)
+    role(parent_to(fur, head), "fur", "wool", 0.035)
     fur_mask(fur, lambda x, y, z, nx, ny, nz: 1.0 if nz <= 0 else min(1.0, max(0.0, (math.hypot((x - FACE[0]) / FACE[2], (y - FACE[1]) / FACE[3]) - 0.75) / 0.45)))
 
     # The face: the front of the head, curving back into its fur at the sides (not a plate on it),
@@ -54,7 +54,7 @@ def build():
 
     # Little round ears set low on the sides.
     for side, suffix in ((-1, "L"), (1, "R")):
-        at = (side * 0.52, 0.34, -0.06)
+        at = (side * 0.56, 0.2, -0.1)
         ear = node(f"ear_{suffix}", at, head)
         outer = blob(f"ear_{suffix}_fur", [ellipsoid(at, (0.12, 0.11, 0.06))], faces=500)
         role(parent_to(outer, ear), "fur", "wool", 0.03)
@@ -64,19 +64,19 @@ def build():
 
     body = node("body")
     torso = blob("torso", [
-        capsule((0, -0.45, -0.12), (0, -0.8, -0.08), 0.32),
-        ellipsoid((0, -1.1, -0.04), (0.54, 0.52, 0.44)),
-        ellipsoid((0, -1.66, -0.12), (0.74, 0.56, 0.58)),
-        *limb_masses((0.27, -0.98, 0.3), 0.1, (0.62, -2.09, 0.1), (0.22, 0.11, 0.31)),
-    ], lumps=0.008, faces=5000)
-    role(parent_to(torso, body), "fur", "wool", 0.05)
+        capsule((0, -0.4, -0.12), (0, -0.85, -0.08), 0.38),
+        ellipsoid((0, -1.12, -0.04), (0.47, 0.56, 0.42)),
+        ellipsoid((0, -1.64, -0.12), (0.47, 0.52, 0.5)),
+        *limb_masses((0.2, -0.98, 0.3), 0.095, (0.5, -2.1, 0.1), (0.18, 0.11, 0.29), haunches=False),
+    ], lumps=0.006, faces=5000)
+    role(parent_to(torso, body), "fur", "wool", 0.035)
     chest = blob("chest", [ellipsoid((0, -1.22, 0.3), (0.36, 0.62, 0.18))], faces=2000)
     role(parent_to(chest, body), "fur", "face", 0.04)
 
     # Front legs standing to the ground in front, with dark paws; dark webbed hind feet at the sides.
     for side, suffix in ((-1, "L"), (1, "R")):
-        foreleg(body, suffix, (side * 0.27, -0.98, 0.3), 0.1, "paw", "wool", 0.04, "ear", lumps=0.004, reach=0.2)
-        hind_foot(body, suffix, (side * 0.62, -2.09, 0.1), (0.22, 0.11, 0.31), "ear", 0.025)
+        foreleg(body, suffix, (side * 0.2, -0.98, 0.3), 0.095, "paw", "wool", 0.03, "ear", lumps=0.004, reach=0.24)
+        hind_leg(body, suffix, (side * 0.5, -2.1, 0.1), (0.18, 0.11, 0.29), 0.24, "wool", 0.03, "ear", 0.025, lumps=0.006)
 
     # The thick tail, tapering, curled round on the ground to the right.
     hip = (0.4, -1.98, -0.28)

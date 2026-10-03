@@ -9,7 +9,7 @@ import math
 from blendkit import (ball, blob, capsule, chain, ellipsoid, fur_mask, node, parent_to, place, role,
                       shaped, surface, tuft, P)
 
-from blendkit import foreleg, hind_foot, limb_masses  # noqa: E402
+from blendkit import foreleg, hind_leg, limb_masses  # noqa: E402
 
 FRAME = (-0.35, 2.0)
 
@@ -74,8 +74,8 @@ def build():
     torso = blob("torso", [
         capsule((0, -0.45, -0.12), (0, -0.85, -0.08), 0.28),
         ellipsoid((0, -1.08, -0.04), (0.52, 0.5, 0.44)),
-        ellipsoid((0, -1.66, -0.14), (0.74, 0.54, 0.6)),
-        *limb_masses((0.27, -0.96, 0.3), 0.095, (0.62, -2.08, 0.1), (0.2, 0.13, 0.3)),
+        ellipsoid((0, -1.64, -0.16), (0.46, 0.52, 0.5)),
+        *limb_masses((0.27, -0.96, 0.3), 0.095, (0.5, -2.1, 0.1), (0.17, 0.12, 0.28), haunches=False),
     ], lumps=0.02, faces=5000)
     role(parent_to(torso, body), "fur", "wool", 0.11)
 
@@ -90,7 +90,7 @@ def build():
     # Front legs standing to the ground in front, as a sitting dog's, in dark socks; hind feet at the sides.
     for side, suffix in ((-1, "L"), (1, "R")):
         foreleg(body, suffix, (side * 0.27, -0.96, 0.3), 0.095, "paw", "wool", 0.07, "ear", reach=0.2)
-        hind_foot(body, suffix, (side * 0.62, -2.08, 0.1), (0.2, 0.13, 0.3), "ear", 0.05)
+        hind_leg(body, suffix, (side * 0.5, -2.1, 0.1), (0.17, 0.12, 0.28), 0.23, "wool", 0.08, "ear", 0.05, lumps=0.015)
 
     # The tail: a bushy brush from the hip curling up on its right, white at the tip.
     hip = (0.34, -1.98, -0.32)

@@ -4,7 +4,7 @@ import modelUrl from './models/llama.glb?url';
 import type { PlushLook } from './plush/engine';
 import type { FaceLayout } from './plush/parts';
 import { ModelPlush3D, type ModelSpec } from './plush3d/ModelPlush3D';
-import { v } from './plush3d/Plush3D';
+import { S, v } from './plush3d/Plush3D';
 
 /** As PlushLlamaAvatar's. */
 const LAYOUT: FaceLayout = {
@@ -21,6 +21,8 @@ export const llamaModel: ModelSpec = {
   label: 'Your familiar, a plush llama',
   frame: { cx: 0, cy: -0.3, halfWidth: 1.15, halfHeight: 1.95 },
   neckPivotY: 60,
+  // The head sits up on a long neck (tools/models/llama.py).
+  head: { y: 60 * S + 0.24, scale: 1 },
   face: {
     layout: LAYOUT,
     // Where the 2D llama's face is, for painting the model's face (which includes its muzzle).
@@ -42,7 +44,7 @@ export const llamaModel: ModelSpec = {
   anchors: (node) => ({
     bow: { parent: node('ear_L'), at: new THREE.Vector3(0, 0.16, 0.1) },
     flower: v(32, -58, 48),
-    scarf: { y: -0.66, radius: 0.43, tail: new THREE.Vector3(0.2, -0.92, 0.38) },
+    scarf: { y: -0.66, radius: 0.32, tail: new THREE.Vector3(0.16, -0.92, 0.3) },
   }),
 };
 

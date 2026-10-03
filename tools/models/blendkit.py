@@ -413,12 +413,13 @@ def foreleg(body, suffix, shoulder, radius, end, coat="wool", fur=0.07, paw_coat
     return arm
 
 
-def limb_masses(shoulder, radius, foot, foot_radii):
+def limb_masses(shoulder, radius, foot, foot_radii, haunches=True):
     """
     Metaball elements for the torso, both sides, so the legs grow out of it rather than being
     stuck on: a shoulder where each front leg starts (the leg's top sinks into it), and a haunch -
     a sitting animal's folded thigh - over and behind each hind foot, which tucks out from under it.
-    Arguments as for foreleg and hind_foot (either side's).
+    Arguments as for foreleg and hind_foot (either side's). Without haunches when the hind legs
+    have thighs of their own (hind_leg).
     """
     sx, sy, sz = shoulder
     fx, fy, fz = foot
@@ -426,8 +427,30 @@ def limb_masses(shoulder, radius, foot, foot_radii):
     elements = []
     for side in (-1, 1):
         elements.append(ellipsoid((side * abs(sx) * 0.95, sy + 0.04, sz - 0.14), (radius * 1.75, radius * 2.7, radius * 1.6)))
-        elements.append(ellipsoid((side * abs(fx) * 0.92, fy + ry + 0.14, fz - rz * 0.6), (rx * 1.35, 0.3, rz * 1.45)))
+        if haunches:
+            elements.append(ellipsoid((side * abs(fx) * 0.92, fy + ry + 0.14, fz - rz * 0.6), (rx * 1.35, 0.3, rz * 1.45)))
     return elements
+
+
+def hind_leg(body, suffix, at, radii, thigh, coat="wool", fur=0.05, foot_coat=None, foot_fur=None, end=None, lumps=0.01):
+    """
+    A folded hind leg, as a sitting dog's: the thigh its own shape (not melted into the body, so
+    there's a crease where it meets it), running from a hip high at the back down and forward to a
+    knee that rests on the foot, beside the belly; and the foot (hind_foot) on the floor, toes forward.
+    `at` and `radii` are the foot's; `thigh` the thigh's radius at the hip (the knee is 0.6 of it).
+    The thigh stays put when the foot kicks up.
+    """
+    fx, fy, fz = at
+    rx, ry, rz = radii
+    knee = (fx * 0.98, fy + ry + thigh * 0.5, fz + rz * 0.35)
+    hip = (fx * 0.66, fy + ry + thigh * 2.4, fz - rz - thigh * 0.5)
+    leg = blob(f"thigh_{suffix}", [
+        *chain([hip, knee], [thigh, thigh * 0.6], 8),
+        # The back of the haunch, rounding down to the floor behind the knee.
+        ellipsoid((hip[0] * 1.08, (hip[1] + fy) * 0.5, hip[2] + thigh * 0.2), (thigh * 0.85, thigh * 1.3, thigh * 1.0)),
+    ], lumps=lumps, faces=1500)
+    role(parent_to(leg, body), "fur", coat, fur)
+    return hind_foot(body, suffix, at, radii, foot_coat or coat, fur if foot_fur is None else foot_fur, end)
 
 
 def hind_foot(body, suffix, at, radii, coat="wool", fur=0.05, end=None):

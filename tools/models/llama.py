@@ -9,7 +9,7 @@ from blendkit import (ball, blob, capsule, ellipsoid, fur_mask, node, parent_to,
                       surface, P)
 
 # What the preview camera looks at: centre height and half height, web units.
-from blendkit import foreleg, hind_foot, limb_masses  # noqa: E402
+from blendkit import foreleg, hind_leg, limb_masses  # noqa: E402
 
 FRAME = (-0.35, 1.95)
 
@@ -76,16 +76,16 @@ def build():
 
     body = node("body")
 
-    # Neck, chest and seat melted into one plump body.
+    # A long slender neck, the chest and the seat melted into one body.
     torso = blob("torso", [
-        capsule((0, -0.4, -0.12), (0, -0.95, -0.06), 0.3),
-        ellipsoid((0, -1.18, -0.02), (0.5, 0.48, 0.42)),
-        ellipsoid((0, -1.66, -0.12), (0.62, 0.5, 0.56)),
-        *limb_masses((0.28, -1.0, 0.3), 0.11, (0.6, -2.08, 0.12), (0.2, 0.14, 0.3)),
+        capsule((0, -0.1, -0.16), (0, -1.0, -0.06), 0.21),
+        ellipsoid((0, -1.28, 0.0), (0.44, 0.42, 0.4)),
+        ellipsoid((0, -1.7, -0.12), (0.5, 0.48, 0.52)),
+        *limb_masses((0.24, -1.12, 0.3), 0.1, (0.48, -2.1, 0.14), (0.16, 0.12, 0.27), haunches=False),
     ], lumps=0.03, faces=5000)
     role(parent_to(torso, body), "fur", "wool", 0.12)
 
-    # Front legs standing to the ground in front, as a sitting dog's; hind feet at the sides.
+    # Short straight front legs standing in front, as a sitting dog's; hind legs folded at the sides.
     for side, suffix in ((-1, "L"), (1, "R")):
-        foreleg(body, suffix, (side * 0.28, -1.0, 0.3), 0.11, "hoof", "wool", 0.07, reach=0.2)
-        hind_foot(body, suffix, (side * 0.6, -2.08, 0.12), (0.2, 0.14, 0.3), "wool", 0.05, "hoof")
+        foreleg(body, suffix, (side * 0.24, -1.12, 0.3), 0.1, "hoof", "wool", 0.07, reach=0.14)
+        hind_leg(body, suffix, (side * 0.48, -2.1, 0.14), (0.16, 0.12, 0.27), 0.2, "wool", 0.11, foot_fur=0.05, end="hoof", lumps=0.03)
