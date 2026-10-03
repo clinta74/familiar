@@ -10,6 +10,7 @@ export const vrmUrl = (id: string) => `/api/avatars/${encodeURIComponent(id)}/mo
 const characters3d: Partial<Record<CharacterModel, (container: HTMLElement, look: Appearance) => Promise<AvatarDriver>>> = {
   llama: async (container, look) => new (await import('./PlushLlama3D')).PlushLlama3D(container, look),
   fox: async (container, look) => new (await import('./PlushFox3D')).PlushFox3D(container, look),
+  hedgehog: async (container, look) => new (await import('./PlushHedgehog3D')).PlushHedgehog3D(container, look),
 };
 
 /** The built-in characters other than the llama load on demand, so the default costs nothing extra. */

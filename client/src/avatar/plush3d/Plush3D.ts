@@ -317,6 +317,38 @@ interface Shell {
 /** A live multiplier on a furry shape's fur length: prickles that bristle and lie flat. */
 export type Bristle = { value: number };
 
+/** How a furry shape's fur grows, beyond its length and colour. */
+export interface FurOptions {
+  bristle?: Bristle;
+  /**
+   * The geometry has a `furLength` attribute, 0-1 per vertex, scaling the fur there: none over the
+   * parts of a big shape that something else sits on (the hedgehog's face and tummy).
+   */
+  varying?: boolean;
+  /** Strands per unit of the texture, for a shape much bigger than most: 7 is usual. */
+  density?: number;
+}
+
+/**
+ * Sets a shape's `furLength` attribute from `length(position, normal)`, 0-1 per vertex, for
+ * FurOptions.varying.
+ */
+export function furLength(geometry: THREE.BufferGeometry, length: (position: THREE.Vector3, normal: THREE.Vector3) => number): THREE.BufferGeometry {
+  geometry.computeVertexNormals();
+  const position = geometry.getAttribute('position');
+  const normal = geometry.getAttribute('normal');
+  const values = new Float32Array(position.count);
+  const p = new THREE.Vector3();
+  const n = new THREE.Vector3();
+  for (let i = 0; i < position.count; i++) {
+    p.fromBufferAttribute(position, i);
+    n.fromBufferAttribute(normal, i);
+    values[i] = Math.min(1, Math.max(0, length(p, n)));
+  }
+  geometry.setAttribute('furLength', new THREE.BufferAttribute(values, 1));
+  return geometry;
+}
+
 export abstract class Plush3D extends PlushCharacter {
   protected readonly root: HTMLCanvasElement;
   private readonly renderer: THREE.WebGLRenderer;
@@ -499,7 +531,11 @@ export abstract class Plush3D extends PlushCharacter {
         for (const material of Array.isArray(object.material) ? object.material : [object.material]) materials.add(material);
       }
     });
-    for (const material of materials) material.dispose();
+    for (const material of materials) {
+      material.dispose();
+      // Denser strands are clones of the shared texture.
+      if (material instanceof THREE.MeshStandardMaterial && material.alphaMap && material.alphaMap !== this.strands) material.alphaMap.dispose();
+    }
     for (const texture of [this.fuzz, this.strands, this.domePaint?.texture, this.mouthPaint?.texture, this.sleep.material.map]) texture?.dispose();
     this.scene.environment?.dispose();
     this.renderer.dispose();
@@ -563,43 +599,56 @@ export abstract class Plush3D extends PlushCharacter {
    * One layer of fur `length` long at `f` (0 at the skin, 1 at the tips): the shape pushed out along
    * its normals, drooping a little, with fewer strands the further out it is so they taper.
    */
-  private shell(coat: FurColour, f: number, length: number, bristle?: Bristle): Shell {
-    const key = `${coat}:${f}:${length}${bristle ? ':b' : ''}`;
+  private shell(coat: FurColour, f: number, length: number, options: FurOptions = {}): Shell {
+    const { bristle, varying, density } = options;
+    const variant = `${bristle ? 'b' : ''}${varying ? 'v' : ''}${density ?? ''}`;
+    const key = `${coat}:${f}:${length}:${variant}`;
     const existing = this.shells.get(key);
     if (existing) return existing;
 
-    const material = new THREE.MeshStandardMaterial({ roughness: 1, alphaMap: this.strands, alphaTest: 0.25 + 0.7 * f });
+    let strands = this.strands;
+    if (density) {
+      // The same strands, finer: a clone shares the image.
+      strands = this.strands.clone();
+      strands.repeat.set(density, density);
+    }
+    const material = new THREE.MeshStandardMaterial({ roughness: 1, alphaMap: strands, alphaTest: 0.25 + 0.7 * f });
     if (coat === 'painted') material.map = this.domePaint!.texture;
     const out = (length * f).toFixed(4);
     const droop = (length * f * f * 0.45).toFixed(4);
     material.onBeforeCompile = (shader) => {
-      const scale = bristle ? ' * furScale' : '';
+      let scale = '';
       if (bristle) {
         shader.uniforms.furScale = bristle;
         shader.vertexShader = `uniform float furScale;\n${shader.vertexShader}`;
+        scale += ' * furScale';
+      }
+      if (varying) {
+        shader.vertexShader = `attribute float furLength;\n${shader.vertexShader}`;
+        scale += ' * furLength';
       }
       shader.vertexShader = shader.vertexShader.replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>\n  transformed += objectNormal * ${out}${scale};\n  transformed.y -= ${droop}${scale};`,
       );
     };
-    material.customProgramCacheKey = () => `fur-${f}-${length}${bristle ? '-b' : ''}`;
+    material.customProgramCacheKey = () => `fur-${f}-${length}-${variant}`;
     const shell = { f, coat, material };
     this.shells.set(key, shell);
     return shell;
   }
 
   /** A furry shape: the base in the coat's root colour and layers of fur over it. */
-  protected furry(geometry: THREE.BufferGeometry, length: number, coat: Coat = 'wool', bristle?: Bristle): THREE.Group {
+  protected furry(geometry: THREE.BufferGeometry, length: number, coat: Coat = 'wool', options?: FurOptions): THREE.Group {
     const group = new THREE.Group();
     group.add(new THREE.Mesh(geometry, this.furBase[coat]));
-    this.shellsOver(group, geometry, length, coat, bristle);
+    this.shellsOver(group, geometry, length, coat, options);
     return group;
   }
 
   /** The layers of fur over a shape. */
-  private shellsOver(group: THREE.Object3D, geometry: THREE.BufferGeometry, length: number, coat: FurColour, bristle?: Bristle) {
-    for (let i = 1; i <= SHELLS; i++) group.add(new THREE.Mesh(geometry, this.shell(coat, i / SHELLS, length, bristle).material));
+  private shellsOver(group: THREE.Object3D, geometry: THREE.BufferGeometry, length: number, coat: FurColour, options?: FurOptions) {
+    for (let i = 1; i <= SHELLS; i++) group.add(new THREE.Mesh(geometry, this.shell(coat, i / SHELLS, length, options).material));
   }
 
   // --- building ------------------------------------------------------------------------------
