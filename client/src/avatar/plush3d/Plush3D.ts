@@ -30,8 +30,11 @@ const GOOGLY = 1.1;
 export type Side = -1 | 1;
 /** Which of the five colours a part takes: coat (wool), face, or ear (inner ears and paws). */
 export type Coat = 'wool' | 'face' | 'ear';
-/** Fur's colour: one of the coats, or the face's painted texture (so a mask shows through its fur). */
-type FurColour = Coat | 'painted';
+/**
+ * Fur's colour: one of the coats; the face's painted texture (so a mask shows through its fur); or
+ * the coat's pattern (a giraffe's patches), painted in the coat and ear colours.
+ */
+type FurColour = Coat | 'painted' | 'pattern';
 
 // --- geometry ----------------------------------------------------------------------------------
 
@@ -335,6 +338,8 @@ export interface FurOptions {
   varying?: boolean;
   /** Strands per unit of the texture, for a shape much bigger than most: 7 is usual. */
   density?: number;
+  /** Coloured by the coat's pattern (patches in the ear colour), not plainly. */
+  pattern?: boolean;
 }
 
 /**
@@ -486,6 +491,9 @@ export abstract class Plush3D extends PlushCharacter {
   /** Recolours and redresses it in place, for the studio's live preview. */
   setLook(look: PlushLook): void {
     const p = llamaPalette(look.colours);
+    // The coat as its fur reads, lit and lightened at the tips: for painting a face in the coat's
+    // colour so it matches the fur round it.
+    p['--plush-coat-face'] = mix(look.colours.wool, '#ffffff', 0.16);
     this.palette = p;
     const white = new THREE.Color('#ffffff');
 
@@ -495,10 +503,11 @@ export abstract class Plush3D extends PlushCharacter {
       const shade = this.furShade(coat, colour);
       shades[coat] = shade;
       this.furBase[coat].color.copy(shade.root);
-      this.furBase[coat].sheenColor.set(colour).lerp(white, 0.4);
+      // A soft sheen in the coat's own colour: a whiter one washes a dark coat out.
+      this.furBase[coat].sheenColor.set(colour).lerp(white, 0.18);
     }
     for (const shell of this.shells.values()) {
-      if (shell.coat === 'painted') {
+      if (shell.coat === 'painted' || shell.coat === 'pattern') {
         // The paint gives the colour; shaded root to tip as the coats are (roots ~36% darker, tips a
         // little lighter), so painted fur matches the fur round it.
         shell.material.color.setScalar(0.66 + 0.44 * shell.f ** 0.7);
@@ -523,9 +532,61 @@ export abstract class Plush3D extends PlushCharacter {
     this.bubble.color.set(p['--plush-accent']!);
 
     for (const [name, object] of Object.entries(this.accessories)) object.visible = name === look.accessory;
+    if (this.pattern) this.paintPattern(look.colours.wool, look.colours.ear);
 
     // Repaint the face in the new colours.
     this.painted = { blush: -1, mouth: '' };
+  }
+
+  /** The coat's pattern: a texture of patches, and the material for the skin under the fur. */
+  private pattern?: { canvas: HTMLCanvasElement; texture: THREE.CanvasTexture; base: THREE.MeshPhysicalMaterial };
+
+  private coatPattern() {
+    if (!this.pattern) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 512;
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      const base = new THREE.MeshPhysicalMaterial({ roughness: 1, sheen: 1, sheenRoughness: 0.45, bumpMap: this.fuzz, bumpScale: 1.2, map: texture });
+      base.color.setScalar(0.66);
+      this.pattern = { canvas, texture, base };
+    }
+    return this.pattern;
+  }
+
+  /**
+   * Paints the coat's pattern: patches in the ear colour with the coat between them, irregular
+   * rounded shapes on a jittered grid, the same every time. In each shape's UV space, so a patch can
+   * break at a seam - which giraffe patches do anyway.
+   */
+  private paintPattern(coat: string, patches: string) {
+    const { canvas, texture } = this.coatPattern();
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = coat;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = patches;
+    const random = seeded(61);
+    const cells = 11;
+    const size = canvas.width / cells;
+    for (let row = 0; row < cells; row++) {
+      for (let column = 0; column < cells; column++) {
+        const cx = (column + 0.5 + (random() - 0.5) * 0.35) * size;
+        const cy = (row + 0.5 + (random() - 0.5) * 0.35) * size;
+        const corners = 6;
+        ctx.beginPath();
+        for (let i = 0; i <= corners; i++) {
+          const a = ((i % corners) / corners) * Math.PI * 2 + random() * 0.3;
+          const k = (0.32 + random() * 0.1) * size;
+          const x = cx + Math.cos(a) * k;
+          const y = cy + Math.sin(a) * k;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.quadraticCurveTo(cx + Math.cos(a - 0.5) * k * 1.15, cy + Math.sin(a - 0.5) * k * 1.15, x, y);
+        }
+        ctx.fill();
+      }
+    }
+    texture.needsUpdate = true;
   }
 
   /**
@@ -625,6 +686,7 @@ export abstract class Plush3D extends PlushCharacter {
   private shell(coat: FurColour, f: number, length: number, options: FurOptions = {}): Shell {
     const { bristle, varying, density } = options;
     const variant = `${bristle ? 'b' : ''}${varying ? 'v' : ''}${density ?? ''}`;
+    if (options.pattern) coat = 'pattern';
     const key = `${coat}:${f}:${length}:${variant}`;
     const existing = this.shells.get(key);
     if (existing) return existing;
@@ -637,6 +699,7 @@ export abstract class Plush3D extends PlushCharacter {
     }
     const material = new THREE.MeshStandardMaterial({ roughness: 1, alphaMap: strands, alphaTest: 0.25 + 0.7 * f });
     if (coat === 'painted') material.map = this.domePaint!.texture;
+    if (coat === 'pattern') material.map = this.coatPattern().texture;
     const out = (length * f).toFixed(4);
     const droop = (length * f * f * 0.45).toFixed(4);
     material.onBeforeCompile = (shader) => {
@@ -664,7 +727,7 @@ export abstract class Plush3D extends PlushCharacter {
   /** A furry shape: the base in the coat's root colour and layers of fur over it. */
   protected furry(geometry: THREE.BufferGeometry, length: number, coat: Coat = 'wool', options?: FurOptions): THREE.Group {
     const group = new THREE.Group();
-    group.add(new THREE.Mesh(geometry, this.furBase[coat]));
+    group.add(new THREE.Mesh(geometry, options?.pattern ? this.coatPattern().base : this.furBase[coat]));
     this.shellsOver(group, geometry, length, coat, options);
     return group;
   }
@@ -777,6 +840,8 @@ export abstract class Plush3D extends PlushCharacter {
         return this.earInner;
       case 'claw':
         return this.claw;
+      case 'thread':
+        return this.thread;
       case 'accent':
         return this.accent;
       default:

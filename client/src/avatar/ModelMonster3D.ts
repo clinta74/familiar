@@ -27,7 +27,7 @@ export const monsterModel: ModelSpec = {
     teeth: true,
     // The face is the fur's own colour: the monster has no muzzle or mask, only fur.
     paintDome: (p, palette) => {
-      p.ctx.fillStyle = palette['--plush-wool']!;
+      p.ctx.fillStyle = palette['--plush-coat-face']!;
       p.ctx.fillRect(0, 0, p.ctx.canvas.width, p.ctx.canvas.height);
     },
     fur: 0.045,

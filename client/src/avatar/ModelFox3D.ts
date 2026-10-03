@@ -21,7 +21,7 @@ const LAYOUT: FaceLayout = {
  */
 function paintFace(p: Painter, palette: Record<string, string>) {
   const { ctx } = p;
-  ctx.fillStyle = palette['--plush-wool']!;
+  ctx.fillStyle = palette['--plush-coat-face']!;
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   const cream = palette['--plush-skin']!;
   for (const [x, y, r] of [[-36, 34, 30], [36, 34, 30], [0, 52, 30], [0, 38, 22]] as const) {
