@@ -69,6 +69,9 @@ export function StudioPage() {
   const [models, setModels] = useState<UploadedModel[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  /** How far the preview is turned round, in degrees: 3D looks can be seen from the side. */
+  const [turn, setTurn] = useState(0);
+  const drag = useRef<{ x: number; turn: number } | null>(null);
 
   const load = useCallback(() => {
     familiarApi.get().then((p) => {
@@ -128,6 +131,7 @@ export function StudioPage() {
     setLook((l) => ({ ...l, colours: { ...l.colours, [key]: value } }));
 
   const builtIn = look.model !== 'vrm';
+  const turnable = !builtIn || (look.style === '3d' && characterInfo(look.model as CharacterModel).has3d === true);
   const info = characterInfo(builtIn ? (look.model as CharacterModel) : 'llama');
 
   /** Switching character: its own default colours, unless the current ones are already its. */
@@ -147,7 +151,33 @@ export function StudioPage() {
     <Shell>
       <div className="studio">
         <section className="stage-panel studio-stage" aria-label="Preview">
-          <AvatarStage ref={avatar} state="idle" appearance={look} />
+          {/* A 3D character can be turned round: drag across it, or use the slider. */}
+          <div
+            className={`studio-turn${turnable ? ' turnable' : ''}`}
+            onPointerDown={(e) => {
+              if (!turnable) return;
+              drag.current = { x: e.clientX, turn };
+              e.currentTarget.setPointerCapture(e.pointerId);
+            }}
+            onPointerMove={(e) => {
+              if (!drag.current) return;
+              const next = drag.current.turn + (e.clientX - drag.current.x) * 0.6;
+              setTurn(Math.round(((next + 540) % 360) - 180));
+            }}
+            onPointerUp={() => (drag.current = null)}
+            onPointerCancel={() => (drag.current = null)}
+          >
+            <AvatarStage ref={avatar} state="idle" appearance={look} turn={(turn * Math.PI) / 180} />
+          </div>
+          {turnable && (
+            <div className="try-row turn-row">
+              <label>
+                Turn
+                <input type="range" min={-180} max={180} step={5} value={turn} onChange={(e) => setTurn(Number(e.target.value))} />
+              </label>
+              <button type="button" className="link" onClick={() => setTurn(0)} disabled={turn === 0}>Face front</button>
+            </div>
+          )}
           <div className="try-row" aria-label="Try an expression">
             {emotions.filter((e) => emotionLabels[e]).map((e) => (
               <button key={e} type="button" className="chip" onClick={() => avatar.current?.express(e, 0.9)}>{emotionLabels[e]}</button>

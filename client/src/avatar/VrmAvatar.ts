@@ -53,10 +53,13 @@ export class VrmAvatar implements AvatarDriver {
 
   private readonly container: HTMLElement;
   private readonly vrm: VRM;
+  private readonly facing: number;
 
   private constructor(container: HTMLElement, vrm: VRM) {
     this.container = container;
     this.vrm = vrm;
+    // A VRM 0.x model is already turned round to face us; turns are on top of that.
+    this.facing = vrm.scene.rotation.y;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -121,6 +124,10 @@ export class VrmAvatar implements AvatarDriver {
   setViseme(viseme: Viseme | null, weight: number): void {
     this.viseme = viseme;
     this.visemeWeight = Math.min(1, Math.max(0, weight));
+  }
+
+  setTurn(radians: number): void {
+    this.vrm.scene.rotation.y = this.facing + radians;
   }
 
   dispose(): void {

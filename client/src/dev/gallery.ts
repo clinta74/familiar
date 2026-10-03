@@ -34,6 +34,8 @@ interface Moment {
   /** How far through the gesture, 0-1. */
   at?: number;
   gaze?: [number, number];
+  /** Turned round this far (radians): a 3D character from the side. */
+  turn?: number;
 }
 
 const GESTURE_MS: Record<Gesture, number> = { nod: 900, shake: 900, tilt: 1600, wave: 1600, shrug: 1000, laugh: 1400, wink: 750, sigh: 1700, yawn: 2200, excited: 1300 };
@@ -51,6 +53,8 @@ const MOMENTS: Moment[] = [
   { label: 'shrug', gesture: 'shrug', at: 0.5 },
   { label: 'laugh', emotion: 'joy', gesture: 'laugh', at: 0.4 },
   { label: 'aside', gaze: [1.1, 0.1] },
+  { label: 'three-quarter', turn: 0.7 },
+  { label: 'side', turn: 1.45 },
   { label: 'shake', gesture: 'shake', at: 0.5 },
   { label: 'excited', emotion: 'joy', gesture: 'excited', at: 0.5 },
 ];
@@ -73,6 +77,7 @@ function settle(avatar: Steppable, moment: Moment) {
   avatar.gesture = null;
   avatar.blinkAt = avatar.earTwitchAt = avatar.gazeAt = avatar.yawnAt = Infinity;
   avatar.idleGaze = { x: moment.gaze?.[0] ?? 0, y: moment.gaze?.[1] ?? 0 };
+  avatar.setTurn?.(moment.turn ?? 0);
   const t0 = performance.now();
   avatar.last = t0;
   const steps = 40;

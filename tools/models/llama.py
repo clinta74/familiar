@@ -86,5 +86,5 @@ def build():
 
     # Front legs standing to the ground in front, as a sitting dog's; hind feet at the sides.
     for side, suffix in ((-1, "L"), (1, "R")):
-        foreleg(body, suffix, (side * 0.28, -1.0, 0.3), 0.11, "hoof", "wool", 0.07)
+        foreleg(body, suffix, (side * 0.28, -1.0, 0.3), 0.11, "hoof", "wool", 0.07, reach=0.2)
         hind_foot(body, suffix, (side * 0.6, -2.08, 0.12), (0.2, 0.14, 0.3), "wool", 0.05, "hoof")

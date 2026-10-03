@@ -48,8 +48,8 @@ export const giraffeModel: ModelSpec = {
   defaults: { colours: characterInfo('giraffe').presets[0]!.colours, accessory: 'none' },
   // Ears rest out to the sides: up a little with interest, down when sad.
   ears: { rest: 78, droop: 30, turn: 0.1 },
-  // Front legs standing to the ground, nearly straight, a little forward.
-  arms: { lean: 0.1, bend: 0.04, out: 1 },
+  // Front legs standing to the ground, leaning forward as modelled.
+  arms: { lean: 0, bend: 0.03, out: 1 },
   splay: 10,
   // The coat's patches, on the neck, body, head and limbs.
   fur: Object.fromEntries(

@@ -31,5 +31,7 @@ export interface AvatarDriver {
   setViseme(viseme: Viseme | null, weight: number): void;
   /** Colours and accessory, for renderers that have them (the plush characters). Applied in place. */
   setLook?(look: PlushLook): void;
+  /** Turns the whole character about its vertical axis (radians, 0 facing you), for 3D renderers. */
+  setTurn?(radians: number): void;
   dispose(): void;
 }

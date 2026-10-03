@@ -84,7 +84,7 @@ def build():
 
     # Long front legs standing to the ground in front, with hooves; hind feet at the sides.
     for side, suffix in ((-1, "L"), (1, "R")):
-        foreleg(body, suffix, (side * 0.25, -1.05, 0.28), 0.085, "hoof", "wool", 0.035, lumps=0.004)
+        foreleg(body, suffix, (side * 0.25, -1.05, 0.34), 0.085, "hoof", "wool", 0.035, lumps=0.004, reach=0.45)
         hind_foot(body, suffix, (side * 0.58, -2.08, 0.1), (0.18, 0.13, 0.27), "wool", 0.035, "hoof")
 
     # The tail: a rope with a dark tuft.

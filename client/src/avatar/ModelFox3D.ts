@@ -52,8 +52,8 @@ export const foxModel: ModelSpec = {
   },
   defaults: { colours: characterInfo('fox').presets[0]!.colours, accessory: 'none' },
   ears: { rest: 12, droop: 70, turn: 0.2 },
-  // Front legs standing to the ground, nearly straight, a little forward.
-  arms: { lean: 0.1, bend: 0.04, out: 1 },
+  // Front legs standing to the ground, leaning forward as modelled.
+  arms: { lean: 0, bend: 0.03, out: 1 },
   splay: 12,
   anchors: (node) => ({
     bow: { parent: node('ear_L'), at: new THREE.Vector3(0.02, 0.14, 0.1), tilt: 0.17 },

@@ -1057,3 +1057,24 @@ pre.snippet {
 .row-actions.wrap {
   flex-wrap: wrap;
 }
+
+/* The studio's preview can be turned round when the character is 3D: drag across it. */
+.studio-turn {
+  width: 100%;
+}
+
+.studio-turn.turnable {
+  cursor: grab;
+  /* Sideways drags turn it; vertical ones still scroll the page on a phone. */
+  touch-action: pan-y;
+}
+
+.studio-turn.turnable:active {
+  cursor: grabbing;
+}
+
+.turn-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

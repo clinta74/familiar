@@ -19,11 +19,16 @@ export interface AvatarHandle {
  * Hosts whichever avatar renderer is available and feeds it. Expression and gesture events go
  * straight to the driver through the handle, not through React state: they're moments, not data.
  */
-export const AvatarStage = forwardRef<AvatarHandle, { state: AvatarState; appearance?: Appearance | null }>(function AvatarStage(
-  { state, appearance }, ref) {
+export const AvatarStage = forwardRef<AvatarHandle, {
+  state: AvatarState;
+  appearance?: Appearance | null;
+  /** How far a 3D character is turned round, in radians (the studio's turn control). */
+  turn?: number;
+}>(function AvatarStage({ state, appearance, turn = 0 }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const driver = useRef<AvatarDriver | null>(null);
   const stateRef = useRef(state);
+  const turnRef = useRef(turn);
   const look = appearance ?? defaultAppearance;
   const lookRef = useRef(look);
 
@@ -48,6 +53,7 @@ export const AvatarStage = forwardRef<AvatarHandle, { state: AvatarState; appear
       created = avatar;
       driver.current = avatar;
       avatar.setState(stateRef.current);
+      avatar.setTurn?.(turnRef.current);
     });
 
     return () => {
@@ -61,6 +67,11 @@ export const AvatarStage = forwardRef<AvatarHandle, { state: AvatarState; appear
     stateRef.current = state;
     driver.current?.setState(state);
   }, [state]);
+
+  useEffect(() => {
+    turnRef.current = turn;
+    driver.current?.setTurn?.(turn);
+  }, [turn]);
 
   useImperativeHandle(ref, () => ({
     express: (emotion, intensity) => driver.current?.setExpression(emotion, intensity),

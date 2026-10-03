@@ -367,30 +367,38 @@ def previews(directory, name, frame):
 GROUND = -2.22
 
 
-def foreleg(body, suffix, shoulder, radius, end, coat="wool", fur=0.07, paw_coat="ear", lumps=0.012):
+def foreleg(body, suffix, shoulder, radius, end, coat="wool", fur=0.07, paw_coat="ear", lumps=0.012, reach=0.0):
     """
     A front leg standing from the shoulder down to the ground, as a sitting dog's do: an upper part
     and a lower part (it bends at the elbow to wave), ending in a hoof, a paw or a clawed paw on
-    the floor. Nodes arm_<suffix> at the shoulder and forearm_<suffix> at the elbow.
+    the floor `reach` in front of the shoulder - leaning forward, so the leg stands clear of the body.
+    Nodes arm_<suffix> at the shoulder and forearm_<suffix> at the elbow.
     """
     sx, sy, sz = shoulder
     bottom = GROUND + (0.035 if end == "hoof" else 0.07)
     length = sy - bottom
     half = length * 0.5
+    # The leg's line, from the shoulder to where it meets the floor.
+    def along(t):
+        return (sx, sy - length * t, sz + reach * t)
+    ex, ey, ez = along(0.5)
+    fx, fy, fz = along(1.0 - radius * 0.5 / length)
+    gz = sz + reach
     arm = node(f"arm_{suffix}", shoulder, body)
     upper = blob(f"arm_{suffix}_upper", [
-        capsule((sx, sy, sz), (sx, sy - half, sz), radius * 1.05),
+        capsule((sx, sy, sz), (ex, ey, ez), radius * 1.05),
         ball((sx, sy - 0.03, sz - 0.04), radius * 1.4),
     ], lumps=lumps, faces=1100)
     role(parent_to(upper, arm), "fur", coat, fur)
-    forearm = node(f"forearm_{suffix}", (sx, sy - half, sz), arm)
-    lower = blob(f"forearm_{suffix}_fur", [capsule((sx, sy - half, sz), (sx, bottom + radius * 0.5, sz), radius * 0.92)], lumps=lumps, faces=900)
+    forearm = node(f"forearm_{suffix}", (ex, ey, ez), arm)
+    lower = blob(f"forearm_{suffix}_fur", [capsule((ex, ey, ez), (fx, fy, fz), radius * 0.92)], lumps=lumps, faces=900)
     role(parent_to(lower, forearm), "fur", coat, fur)
     if end == "hoof":
         hoof = shaped(f"forearm_{suffix}_hoof", (radius * 1.08, 0.06, radius * 1.15), lambda x, y, z: (x, max(y, -0.035), z), segments=(24, 14), faces=500)
-        place(hoof, (sx, GROUND + 0.04, sz + 0.02), forearm)
+        place(hoof, (sx, GROUND + 0.04, gz + 0.02), forearm)
         role(hoof, "hoof")
     else:
+        sz = gz
         paw = blob(f"forearm_{suffix}_paw", [ellipsoid((sx, GROUND + 0.07, sz + 0.07), (radius * 1.3, 0.075, radius * 1.7))], faces=700)
         role(parent_to(paw, forearm), "fur", paw_coat, 0.03)
         if end == "claw":

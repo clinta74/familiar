@@ -42,8 +42,8 @@ export const otterModel: ModelSpec = {
   },
   defaults: { colours: characterInfo('otter').presets[0]!.colours, accessory: 'none' },
   ears: { rest: 6, droop: 20, turn: 0.4 },
-  // Front legs standing to the ground, nearly straight, a little forward.
-  arms: { lean: 0.1, bend: 0.04, out: 1 },
+  // Front legs standing to the ground, leaning forward as modelled.
+  arms: { lean: 0, bend: 0.03, out: 1 },
   splay: 14,
   anchors: (node) => ({
     bow: { parent: node('ear_L'), at: new THREE.Vector3(-0.02, 0.08, 0.06), tilt: 0.26 },

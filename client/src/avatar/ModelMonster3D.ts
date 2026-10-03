@@ -35,8 +35,8 @@ export const monsterModel: ModelSpec = {
     browDrop: 0.02,
   },
   defaults: { colours: characterInfo('monster').presets[0]!.colours, accessory: 'none' },
-  // Front legs standing to the ground, nearly straight, a little forward.
-  arms: { lean: 0.1, bend: 0.04, out: 1 },
+  // Front legs standing to the ground, leaning forward as modelled.
+  arms: { lean: 0, bend: 0.03, out: 1 },
   splay: 14,
   // Its head's fur stands on end, and grows finer over the big head.
   fur: { head_fur: { bristle: true, density: 10 }, cowlick: { bristle: true } },

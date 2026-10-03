@@ -431,6 +431,12 @@ export abstract class Plush3D extends PlushCharacter {
   private accessories: Partial<Record<'bow' | 'scarf' | 'glasses' | 'flower', THREE.Object3D>> = {};
 
   protected palette: Record<string, string> = {};
+  /** How far it's turned round (the studio lets you look at it from the side). */
+  private turn = 0;
+
+  setTurn(radians: number): void {
+    this.turn = radians;
+  }
   private painted = { blush: -1, mouth: '' };
 
   protected constructor(container: HTMLElement, label: string, frame: Frame, neckPivotY: number, bubbles: [number, number] = [60, -84]) {
@@ -650,6 +656,7 @@ export abstract class Plush3D extends PlushCharacter {
     const bodyDy = bodyBob(pose);
     this.toy.position.y = GROUND - bodyDy * S;
     this.toy.scale.set(sx, sy, sx);
+    this.toy.rotation.y = this.turn;
     this.floorShadow.scale.setScalar(1 - pose.hop * 0.15);
     this.bob.position.y = -(pose.dy - bodyDy) * S;
     this.pivot.rotation.set(face.gazeY * 0.16, face.gazeX * 0.32, -pose.rotate * deg, 'YXZ');

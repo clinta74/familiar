@@ -36,8 +36,8 @@ export const llamaModel: ModelSpec = {
   },
   defaults: { colours: classicColours, accessory: 'none' },
   ears: { rest: 14, droop: 62 },
-  // Front legs standing to the ground, nearly straight, a little forward.
-  arms: { lean: 0.1, bend: 0.04, out: 1 },
+  // Front legs standing to the ground, leaning forward as modelled.
+  arms: { lean: 0, bend: 0.03, out: 1 },
   splay: 10,
   anchors: (node) => ({
     bow: { parent: node('ear_L'), at: new THREE.Vector3(0, 0.16, 0.1) },
