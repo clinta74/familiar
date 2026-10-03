@@ -238,6 +238,8 @@
 
 /* Eyes set in fur rather than a bare face get furry lids. */
 .plush-fox .plush-lid,
+.plush-otter .plush-lid,
+.plush-giraffe .plush-lid,
 .plush-monster .plush-lid {
   fill: var(--plush-wool);
 }

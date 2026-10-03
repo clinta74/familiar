@@ -37,6 +37,8 @@ export const otterModel: ModelSpec = {
       }
     },
     fur: 0.012,
+    // Lids in the coat: the face is painted in it.
+    lids: 'wool',
   },
   defaults: { colours: characterInfo('otter').presets[0]!.colours, accessory: 'none' },
   ears: { rest: 6, droop: 20, turn: 0.4 },

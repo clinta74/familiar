@@ -47,6 +47,8 @@ export const foxModel: ModelSpec = {
     philtrum: [31, 38],
     paintDome: paintFace,
     fur: 0.015,
+    // Lids in the coat: the face is painted in it.
+    lids: 'wool',
   },
   defaults: { colours: characterInfo('fox').presets[0]!.colours, accessory: 'none' },
   ears: { rest: 12, droop: 70, turn: 0.2 },

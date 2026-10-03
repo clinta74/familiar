@@ -42,6 +42,8 @@ export const giraffeModel: ModelSpec = {
       }
     },
     fur: 0.01,
+    // Lids in the coat: the face is painted in it.
+    lids: 'wool',
   },
   defaults: { colours: characterInfo('giraffe').presets[0]!.colours, accessory: 'none' },
   // Ears rest out to the sides: up a little with interest, down when sad.
