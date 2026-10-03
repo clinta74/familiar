@@ -1,8 +1,8 @@
 package app.familiar.shared
 
 import app.familiar.shared.avatar.AvatarController
-import app.familiar.shared.avatar.TimedWord
 import app.familiar.shared.protocol.ServerEvent
+import app.familiar.shared.protocol.SpokenWord
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -25,7 +25,7 @@ class AvatarControllerTests {
         avatar.handle(ServerEvent.ReplyDelta("r1", "unheard"), audible = true)
         avatar.state("thinking")
         avatar.state("thinking")
-        avatar.clip(listOf(TimedWord("Hi", 0.0, 0.25)), 40)
+        avatar.clip(listOf(SpokenWord("Hi", 0.0, 0.25)), 40)
         avatar.clip(null, 0)
 
         assertEquals(

@@ -1,6 +1,7 @@
 package app.familiar.shared.avatar
 
 import app.familiar.shared.protocol.ServerEvent
+import app.familiar.shared.protocol.SpokenWord
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -9,9 +10,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-
-/** A word as the TTS service timed it, in seconds from the start of its clip. */
-data class TimedWord(val word: String, val start: Double, val end: Double)
 
 /**
  * Drives the avatar page (client/avatar.html, bundled into the app): each call becomes one
@@ -52,7 +50,7 @@ class AvatarController {
     fun text(fragment: String) = emit(call("text", JsonPrimitive(fragment)))
 
     /** A clip began playing [elapsedMillis] ago; with word timings the page shapes the mouth itself. */
-    fun clip(words: List<TimedWord>?, elapsedMillis: Long) {
+    fun clip(words: List<SpokenWord>?, elapsedMillis: Long) {
         val timings = words?.let { list ->
             JsonArray(list.map { JsonObject(mapOf("word" to JsonPrimitive(it.word), "start" to JsonPrimitive(it.start), "end" to JsonPrimitive(it.end))) })
         }

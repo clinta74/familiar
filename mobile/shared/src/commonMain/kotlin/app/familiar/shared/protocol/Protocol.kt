@@ -107,6 +107,20 @@ data class ToolFinishedEvent(val replyId: String, val callId: String, val tool: 
 @Serializable
 data class NotifyEvent(val id: String, val kind: String, val label: String, val text: String)
 
+/** A word as the TTS service timed it, in seconds from the start of its clip. */
+@Serializable
+data class SpokenWord(val word: String, val start: Double, val end: Double)
+
+/** A spoken sentence is ready to fetch and play, in [seq] order within its reply. */
+@Serializable
+data class AudioEvent(
+    val replyId: String,
+    val seq: Int,
+    val url: String,
+    val text: String,
+    val words: List<SpokenWord>? = null,
+)
+
 /** The server asking this phone to do something only it can (PLAN.md §6.1). */
 @Serializable
 data class ToolInvokeEvent(
@@ -163,6 +177,7 @@ object EventTypes {
     const val TOOL_FINISHED = "tool.finished"
     const val NOTIFY = "notify"
     const val TOOL_INVOKE = "tool.invoke"
+    const val AUDIO = "audio"
 }
 
 /** One event from the conversation stream, decoded. Events this app doesn't use yet are [Other]. */
@@ -181,6 +196,7 @@ sealed interface ServerEvent {
     data class ToolFinished(val event: ToolFinishedEvent) : ServerEvent
     data class Notify(val event: NotifyEvent) : ServerEvent
     data class ToolInvoke(val event: ToolInvokeEvent) : ServerEvent
+    data class Audio(val clip: AudioEvent) : ServerEvent
     data object Cleared : ServerEvent
     data object Resync : ServerEvent
     data class Other(val type: String) : ServerEvent
@@ -204,6 +220,7 @@ sealed interface ServerEvent {
                 EventTypes.TOOL_FINISHED -> ToolFinished(FamiliarJson.decodeFromString(json))
                 EventTypes.NOTIFY -> Notify(FamiliarJson.decodeFromString(json))
                 EventTypes.TOOL_INVOKE -> ToolInvoke(FamiliarJson.decodeFromString(json))
+                EventTypes.AUDIO -> Audio(FamiliarJson.decodeFromString(json))
                 EventTypes.CLEARED -> Cleared
                 EventTypes.RESYNC -> Resync
                 else -> Other(type ?: "message")

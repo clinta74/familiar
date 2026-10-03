@@ -5,6 +5,7 @@ import app.familiar.shared.api.FamiliarApi
 import app.familiar.shared.platform.DeviceCalendar
 import app.familiar.shared.platform.currentTimeZoneId
 import app.familiar.shared.protocol.Capabilities
+import app.familiar.shared.protocol.InterruptRequest
 import app.familiar.shared.protocol.ServerEvent
 import app.familiar.shared.protocol.ToolInvokeEvent
 import app.familiar.shared.protocol.ToolResultRequest
@@ -44,6 +45,9 @@ class ConversationController(
     private val calendar: DeviceCalendar? = null,
     private val clock: Clock = Clock.System,
 ) {
+    /** Replies are spoken (the server makes `audio` clips): the voice is on and there's a speaker. */
+    var speak = false
+
     private val _state = MutableStateFlow(ConversationState())
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
@@ -71,7 +75,7 @@ class ConversationController(
             while (true) {
                 try {
                     connectionId = null
-                    api.events(currentTimeZoneId(), lastEventId, capabilities()).collect { (id, event) ->
+                    api.events(currentTimeZoneId(), lastEventId, capabilities(), speak).collect { (id, event) ->
                         if (id != null) lastEventId = id
                         backoff = 1_000L
                         when (event) {
@@ -200,7 +204,7 @@ class ConversationController(
         scope.launch {
             _state.update { it.copy(error = null) }
             try {
-                val message = api.send(trimmed, currentTimeZoneId())
+                val message = api.send(trimmed, currentTimeZoneId(), speak)
                 _state.update { ConversationReducer.apply(it, ServerEvent.Message(message)) }
             } catch (exception: Exception) {
                 if (exception is CancellationException) throw exception
@@ -210,8 +214,9 @@ class ConversationController(
         }
     }
 
-    fun interrupt() {
-        scope.launch { runCatching { api.interrupt() } }
+    /** Stop the reply; [heard] says how much of it was played aloud, which is what's kept. */
+    fun interrupt(heard: InterruptRequest? = null) {
+        scope.launch { runCatching { api.interrupt(heard) } }
     }
 
     fun startOver() {

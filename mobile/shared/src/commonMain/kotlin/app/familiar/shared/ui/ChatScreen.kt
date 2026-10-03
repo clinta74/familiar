@@ -34,6 +34,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,6 +56,9 @@ import app.familiar.shared.conversation.Connection
 import app.familiar.shared.conversation.ConversationController
 import app.familiar.shared.conversation.ToolChip
 import app.familiar.shared.platform.DeviceCalendar
+import app.familiar.shared.platform.SecureStore
+import app.familiar.shared.voice.SpeechAudio
+import app.familiar.shared.voice.SpeechPlayer
 import app.familiar.shared.protocol.ServerEvent
 import kotlinx.serialization.json.JsonObject
 import kotlinx.coroutines.launch
@@ -78,22 +83,50 @@ private val toolDoing = mapOf(
     "forget" to "Forgetting",
 )
 
+/** "off" when the user turned replies' voice off; on by default. */
+private const val VOICE_KEY = "voice"
+
 /** States the avatar page knows; anything newer from the server reads as busy. */
 private val avatarStates = setOf("idle", "listening", "thinking", "speaking", "resting")
 
 /**
  * The familiar and the conversation: the avatar above the chat on a phone, beside it on a wide
- * screen (an unfolded Fold, a tablet). Typed for now; voice is the rest of phase M1
- * (docs/MOBILE.md §7).
+ * screen (an unfolded Fold, a tablet). Replies are spoken through the phone's own audio when the
+ * voice is on; talking to it is the rest of phase M1 (docs/MOBILE.md §7).
  */
 @Composable
-fun ChatScreen(signedIn: SignedIn, calendar: DeviceCalendar?, onSignedOut: () -> Unit) {
+fun ChatScreen(
+    signedIn: SignedIn,
+    store: SecureStore,
+    calendar: DeviceCalendar?,
+    speechAudio: SpeechAudio?,
+    onSignedOut: () -> Unit,
+) {
     val scope = rememberCoroutineScope()
     val api = remember(signedIn) { FamiliarApi(signedIn.server, signedIn.token) }
     val controller = remember(signedIn) { ConversationController(api, scope, onSignedOut, calendar) }
     val state by controller.state.collectAsState()
     val calendarOn by controller.calendarOn.collectAsState()
     val avatar = remember(signedIn) { AvatarController() }
+
+    var voiceOn by remember { mutableStateOf(store.read(VOICE_KEY) != "off") }
+    var audible by remember { mutableStateOf(false) }
+    val player = remember(signedIn) {
+        speechAudio?.let { audio ->
+            SpeechPlayer(audio, scope) { url -> api.clip(url) }.apply {
+                // With word timings the page makes the words' shapes; without, the mouth follows loudness.
+                onClip = { words -> avatar.clip(words, 0) }
+                onLevel = avatar::level
+                onPlayingChange = { playing ->
+                    audible = playing
+                    if (!playing) avatar.silence()
+                }
+            }
+        }
+    }
+    val speaking by rememberUpdatedState(voiceOn && player != null)
+    // Before the stream starts (below), so a hello is spoken too.
+    SideEffect { controller.speak = speaking }
 
     // How it looks is the studio's business (on the web); here it's read, and again on each
     // reconnect so a change made there shows up.
@@ -102,15 +135,23 @@ fun ChatScreen(signedIn: SignedIn, calendar: DeviceCalendar?, onSignedOut: () ->
     }
     LaunchedEffect(controller) {
         controller.onEvent = { event ->
-            avatar.handle(event)
-            if (event is ServerEvent.Ready) scope.launch { refreshLook() }
+            avatar.handle(event, audible = player?.isPlaying == true)
+            when (event) {
+                is ServerEvent.Ready -> scope.launch { refreshLook() }
+                is ServerEvent.Audio -> if (speaking) player?.enqueue(event.clip)
+                is ServerEvent.ReplyStart, ServerEvent.Cleared -> player?.stop()
+                else -> Unit
+            }
         }
         refreshLook()
     }
 
     DisposableEffect(controller) {
         controller.start()
-        onDispose { controller.stop() }
+        onDispose {
+            controller.stop()
+            player?.stop()
+        }
     }
 
     var draft by remember { mutableStateOf("") }
@@ -123,23 +164,31 @@ fun ChatScreen(signedIn: SignedIn, calendar: DeviceCalendar?, onSignedOut: () ->
         if (state.messages.isNotEmpty()) list.animateScrollToItem(state.messages.size - 1)
     }
 
-    val busy = state.state == "thinking" || state.state == "speaking"
+    val busy = state.state == "thinking" || state.state == "speaking" || audible
     val status = when {
         state.connection == Connection.Reconnecting -> "reconnecting…"
         state.connection == Connection.Connecting -> "connecting…"
         state.state == "thinking" -> "thinking…"
-        state.state == "speaking" -> "talking"
+        state.state == "speaking" || audible -> "talking"
         state.state == "resting" -> "resting - the model isn't reachable"
         else -> null
     }
 
     // Typing reads as the familiar listening.
     val avatarState = when {
+        audible -> "speaking"
         state.state == "idle" && draft.isNotBlank() -> "listening"
         state.state in avatarStates -> state.state
         else -> "thinking"
     }
     LaunchedEffect(avatarState) { avatar.state(avatarState) }
+
+    /** Stop talking, and tell the server how much was heard so the stored reply matches. */
+    fun stopReply() {
+        val heard = player?.heard()
+        player?.stop()
+        controller.interrupt(heard)
+    }
 
     fun send() {
         val text = draft.trim()
@@ -182,7 +231,7 @@ fun ChatScreen(signedIn: SignedIn, calendar: DeviceCalendar?, onSignedOut: () ->
                 modifier = Modifier.weight(1f),
             )
             if (busy) {
-                OutlinedButton(onClick = { controller.interrupt() }, modifier = Modifier.padding(start = 8.dp)) { Text("Stop") }
+                OutlinedButton(onClick = { stopReply() }, modifier = Modifier.padding(start = 8.dp)) { Text("Stop") }
             } else {
                 Button(onClick = { send() }, enabled = draft.isNotBlank(), modifier = Modifier.padding(start = 8.dp)) { Text("Send") }
             }
@@ -204,6 +253,14 @@ fun ChatScreen(signedIn: SignedIn, calendar: DeviceCalendar?, onSignedOut: () ->
                             menu = false
                             controller.startOver()
                         })
+                        if (player != null) {
+                            DropdownMenuItem(text = { Text(if (voiceOn) "Turn voice off" else "Turn voice on") }, onClick = {
+                                menu = false
+                                voiceOn = !voiceOn
+                                store.write(VOICE_KEY, if (voiceOn) null else "off")
+                                if (!voiceOn) player.stop()
+                            })
+                        }
                         if (calendar != null) {
                             DropdownMenuItem(
                                 text = { Text(if (calendarOn) "Refresh phone calendar" else "Use this phone's calendar") },

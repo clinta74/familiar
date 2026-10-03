@@ -169,8 +169,17 @@ on a phone and beside it on a wide screen (≥ 600 dp: an unfolded Fold, a table
 the profile (re-read on every reconnect, so a change in the web studio shows up). State, expressions,
 gestures and the text-driven mouth come from the stream, as on the web; typing reads as listening.
 Verified on an emulator: a hedgehog with a flower from the profile, thinking bubbles while the model
-works, joy and a wave on "wave hello", the side-by-side layout at Fold size. **Next in M1:** native
-audio (the `audio` clips, with `clip` + `level` for lip-sync), then push-to-talk.
+works, joy and a wave on "wave hello", the side-by-side layout at Fold size.
+
+**M1: replies spoken natively (2026-10-03).** `SpeechPlayer` (shared) is the web AudioPlayer ported:
+clips fetched and decoded as soon as they're announced, played in `seq` order, a new reply cutting
+off the last, and `heard()` for Stop. On Android, `MediaCodec` decodes the MP3 to PCM and one
+`AudioTrack` (usage *assistant*, transient focus that ducks music) plays a reply's sentences back
+to back; loudness is the RMS of the samples at the playback head, so lip-sync needs no microphone
+permission. Each clip's word timings go to the page once (`clip`) and loudness ~30 times a second
+(`level`). The voice is on by default, with a menu switch, and the hello is spoken too. Verified on
+an emulator: a two-sentence reply gave the page two timed clips and 161 level updates, and Stop
+mid-sentence stored the reply cut to the words played. **Next in M1:** push-to-talk.
 
 **Device calendar (2026-10-03), the first of M3.** "Use this phone's calendar" in the chat menu asks
 for READ/WRITE_CALENDAR. Once allowed, the app reads `CalendarContract.Instances` (visible

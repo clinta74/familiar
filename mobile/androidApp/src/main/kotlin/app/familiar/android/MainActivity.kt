@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import app.familiar.shared.platform.AndroidDeviceCalendar
 import app.familiar.shared.platform.KeystoreStore
 import app.familiar.shared.ui.FamiliarApp
+import app.familiar.shared.voice.AndroidSpeechAudio
 import kotlinx.coroutines.CompletableDeferred
 
 /** The app's one screen; everything inside is the shared Compose UI (mobile/shared). */
@@ -33,6 +34,7 @@ class MainActivity : ComponentActivity() {
             calendarPermission.launch(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR))
             answer.await()
         }
-        setContent { FamiliarApp(store, deviceName, calendar) }
+        val speech = AndroidSpeechAudio(applicationContext)
+        setContent { FamiliarApp(store, deviceName, calendar, speech) }
     }
 }
