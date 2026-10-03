@@ -207,7 +207,6 @@ export class PlushLlama3D extends PlushCharacter {
   private readonly camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 50);
   private readonly resize: ResizeObserver;
   private readonly container: HTMLElement;
-  private readonly containerMask: string;
 
   private readonly fuzz = noiseTexture(128, 3, 110, 7);
   private readonly strands = strandTexture();
@@ -226,8 +225,11 @@ export class PlushLlama3D extends PlushCharacter {
   private readonly facePaint = paintable();
   private readonly snoutPaint = paintable();
 
+  /** Everything but the shadow, pivoting where it sits so it can breathe, slump and lean. */
+  private readonly toy = new THREE.Group();
   private readonly body = new THREE.Group();
   private readonly bob = new THREE.Group();
+  private readonly floorShadow: THREE.Mesh;
   private readonly pivot = new THREE.Group();
   private readonly head = new THREE.Group();
   private readonly tuft = new THREE.Group();
@@ -256,10 +258,6 @@ export class PlushLlama3D extends PlushCharacter {
     this.root.setAttribute('role', 'img');
     this.root.setAttribute('aria-label', 'Your familiar, a plush llama');
 
-    // It sits on the stage's floor, so the fade the flat llama's neck needs would only hide its hooves.
-    this.containerMask = container.style.maskImage;
-    container.style.maskImage = 'none';
-
     // Soft studio light for the fur and the glossy eyes, a warm key from the upper left and a cool
     // rim behind to lift the fur off the background.
     const environment = new THREE.PMREMGenerator(this.renderer);
@@ -284,7 +282,13 @@ export class PlushLlama3D extends PlushCharacter {
     this.accent = new THREE.MeshPhysicalMaterial({ ...fabric, sheenRoughness: 0.5, bumpScale: 0.6 });
     this.bubble = new THREE.MeshStandardMaterial({ roughness: 0.4, transparent: true });
 
-    this.scene.add(this.shadow(), this.body, this.bob);
+    this.floorShadow = this.shadow();
+    this.scene.add(this.floorShadow, this.toy);
+    this.toy.position.y = FLOOR;
+    const seated = new THREE.Group();
+    seated.position.y = -FLOOR;
+    seated.add(this.body, this.bob);
+    this.toy.add(seated);
     this.bob.add(this.pivot);
     this.pivot.position.y = NECK_PIVOT;
     this.pivot.add(this.head);
@@ -345,7 +349,6 @@ export class PlushLlama3D extends PlushCharacter {
   override dispose(): void {
     super.dispose();
     this.resize.disconnect();
-    this.container.style.maskImage = this.containerMask;
     const materials = new Set<THREE.Material>();
     this.scene.traverse((object) => {
       if (object instanceof THREE.Mesh || object instanceof THREE.Sprite) {
@@ -363,12 +366,18 @@ export class PlushLlama3D extends PlushCharacter {
     const { face } = pose;
     const deg = Math.PI / 180;
 
-    // The head bobs, rolls on the neck, turns to look where the eyes would, and squashes; the body
-    // goes along a little with the bigger movements, so a hop is the whole toy.
-    this.bob.position.y = -pose.dy * S;
-    this.body.position.y = -pose.dy * S * 0.35;
-    this.body.scale.set(1 - pose.squash * 0.5, 1 + pose.squash * 0.5, 1);
-    this.pivot.rotation.set(face.gazeY * 0.16, face.gazeX * 0.32, -pose.rotate * deg, 'YXZ');
+    // As the flat characters' bodies (drawBody): the toy breathes - the chest filling as the head
+    // rises - slumps when sad and leans a little into a tilt, with its seat on the floor; the head
+    // does the rest of the bob and tilt on the neck, and turns to look where the eyes would.
+    const sad = pose.mood.sad;
+    const sx = 1 - pose.breath * 0.006 + sad * 0.03;
+    const sy = 1 + pose.breath * 0.008 - sad * 0.05;
+    this.toy.position.y = FLOOR - pose.dy * 0.6 * S;
+    this.toy.rotation.z = -pose.rotate * 0.25 * deg;
+    this.toy.scale.set(sx, sy, sx);
+    this.floorShadow.scale.setScalar(1 - pose.hop * 0.15);
+    this.bob.position.y = -pose.dy * 0.4 * S;
+    this.pivot.rotation.set(face.gazeY * 0.16, face.gazeX * 0.32, -pose.rotate * 0.75 * deg, 'YXZ');
     this.head.scale.set(1 - pose.squash, 1 + pose.squash, 1 - pose.squash * 0.5);
     this.tuft.position.y = Math.max(0, -pose.dy) * 0.4 * S;
 
@@ -416,9 +425,13 @@ export class PlushLlama3D extends PlushCharacter {
 
     this.paint(face);
 
-    // Waving: the right foreleg comes up from the shoulder and swings.
-    const wave = this.forelegs[1];
-    wave.rotation.set(-(pose.pawLift ?? 0) * 2.3, 0, (pose.pawLift ?? 0) * 0.35 - pose.pawAngle * deg * 0.9);
+    // Forelegs: out to the sides for a shrug, kicking up with each hop of joy, and the right one
+    // comes up from the shoulder to wave.
+    const shrug = pose.gesture?.name === 'shrug' ? Math.sin(Math.PI * pose.gesture.u) * 0.5 : 0;
+    const paw = pose.pawLift ?? 0;
+    const kick = -pose.hop * 0.35;
+    this.forelegs[0].rotation.set(kick, 0, -shrug - pose.breath * 0.02);
+    this.forelegs[1].rotation.set(kick - paw * 2.3, 0, shrug + paw * 0.35 - pose.pawAngle * deg * 0.9 + pose.breath * 0.02);
 
     // Thinking: three bubbles pulsing in turn. Resting: a drifting z.
     this.thinking.visible = pose.state === 'thinking';

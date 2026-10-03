@@ -248,8 +248,10 @@ tufted noise texture, darker at the roots, drooping slightly), over lumpy base s
 outline is fleece. The face is the 2D llama's in depth: button eyes with hemispherical lids (the
 upper closes for blinks and winks, a big smile swaps the buttons for stitched arches), thread
 brows, and the mouth and cheeks painted onto front-projected textures from the 2D drawing. It
-reuses `PlushCharacter`, so every expression, gesture and the lip-sync behave as in 2D; the head
-also turns to look where the eyes would, and the right foreleg waves. Same colours and
+reuses `PlushCharacter`, so every expression, gesture and the lip-sync behave as in 2D, and its
+body moves as the flat sitting bodies do (breathing, a sad slump, leaning into a tilt, a shrug,
+legs kicking with a hop); the head also turns to look where the eyes would, and the right foreleg
+waves. Same colours and
 accessories. About 120 draw calls and 310k triangles; three.js loads only for 3D or VRM. No WebGL
 falls back to the flat llama. The other characters get 3D versions next, in the same style.
 
