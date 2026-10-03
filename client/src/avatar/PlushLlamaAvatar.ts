@@ -1,8 +1,8 @@
 import { llamaPalette } from './appearance';
 import { PlushCharacter, type PlushLook, type Pose } from './plush/engine';
 import {
-  buildAccessories, buildFace, buildOverlay, buildPaw, curls, drawFace, drawOverlay, drawPaw, el, f, plushRoot, showAccessory, wool,
-  type AccessoryParts, type FaceLayout, type FaceParts, type Overlay, type Puff,
+  buildAccessories, buildBody, buildFace, buildOverlay, curls, drawBody, drawFace, drawOverlay, el, f, plushRoot, showAccessory, wool,
+  type AccessoryParts, type BodyParts, type FaceLayout, type FaceParts, type Overlay, type Puff,
 } from './plush/parts';
 
 const LAYOUT: FaceLayout = {
@@ -27,18 +27,19 @@ function ear(parent: SVGGElement): SVGGElement {
 }
 
 /**
- * The default familiar: a plush llama head, drawn in SVG. No assets, so it works offline, costs
- * nothing to load and carries no model licence. Its ears do a lot of the emotional work: perked for
- * joy and surprise, drooping when sad, pinned back when cross.
+ * The default familiar: a plush llama, drawn in SVG, sitting on a plump fleece body with its
+ * hooves out in front. No assets, so it works offline, costs nothing to load and carries no model
+ * licence. Its ears do a lot of the emotional work: perked for joy and surprise, drooping when sad,
+ * pinned back when cross.
  */
 export class PlushLlamaAvatar extends PlushCharacter {
   protected readonly root: SVGSVGElement;
+  private readonly body: BodyParts;
   private readonly head: SVGGElement;
   private readonly ears: [SVGGElement, SVGGElement];
   private readonly tuft: SVGGElement;
   private readonly faceParts: FaceParts;
   private readonly overlay: Overlay;
-  private readonly hoof: SVGGElement;
   private readonly accessories: AccessoryParts;
 
   constructor(container: HTMLElement, look?: PlushLook) {
@@ -46,16 +47,27 @@ export class PlushLlamaAvatar extends PlushCharacter {
     const { root, id } = plushRoot('llama', 'Your familiar, a plush llama');
     this.root = root;
 
-    // The long, fleecy neck: starts behind the head and runs down past the bottom of the stage,
-    // which fades it out.
-    const neck = el('g', {}, root);
-    const neckPuffs: Puff[] = [];
-    for (let y = 70; y <= 640; y += 26) neckPuffs.push([-50, y, 15], [50, y + 13, 15]);
-    wool(neck, neckPuffs);
-    el('rect', { x: -52, y: 50, width: 104, height: 600, class: 'plush-wool plush-fuzzy' }, neck);
-    curls(neck, [[-24, 120], [20, 150, true], [-6, 196], [26, 236, true], [-28, 262], [6, 300]]);
+    this.body = buildBody(root, {
+      torso: (body) => {
+        // A plump fleece body: puffs round its edge, stitched curls on the chest.
+        const edge: Puff[] = [];
+        for (let y = 94; y <= 200; y += 22) {
+          const spread = 56 + (y - 94) * 0.11;
+          edge.push([-spread, y, 15], [spread, y + 11, 15]);
+        }
+        edge.push([-40, 204, 15], [-14, 207, 15], [14, 207, 15], [40, 204, 15]);
+        wool(body, edge);
+        el('path', { class: 'plush-wool plush-fuzzy', d: 'M-50,76 C-70,116 -78,176 -68,214 L68,214 C78,176 70,116 50,76 Z' }, body);
+        curls(body, [[-22, 118], [20, 146, true], [-8, 178], [26, 194, true], [-30, 200]]);
+      },
+      neckPivotY: NECK_PIVOT_Y,
+      shoulder: [46, 102],
+      arm: { length: 94, width: 22, kind: 'hoof', fluffy: true },
+      foot: [54, 206],
+      feet: { rx: 25, ry: 15, kind: 'hoof', splay: 10 },
+    });
 
-    this.head = el('g', {}, root);
+    this.head = this.body.head;
     this.ears = [ear(this.head), ear(this.head)];
 
     // The mane: a ring of fleece framing the face, open at the bottom where it becomes the neck.
@@ -94,8 +106,6 @@ export class PlushLlamaAvatar extends PlushCharacter {
       scarf: { parent: this.head, y: 66, halfWidth: 50 },
     });
 
-    // A fleecy hoof that pops up from below the stage to wave.
-    this.hoof = buildPaw(root, 'hoof');
     this.overlay = buildOverlay(root);
 
     container.appendChild(root);
@@ -111,10 +121,7 @@ export class PlushLlamaAvatar extends PlushCharacter {
 
   protected draw(pose: Pose): void {
     const { face } = pose;
-
-    // Only the head moves; the neck stays put and the head pivots on top of it.
-    this.head.setAttribute('transform',
-      `translate(0 ${f(pose.dy)}) rotate(${f(pose.rotate)} 0 ${NECK_PIVOT_Y}) scale(${f(1 - pose.squash)} ${f(1 + pose.squash)})`);
+    drawBody(this.body, pose);
 
     // Ears: perk towards upright, droop outward and down. Mirrored for the right ear.
     const lift = face.earLift;
@@ -128,7 +135,6 @@ export class PlushLlamaAvatar extends PlushCharacter {
     this.tuft.setAttribute('transform', `translate(0 ${f(-Math.max(0, -pose.dy) * 0.4)})`);
 
     drawFace(this.faceParts, face, pose);
-    drawPaw(this.hoof, pose);
     drawOverlay(this.overlay, pose);
   }
 }

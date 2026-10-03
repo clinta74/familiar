@@ -35,6 +35,10 @@ export interface Pose {
   mood: Record<Emotion, number>;
   /** How loud the voice is right now, 0-1, for characters that pulse rather than mouth words. */
   voice: number;
+  /** Breathing, -1 to 1: the head rises and the chest fills on the way to 1. */
+  breath: number;
+  /** How far off the ground a hop of joy or excitement has it, 0-1, for feet that kick up. */
+  hop: number;
   /** Head movement: vertical offset, squash (+ taller), rotation in degrees. */
   dy: number;
   squash: number;
@@ -257,8 +261,10 @@ export abstract class PlushCharacter implements AvatarDriver {
       if (into >= 170) this.blinkAt = now + 2400 + Math.random() * 4200;
     }
 
-    let dy = Math.sin(t * Math.PI * 2 / 3.8) * 2.5 * motion;
-    let squash = Math.sin(t * Math.PI * 2 / 3.8) * 0.01 * motion;
+    const breath = Math.sin(t * Math.PI * 2 / 3.8) * motion;
+    let dy = breath * 2.5;
+    let squash = breath * 0.01;
+    let hop = 0;
     let rotate = 0;
     let browBoost = 0;
     let earWiggle = 0;
@@ -268,7 +274,7 @@ export abstract class PlushCharacter implements AvatarDriver {
     let gesture: Pose['gesture'] = null;
 
     if (this.emotion === 'joy' && this.state !== 'resting') {
-      const hop = Math.abs(Math.sin(t * Math.PI * 2 * 1.3)) * this.intensity * motion;
+      hop = Math.abs(Math.sin(t * Math.PI * 2 * 1.3)) * this.intensity * motion;
       dy -= hop * 5;
       earWiggle += hop * 6;
     }
@@ -325,9 +331,10 @@ export abstract class PlushCharacter implements AvatarDriver {
             break;
           case 'excited': {
             // Two big hops.
-            const hop = Math.abs(Math.sin(u * Math.PI * 2));
-            dy -= hop * 16 * env * motion;
-            squash -= (hop - 0.5) * 0.06 * env * motion;
+            const bounce = Math.abs(Math.sin(u * Math.PI * 2));
+            hop = Math.max(hop, bounce * env * motion);
+            dy -= bounce * 16 * env * motion;
+            squash -= (bounce - 0.5) * 0.06 * env * motion;
             earWiggle += Math.sin(u * Math.PI * 4) * 6 * env * motion;
             break;
           }
@@ -348,7 +355,7 @@ export abstract class PlushCharacter implements AvatarDriver {
       t, now, motion,
       state: this.state, emotion: this.emotion, intensity: this.intensity,
       face: this.face, mood: this.mood, voice: this.voice,
-      dy, squash, rotate, browBoost, earWiggle, pawLift, pawAngle, blink, wink, gesture,
+      breath, hop, dy, squash, rotate, browBoost, earWiggle, pawLift, pawAngle, blink, wink, gesture,
     };
   }
 }

@@ -2,11 +2,14 @@ import type { Accessory } from '../appearance';
 import type { FaceParams } from '../faceExpressions';
 import type { Pose } from './engine';
 
-// Building blocks shared by the plush characters: fleece, button eyes, stitched features,
-// accessories. Every character is drawn in the same viewBox, head centred on the origin.
+// Building blocks shared by the plush characters: fleece, button eyes, stitched features, a
+// sitting body, accessories. Every character is drawn in the same viewBox, head centred on the
+// origin and its body sitting below, feet on the ground.
 
 export const SVG = 'http://www.w3.org/2000/svg';
-export const VIEWBOX = '-122 -182 244 330';
+export const VIEWBOX = '-136 -182 272 420';
+/** Where the sitting characters' feet rest. */
+export const GROUND_Y = 222;
 
 let instances = 0;
 
@@ -215,10 +218,11 @@ export interface Overlay {
   sleep: SVGTextElement;
 }
 
-export function buildOverlay(root: SVGSVGElement): Overlay {
+/** `top` is where the lowest bubble floats, above and to the right of the head. */
+export function buildOverlay(root: SVGSVGElement, top = -128): Overlay {
   const thinking = el('g', { class: 'plush-thinking' }, root);
-  [[72, -128, 5], [88, -146, 7], [106, -166, 9]].forEach(([cx, cy, r]) => el('circle', { cx: cx!, cy: cy!, r: r! }, thinking));
-  const sleep = el('text', { x: 68, y: -112, class: 'plush-sleep', 'aria-hidden': 'true' }, root);
+  [[72, top, 5], [88, top - 18, 7], [106, top - 38, 9]].forEach(([cx, cy, r]) => el('circle', { cx: cx!, cy: cy!, r: r! }, thinking));
+  const sleep = el('text', { x: 68, y: top + 16, class: 'plush-sleep', 'aria-hidden': 'true' }, root);
   sleep.textContent = 'z';
   return { thinking, sleep };
 }
@@ -237,27 +241,121 @@ export function drawOverlay(overlay: Overlay, pose: Pose) {
   overlay.sleep.setAttribute('transform', `translate(0 ${f(resting ? -((pose.t * 6) % 12) : 0)})`);
 }
 
-/** A paw (or hoof) that pops up from below the stage to wave. */
-export function buildPaw(root: SVGSVGElement, kind: 'hoof' | 'paw' | 'claw'): SVGGElement {
-  const g = el('g', {}, root);
-  wool(g, [[0, 40, 15], [0, 18, 15], [0, 62, 15]]);
+export type PawKind = 'paw' | 'hoof' | 'claw';
+
+/** A sitting character's body: where its limbs go and what kind of paws it has. */
+export interface BodySpec {
+  /** Draws the torso into the body group; the feet, head and arms go on over it. */
+  torso: (body: SVGGElement) => void;
+  /** Where the head pivots on the body for tilts and shakes (y, in head coordinates). */
+  neckPivotY: number;
+  /** Where each arm hangs from, mirrored about x = 0. */
+  shoulder: [x: number, y: number];
+  /** The arm, hanging straight down from the shoulder; fluffy ones get fleece puffs. */
+  arm: { length: number; width: number; kind: PawKind; fluffy?: boolean };
+  /** Where each hind foot rests, mirrored, toes towards the viewer. */
+  foot: [x: number, y: number];
+  /** The foot's size, and how far its toes turn out, in degrees. */
+  feet: { rx: number; ry: number; kind: PawKind; splay?: number };
+}
+
+export interface BodyParts {
+  /** The whole character bar its tail: it breathes, leans and bobs as one. */
+  group: SVGGElement;
+  /** The head goes here, over the torso and feet, and bobs and tilts on the neck. */
+  head: SVGGElement;
+  arms: [SVGGElement, SVGGElement];
+  feet: [SVGGElement, SVGGElement];
+  spec: BodySpec;
+}
+
+/** A hind foot, centred on the origin, toes pointing out to `side`: a soft pad with stitched toes. */
+export function foot(parent: SVGGElement, { rx, ry, kind }: BodySpec['feet'], side: number): SVGGElement {
+  const g = el('g', {}, parent);
+  const toe = side * rx * 0.55;
   if (kind === 'hoof') {
-    el('path', { class: 'plush-hoof', d: 'M-12,2 C-12,-10 -6,-14 0,-14 C6,-14 12,-10 12,2 C6,-2 -6,-2 -12,2 Z' }, g);
-    el('path', { class: 'plush-hoof-split', d: 'M0,-14 L0,-4' }, g);
-  } else {
-    // A round paw with toe beans; the monster's has little claws.
-    el('ellipse', { class: 'plush-hoof', cx: 0, cy: -2, rx: 14, ry: 11 }, g);
-    for (const x of [-8, 0, 8]) el('circle', { class: 'plush-bean', cx: x, cy: -9, r: 3 }, g);
-    if (kind === 'claw') {
-      el('path', { class: 'plush-claw', d: 'M-10,-14 L-8,-21 L-6,-14 M-2,-15 L0,-22 L2,-15 M6,-14 L8,-21 L10,-14' }, g);
-    }
+    // A fleecy foot with a hoof at the toe.
+    el('ellipse', { rx: rx + 2.6, ry: ry + 2.6, class: 'plush-wool-outline' }, g);
+    el('ellipse', { rx, ry, class: 'plush-wool plush-fuzzy' }, g);
+    el('ellipse', { cx: side * rx * 0.42, cy: 1, rx: rx * 0.5, ry: ry * 0.72, class: 'plush-hoof' }, g);
+    el('path', { class: 'plush-hoof-split', d: `M${f(side * rx * 0.42)},${f(1 - ry * 0.55)} L${f(side * rx * 0.42)},${f(1 + ry * 0.25)}` }, g);
+    return g;
+  }
+  el('ellipse', { rx, ry, class: 'plush-paw plush-fuzzy' }, g);
+  el('path', { class: 'plush-toes', d: `M${f(toe + side * 7)},${f(-ry * 0.42)} l${f(-side * 7)},0 M${f(toe + side * 8)},${f(ry * 0.4)} l${f(-side * 7)},0` }, g);
+  if (kind === 'claw') {
+    const tip = side * (rx - 2);
+    el('path', { class: 'plush-claw', d: `M${f(tip)},${f(-ry * 0.5)} l${f(side * 7)},-2 M${f(side * rx)},0 l${f(side * 8)},0 M${f(tip)},${f(ry * 0.5)} l${f(side * 7)},2` }, g);
   }
   return g;
 }
 
-export function drawPaw(paw: SVGGElement, pose: Pose) {
-  paw.setAttribute('opacity', pose.pawLift === null ? '0' : '1');
-  paw.setAttribute('transform', `translate(86 ${f(215 - (pose.pawLift ?? 0) * 90)}) rotate(${f(pose.pawAngle)} 0 30)`);
+/**
+ * An arm hanging from the shoulder at the origin: a soft limb, a little narrower at the wrist,
+ * sewn on with a rounded shoulder, ending in a paw. Rotate the group to raise it.
+ */
+function arm(parent: SVGGElement, { length, width, kind, fluffy }: BodySpec['arm'], side: number): SVGGElement {
+  const g = el('g', {}, parent);
+  const w = width / 2;
+  el('path', {
+    class: 'plush-wool plush-fuzzy plush-outlined',
+    d: `M${f(-w)},0 C${f(-w - 2)},${f(length * 0.4)} ${f(-w * 0.8)},${f(length * 0.8)} ${f(-w * 0.75)},${f(length)} L${f(w * 0.75)},${f(length)} `
+      + `C${f(w * 0.8)},${f(length * 0.8)} ${f(w + 2)},${f(length * 0.4)} ${f(w)},0 A${f(w)},${f(w)} 0 0 0 ${f(-w)},0 Z`,
+  }, g);
+  if (fluffy) wool(g, [[0, length * 0.22, w + 1], [side * 2, length * 0.52, w], [0, length * 0.8, w - 1]]);
+
+  if (kind === 'hoof') {
+    el('path', { class: 'plush-hoof', transform: `translate(0 ${f(length + 9)}) scale(${f(w / 11)})`, d: 'M-12,2 C-12,-10 -6,-14 0,-14 C6,-14 12,-10 12,2 C6,-2 -6,-2 -12,2 Z' }, g);
+    el('path', { class: 'plush-hoof-split', d: `M0,${f(length - 4)} L0,${f(length + 5)}` }, g);
+    return g;
+  }
+  const ry = w * 0.9;
+  el('ellipse', { cy: length, rx: w * 1.25, ry, class: 'plush-paw plush-fuzzy' }, g);
+  el('path', { class: 'plush-toes', d: `M${f(-w * 0.4)},${f(length + ry)} l0,-6 M${f(w * 0.4)},${f(length + ry)} l0,-6` }, g);
+  if (kind === 'claw') {
+    el('path', { class: 'plush-claw', d: `M${f(-w * 0.8)},${f(length + ry - 2)} l-2,7 M0,${f(length + ry)} l0,8 M${f(w * 0.8)},${f(length + ry - 2)} l2,7` }, g);
+  }
+  return g;
+}
+
+/** Builds a sitting body on the root: torso, feet, a group for the head, arms, in that order. */
+export function buildBody(root: SVGSVGElement, spec: BodySpec): BodyParts {
+  const group = el('g', {}, root);
+  spec.torso(group);
+  const feet: [SVGGElement, SVGGElement] = [foot(group, spec.feet, -1), foot(group, spec.feet, 1)];
+  const head = el('g', {}, group);
+  const arms: [SVGGElement, SVGGElement] = [arm(group, spec.arm, -1), arm(group, spec.arm, 1)];
+  return { group, head, arms, feet, spec };
+}
+
+/**
+ * Moves a sitting body with the pose. The body breathes (the chest filling as the head rises),
+ * slumps when sad and leans a little into the head's tilt, with its feet on the ground; the head
+ * does the rest of the tilt and bob on the neck. The right arm lifts to wave, both go out for a
+ * shrug, and the feet kick up with each hop of joy.
+ */
+export function drawBody(body: BodyParts, pose: Pose) {
+  const { spec } = body;
+  const sad = pose.mood.sad;
+  const sx = 1 - pose.breath * 0.006 + sad * 0.03;
+  const sy = 1 + pose.breath * 0.008 - sad * 0.05;
+  body.group.setAttribute('transform',
+    `translate(0 ${f(pose.dy * 0.6)}) rotate(${f(pose.rotate * 0.25)} 0 ${GROUND_Y}) translate(0 ${GROUND_Y}) scale(${f(sx)} ${f(sy)}) translate(0 ${-GROUND_Y})`);
+  body.head.setAttribute('transform',
+    `translate(0 ${f(pose.dy * 0.4)}) rotate(${f(pose.rotate * 0.75)} 0 ${spec.neckPivotY}) scale(${f(1 - pose.squash)} ${f(1 + pose.squash)})`);
+
+  const shrug = pose.gesture?.name === 'shrug' ? Math.sin(Math.PI * pose.gesture.u) * 30 : 0;
+  const lift = pose.pawLift ?? 0;
+  const [ax, ay] = spec.shoulder;
+  body.arms[0].setAttribute('transform', `translate(${-ax} ${ay}) rotate(${f(shrug + pose.breath)})`);
+  body.arms[1].setAttribute('transform', `translate(${ax} ${ay}) rotate(${f(-shrug - lift * 130 + pose.pawAngle * 0.7 - pose.breath)})`);
+
+  const [fx, fy] = spec.foot;
+  const splay = spec.feet.splay ?? 0;
+  body.feet.forEach((foot, i) => {
+    const side = i === 0 ? -1 : 1;
+    foot.setAttribute('transform', `translate(${side * fx} ${fy}) rotate(${f(-side * (splay + pose.hop * 8))})`);
+  });
 }
 
 /** Where a character wears each accessory. */
@@ -270,7 +368,7 @@ export interface AccessoryAnchors {
   /**
    * The scarf wraps the neck just under the chin: `y` is the top of the wrap at its middle, and
    * `halfWidth` how far it reaches each side. It belongs to the head (it moves with a nod), drawn
-   * over the bottom of the head, and must sit above the stage's bottom fade (y < ~80).
+   * over the bottom of the head and the top of the body.
    */
   scarf: { parent: SVGGElement; y: number; halfWidth: number };
 }

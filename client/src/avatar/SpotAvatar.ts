@@ -1,7 +1,10 @@
 import { brighten, lightness, mix, mixVivid } from './appearance';
 import { PlushCharacter, type PlushLook, type Pose } from './plush/engine';
-import { el, f, nextId, VIEWBOX } from './plush/parts';
+import { el, f, nextId } from './plush/parts';
 import { emotions, type Emotion } from './types';
+
+/** The spot has no body to sit on, so it keeps the frame the plush characters' heads had. */
+const VIEWBOX = '-122 -182 244 330';
 
 /** How the spot's outline is shaped at one moment. Everything is relative to its radius. */
 export interface SpotShape {
