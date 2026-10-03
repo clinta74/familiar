@@ -125,6 +125,57 @@ export function blendShape(mood: Record<Emotion, number>): SpotShape & SpotSurfa
   return out;
 }
 
+/** A piece budded off the spot: where it is (x right, y up, z towards you) and how big, in radii. */
+export interface SpotPiece {
+  x: number;
+  y: number;
+  z: number;
+  size: number;
+}
+
+/**
+ * Splitting and reforming, for some gestures: a shake parts it into two halves that slide apart
+ * and back together; excitement throws three small blobs up out of it to fall back in; a laugh
+ * bobs two little ones out at its sides. Each piece starts inside the body and grows as it moves
+ * out (shrinking as it goes back), so it reads as budding off and being taken back in. `main` is
+ * how big the body stays meanwhile. In units of the radius, so both spots use it.
+ */
+export function spotSplit(pose: Pose): { main: number; pieces: SpotPiece[] } {
+  const gesture = pose.gesture;
+  if (!gesture || pose.motion < 1) return { main: 1, pieces: [] };
+  const env = Math.sin(Math.PI * Math.min(1, gesture.u));
+  const grow = Math.sqrt(env);
+  switch (gesture.name) {
+    case 'shake': {
+      const apart = 0.58 * env;
+      return {
+        main: 1 - 0.62 * grow,
+        pieces: [-1, 1].map((side) => ({ x: side * apart + Math.sin(gesture.u * Math.PI * 6) * 0.055, y: 0, z: 0, size: 0.66 * grow })),
+      };
+    }
+    case 'excited':
+      return {
+        main: 1 - 0.12 * grow,
+        pieces: [-1, 0, 1].map((k, i) => {
+          const hop = Math.abs(Math.sin(gesture.u * Math.PI * 2 + i * 0.6));
+          return { x: k * 0.58 * env, y: (0.76 + 0.35 * hop) * env, z: 0.14, size: 0.3 * grow };
+        }),
+      };
+    case 'laugh':
+      return {
+        main: 1 - 0.08 * grow,
+        pieces: [-1, 1].map((side, i) => ({
+          x: side * 1.19 * env,
+          y: (0.07 + 0.17 * Math.abs(Math.sin(gesture.u * Math.PI * 7 + i))) * env,
+          z: 0.07,
+          size: 0.26 * grow,
+        })),
+      };
+    default:
+      return { main: 1, pieces: [] };
+  }
+}
+
 /** Everything about how the spot looks this frame, from its mood and pose. */
 export interface SpotFrame {
   shape: SpotShape & SpotSurface;
@@ -242,6 +293,10 @@ export class SpotAvatar extends PlushCharacter {
   private readonly displacement: SVGFEDisplacementMapElement;
   private readonly stops: [SVGStopElement, SVGStopElement];
   private readonly sparkles: SVGGElement;
+  /** The body and the pieces it splits into, merged where they touch while it's split (goo). */
+  private readonly blob: SVGGElement;
+  private readonly pieces: SVGEllipseElement[] = [];
+  private readonly goo: string;
   private base = '#7c5cff';
   private accent = '#ffcf56';
   private swirl = 0;
@@ -262,11 +317,19 @@ export class SpotAvatar extends PlushCharacter {
     this.displacement = el('feDisplacementMap', { in: 'SourceGraphic', in2: 'noise', scale: 1, xChannelSelector: 'R', yChannelSelector: 'G' }, rough);
     const blur = el('filter', { id: `${id}-glow`, x: '-50%', y: '-50%', width: '200%', height: '200%' }, defs);
     el('feGaussianBlur', { stdDeviation: 14 }, blur);
+    // While it's split: blurred and its edge sharpened again, so the body and a piece leaving it
+    // stay joined by a neck that thins and parts, rather than overlapping as separate shapes.
+    this.goo = `url(#${id}-goo)`;
+    const goo = el('filter', { id: `${id}-goo`, x: '-50%', y: '-50%', width: '200%', height: '200%' }, defs);
+    el('feGaussianBlur', { in: 'SourceGraphic', stdDeviation: 7, result: 'blur' }, goo);
+    el('feColorMatrix', { in: 'blur', mode: 'matrix', values: '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10' }, goo);
 
     // Centred a little high, so it sits in the stage where the plush characters' heads do.
     const g = el('g', { transform: 'translate(0 -10)' }, this.root);
     this.halo = el('path', { filter: `url(#${id}-glow)` }, g);
-    this.body = el('path', { fill: `url(#${id}-fill)`, filter: `url(#${id}-rough)` }, g);
+    this.blob = el('g', {}, g);
+    this.body = el('path', { fill: `url(#${id}-fill)`, filter: `url(#${id}-rough)` }, this.blob);
+    for (let i = 0; i < 3; i++) this.pieces.push(el('ellipse', { fill: `url(#${id}-fill)`, rx: 0, ry: 0, visibility: 'hidden' }, this.blob));
     this.sheen = el('ellipse', { class: 'spot-sheen', rx: 24, ry: 13 }, g);
     this.sparkles = el('g', { class: 'spot-sparkles' }, g);
     for (const [x, y] of [[-70, -60], [74, -44], [-56, 62], [66, 58], [0, -96]] as const) {
@@ -293,6 +356,28 @@ export class SpotAvatar extends PlushCharacter {
     const { shape, flash, centre, rim, glow, haloOpacity, sparkle } = spotFrame(pose, this.base, this.accent);
     this.stops[0].setAttribute('stop-color', centre);
     this.stops[1].setAttribute('stop-color', rim);
+
+    // Splitting for a shake, a laugh or excitement: the body gives up what the pieces take.
+    const split = spotSplit(pose);
+    shape.size *= split.main;
+    let out = false;
+    this.pieces.forEach((piece, i) => {
+      const part = split.pieces[i];
+      const r = part ? part.size * RADIUS : 0;
+      if (r < 1) {
+        piece.setAttribute('visibility', 'hidden');
+        return;
+      }
+      out = true;
+      piece.setAttribute('visibility', 'visible');
+      piece.setAttribute('cx', f(part!.x * RADIUS));
+      piece.setAttribute('cy', f(-part!.y * RADIUS));
+      piece.setAttribute('rx', f(r));
+      piece.setAttribute('ry', f(r * (1 - 0.12 * Math.sin(pose.t * 9 + i))));
+    });
+    // Only while it's split: the goo would round off an angry spot's points.
+    if (out) this.blob.setAttribute('filter', this.goo);
+    else this.blob.removeAttribute('filter');
 
     const path = spotPath(shape, pose.t, this.swirl);
     this.body.setAttribute('d', path);

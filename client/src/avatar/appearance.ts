@@ -60,7 +60,7 @@ export interface CharacterInfo {
 export const characters: readonly CharacterInfo[] = [
   {
     id: 'llama',
-    name: 'Plush llama',
+    name: 'Llama',
     blurb: 'Big ears that show every feeling, and spectacular lashes.',
     presets,
     colourLabels: { wool: 'Fleece', face: 'Face', ear: 'Ears & hooves', blush: 'Cheeks', accent: 'Accessory' },

@@ -192,10 +192,16 @@ fun ChatScreen(
     var micLevel by remember { mutableStateOf(0.0) }
     val list = rememberLazyListState()
 
-    // Follow the conversation as it grows.
+    // Follow the conversation as it grows. A conversation that arrives all at once (restored on
+    // opening, reloaded after a reconnect) jumps straight to its latest message.
     val lastText = state.messages.lastOrNull()?.text
+    var shown by remember { mutableStateOf(0) }
     LaunchedEffect(state.messages.size, lastText) {
-        if (state.messages.isNotEmpty()) list.animateScrollToItem(state.messages.size - 1)
+        val count = state.messages.size
+        if (count > 0) {
+            if (count - shown > 2) list.scrollToItem(count - 1) else list.animateScrollToItem(count - 1)
+        }
+        shown = count
     }
 
     val busy = state.state == "thinking" || state.state == "speaking" || audible

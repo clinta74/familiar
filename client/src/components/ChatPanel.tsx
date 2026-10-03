@@ -98,14 +98,20 @@ export function ChatPanel({
   const [sending, setSending] = useState(false);
   const transcript = useRef<HTMLOListElement>(null);
 
-  // Follow the conversation, unless the user has scrolled up to read.
+  // Follow the conversation, unless the user has scrolled up to read. A conversation that arrives
+  // all at once - restored on opening, reloaded after a resync, a different one - opens at its
+  // latest message instead: the view starts at the top then, and would otherwise stay there.
   const lastText = messages.at(-1)?.text;
+  const firstId = messages[0]?.id;
+  const seen = useRef<{ count: number; firstId?: string }>({ count: 0 });
   useEffect(() => {
     const list = transcript.current;
     if (!list) return;
+    const restored = messages.length - seen.current.count > 2 || firstId !== seen.current.firstId;
+    seen.current = { count: messages.length, firstId };
     const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
-    if (nearBottom) list.scrollTop = list.scrollHeight;
-  }, [messages.length, lastText]);
+    if (restored || nearBottom) list.scrollTop = list.scrollHeight;
+  }, [messages.length, lastText, firstId]);
 
   async function submit(event?: FormEvent) {
     event?.preventDefault();

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { characterInfo, mix } from './appearance';
 import type { PlushLook, Pose } from './plush/engine';
 import { Plush3D } from './plush3d/Plush3D';
-import { spotFrame } from './SpotAvatar';
+import { spotFrame, spotSplit } from './SpotAvatar';
 
 /** The spot's radius, as the flat one's (72 units). */
 const RADIUS = 0.72;
@@ -163,47 +163,10 @@ export class Spot3D extends Plush3D {
     this.finish(look, { colours: characterInfo('spot').presets[0]!.colours, accessory: 'none' });
   }
 
-  /**
-   * Splitting and reforming, for some gestures: a shake parts it into two halves that slide apart
-   * and back together; excitement throws three small blobs up out of it to fall back in; a laugh
-   * bobs two little ones out at its sides. Each piece starts inside the body and grows as it moves
-   * out (shrinking as it goes back), so it reads as budding off and being taken back in. `main` is
-   * how big the body stays meanwhile.
-   */
+  /** Splitting and reforming (spotSplit, shared with the flat spot), in this spot's units. */
   private split(pose: Pose): { main: number; pieces: { x: number; y: number; z: number; size: number }[] } {
-    const gesture = pose.gesture;
-    if (!gesture || pose.motion < 1) return { main: 1, pieces: [] };
-    const env = Math.sin(Math.PI * Math.min(1, gesture.u));
-    const grow = Math.sqrt(env);
-    switch (gesture.name) {
-      case 'shake': {
-        const apart = 0.42 * env;
-        return {
-          main: 1 - 0.62 * grow,
-          pieces: [-1, 1].map((side) => ({ x: side * apart + Math.sin(gesture.u * Math.PI * 6) * 0.04, y: 0, z: 0, size: RADIUS * 0.66 * grow })),
-        };
-      }
-      case 'excited':
-        return {
-          main: 1 - 0.12 * grow,
-          pieces: [-1, 0, 1].map((k, i) => {
-            const hop = Math.abs(Math.sin(gesture.u * Math.PI * 2 + i * 0.6));
-            return { x: k * 0.42 * env, y: (0.55 + 0.25 * hop) * env, z: 0.1, size: RADIUS * 0.3 * grow };
-          }),
-        };
-      case 'laugh':
-        return {
-          main: 1 - 0.08 * grow,
-          pieces: [-1, 1].map((side, i) => ({
-            x: side * 0.86 * env,
-            y: (0.05 + 0.12 * Math.abs(Math.sin(gesture.u * Math.PI * 7 + i))) * env,
-            z: 0.05,
-            size: RADIUS * 0.26 * grow,
-          })),
-        };
-      default:
-        return { main: 1, pieces: [] };
-    }
+    const { main, pieces } = spotSplit(pose);
+    return { main, pieces: pieces.map((p) => ({ x: p.x * RADIUS, y: p.y * RADIUS, z: p.z * RADIUS, size: p.size * RADIUS })) };
   }
 
   /** Its colour is the "wool" colour; the accessory colour is its glow. It wears nothing. */

@@ -62,15 +62,10 @@ What would actually cut the ~1 s of prefill before the first word:
 
 Decision needed: which of these is worth it.
 
-### 5a. Open the chat at its latest message
+### 5a. ~~Open the chat at its latest message~~ — done (2026-10-03)
 
-When the conversation is restored (opening the app, reloading, coming back to Chat), it should
-show the bottom, where the latest messages are. On the web it doesn't always: `ChatPanel` only
-follows the conversation when the view is already near the bottom (so reading back isn't
-interrupted), and when the history arrives all at once the view is still at the top, so it stays
-there. Jump to the bottom on the first load of the history (and after a resync or a new
-conversation), without animating; keep the "don't yank someone reading back" rule for messages that
-arrive afterwards. Check the Android app's chat does the same when it opens and after a reconnect.
+A conversation that arrives all at once (restored, reloaded after a resync, a new one) opens at its
+latest message, on the web and Android; messages after that still don't pull someone reading back.
 
 ---
 
@@ -81,8 +76,6 @@ arrive afterwards. Check the Android app's chat does the same when it opens and 
 Option A below: the characters are scripted in Blender (`tools/models/`), the runtime loads the
 GLBs. Still open:
 
-- **2D spot splitting:** the 3D spot splits and reforms for a shake, a laugh or excitement; the flat
-  one doesn't yet.
 - **Flat characters' arms** still hang with paws on the tummy; the 3D ones now stand to the ground
   like a sitting dog's. Decide whether the flat ones should follow.
 - A local image-to-3D model (TRELLIS / Hunyuan3D) as a reference for harder shapes: not needed so far.
@@ -91,12 +84,10 @@ GLBs. Still open:
 
 Both, flat and 3D, in the studio with presets, accepted by the server, with a persona line.
 
-### 7a. Call the llama just "Llama"
+### 7a. ~~Call the llama just "Llama"~~ — done (2026-10-03)
 
-The studio lists it as "Plush llama" while the others are plain names (Fox, Hedgehog, Otter,
-Giraffe, Spot - and "Fuzzy monster"). Rename it to "Llama" everywhere it's shown: the studio's model
-list, the 3D renderer's label ("Your familiar, a plush llama"), the gallery, and the server's
-appearance names, keeping the model id `llama`. Decide whether "Fuzzy monster" becomes "Monster" too.
+The studio and the gallery say "Llama". Descriptions stay "a plush llama" as the others' do ("a plush
+fox"), and "Fuzzy monster" is unchanged.
 
 ### 8. Check 3D on a real phone
 
