@@ -242,9 +242,9 @@ public static partial class AuthEndpoints
         return Error(StatusCodes.Status429TooManyRequests, $"Too many failed attempts. Try again in {seconds} seconds.");
     }
 
-    private static IResult AlreadyRegistered() =>
+    internal static IResult AlreadyRegistered() =>
         Error(StatusCodes.Status409Conflict, "That username or email is already registered.");
 
     [GeneratedRegex("^[A-Za-z0-9_]{3,24}$")]
-    private static partial Regex UsernamePattern();
+    internal static partial Regex UsernamePattern();
 }

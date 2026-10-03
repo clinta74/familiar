@@ -15,8 +15,9 @@ name: familiar
 # Nothing depends on ollama, stt or tts. The server starts and serves sign-in, settings and history
 # without them, and the conversation degrades to "resting" rather than the stack refusing to start.
 #
-# Once the first account (the admin) exists, leave ALLOW_REGISTRATION=false: a stranger on the VPN
-# shouldn't be able to make themselves an account.
+# Leave ALLOW_REGISTRATION=false: a stranger on the VPN shouldn't be able to make themselves an
+# account. The first account (the admin) can always register; everyone after that is added by an
+# admin in Settings › Users.
 
 services:
   postgres:

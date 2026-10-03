@@ -6,6 +6,7 @@ import { CalendarSettings } from './CalendarSettings';
 import { ConnectionsSettings } from './ConnectionsSettings';
 import { MemorySettings } from './MemorySettings';
 import { NotificationSettings } from './NotificationSettings';
+import { UserAdmin } from './UserAdmin';
 import { Shell } from './Shell';
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -138,6 +139,12 @@ export function SettingsPage() {
           <h2>Devices</h2>
           <DeviceList />
         </section>
+        {account?.role === 'admin' && (
+          <section className="card">
+            <h2>Users</h2>
+            <UserAdmin />
+          </section>
+        )}
       </div>
     </Shell>
   );

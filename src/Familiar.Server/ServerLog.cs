@@ -143,4 +143,19 @@ internal static partial class ServerLog
 
     [LoggerMessage(46, LogLevel.Warning, "Model {Model} doesn't exist on the model server. Create it once with tools/ollama/create-models.sh (see the NAS compose file)")]
     public static partial void ModelMissing(this ILogger logger, string model);
+
+    [LoggerMessage(24, LogLevel.Warning, "{Admin} created account {Username} as {Role}")]
+    public static partial void AdminCreatedUser(this ILogger logger, string admin, string username, string role);
+
+    [LoggerMessage(25, LogLevel.Warning, "{Admin} made {Username} {Role}")]
+    public static partial void AdminChangedRole(this ILogger logger, string admin, string username, string role);
+
+    [LoggerMessage(26, LogLevel.Warning, "{Admin} set {Username} disabled={Disabled}")]
+    public static partial void AdminSetDisabled(this ILogger logger, string admin, string username, bool disabled);
+
+    [LoggerMessage(27, LogLevel.Warning, "{Admin} reset the password of {Username}; their sessions and devices were signed out")]
+    public static partial void AdminResetPassword(this ILogger logger, string admin, string username);
+
+    [LoggerMessage(28, LogLevel.Warning, "{Admin} deleted account {Username} and everything in it")]
+    public static partial void AdminDeletedUser(this ILogger logger, string admin, string username);
 }

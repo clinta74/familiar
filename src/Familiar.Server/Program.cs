@@ -144,6 +144,7 @@ app.UseRateLimiter();
 app.MapHealthEndpoints();
 app.MapAuthEndpoints();
 app.MapDeviceEndpoints();
+app.MapAdminEndpoints();
 app.MapFamiliarEndpoints();
 app.MapAvatarEndpoints();
 app.MapConversationEndpoints();
