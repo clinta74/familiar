@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using Familiar.Agent.Tools;
 using Familiar.Domain.Calendars;
@@ -65,12 +66,16 @@ public sealed class ListEventsTool(CalendarStore store) : ITool
     }
 }
 
-/// <summary>create_event: puts something on Familiar's own calendar.</summary>
-public sealed class CreateEventTool(CalendarStore store) : ITool
+/// <summary>
+/// create_event: puts something on the user's calendar - the phone's own calendar (and so Google,
+/// Outlook, whatever it syncs) when the phone app is connected and allowed to, Familiar's own
+/// calendar otherwise.
+/// </summary>
+public sealed class CreateEventTool(CalendarStore store, Devices.DeviceTools devices) : ITool
 {
     public ToolDefinition Definition { get; } = new(
         "create_event",
-        "Add an event to the user's Familiar calendar.",
+        "Add an event to the user's calendar.",
         ToolSchema.Object(["title", "day"],
             ("title", ToolSchema.String("What it is, e.g. \"Dentist\".")),
             ("day", ToolSchema.String("Which day: \"today\", \"tomorrow\", a weekday like \"Tuesday\", or \"YYYY-MM-DD\".")),
@@ -119,10 +124,38 @@ public sealed class CreateEventTool(CalendarStore store) : ITool
             return ToolResult.Failure("The day or time couldn't be read. Ask the user when it is.");
         }
 
-        var created = await store.AddLocalEventAsync(context.AccountId, title, startsAt, endsAt, allDay, ct);
-        var when = Spoken.EventWhen(created, context.Zone, context.Now);
-        return ToolResult.Success(
-            new JsonObject { ["ok"] = true, ["event"] = new JsonObject { ["title"] = title, ["when"] = when } },
-            $"Calendar: {title}, {when}");
+        var when = Spoken.EventWhen(new CalendarEvent { Title = title, StartsAt = startsAt, EndsAt = endsAt, AllDay = allDay }, context.Zone, context.Now);
+
+        // The phone first: that's the calendar the user actually looks at.
+        var onPhone = await devices.InvokeAsync(context.AccountId, Devices.DeviceCapabilities.CalendarWrite, "calendar.add", new JsonObject
+        {
+            ["title"] = title,
+            ["startsAt"] = startsAt.ToString("O", CultureInfo.InvariantCulture),
+            ["endsAt"] = endsAt.ToString("O", CultureInfo.InvariantCulture),
+            ["allDay"] = allDay,
+            ["timeZone"] = context.Zone.Id,
+        }, ct);
+
+        if (onPhone is { Ok: true })
+        {
+            var calendar = onPhone.Result["calendar"]?.GetValue<string>();
+            var data = new JsonObject { ["title"] = title, ["when"] = when, ["where"] = "the user's phone calendar" };
+            if (calendar is not null)
+            {
+                data["calendar"] = calendar;
+            }
+
+            return ToolResult.Success(new JsonObject { ["ok"] = true, ["event"] = data }, $"Phone calendar: {title}, {when}");
+        }
+
+        await store.AddLocalEventAsync(context.AccountId, title, startsAt, endsAt, allDay, ct);
+        var note = onPhone is null ? null : $"The phone couldn't add it ({onPhone.Error ?? "no reason given"}), so it's in Familiar's own calendar instead.";
+        var result = new JsonObject { ["ok"] = true, ["event"] = new JsonObject { ["title"] = title, ["when"] = when, ["where"] = "Familiar's own calendar" } };
+        if (note is not null)
+        {
+            result["note"] = note;
+        }
+
+        return ToolResult.Success(result, $"Calendar: {title}, {when}");
     }
 }

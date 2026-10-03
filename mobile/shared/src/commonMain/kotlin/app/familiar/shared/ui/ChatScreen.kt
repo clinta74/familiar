@@ -47,6 +47,7 @@ import app.familiar.shared.conversation.ChatMessage
 import app.familiar.shared.conversation.Connection
 import app.familiar.shared.conversation.ConversationController
 import app.familiar.shared.conversation.ToolChip
+import app.familiar.shared.platform.DeviceCalendar
 import kotlinx.coroutines.launch
 
 private val emotionLabels = mapOf(
@@ -74,11 +75,12 @@ private val toolDoing = mapOf(
  * (docs/MOBILE.md §7).
  */
 @Composable
-fun ChatScreen(signedIn: SignedIn, onSignedOut: () -> Unit) {
+fun ChatScreen(signedIn: SignedIn, calendar: DeviceCalendar?, onSignedOut: () -> Unit) {
     val scope = rememberCoroutineScope()
     val api = remember(signedIn) { FamiliarApi(signedIn.server, signedIn.token) }
-    val controller = remember(signedIn) { ConversationController(api, scope, onSignedOut) }
+    val controller = remember(signedIn) { ConversationController(api, scope, onSignedOut, calendar) }
     val state by controller.state.collectAsState()
+    val calendarOn by controller.calendarOn.collectAsState()
 
     DisposableEffect(controller) {
         controller.start()
@@ -126,6 +128,15 @@ fun ChatScreen(signedIn: SignedIn, onSignedOut: () -> Unit) {
                             menu = false
                             controller.startOver()
                         })
+                        if (calendar != null) {
+                            DropdownMenuItem(
+                                text = { Text(if (calendarOn) "Refresh phone calendar" else "Use this phone's calendar") },
+                                onClick = {
+                                    menu = false
+                                    if (calendarOn) controller.syncCalendar() else controller.useCalendar()
+                                },
+                            )
+                        }
                         DropdownMenuItem(text = { Text("Sign out of ${signedIn.username}") }, onClick = {
                             menu = false
                             scope.launch {

@@ -46,6 +46,10 @@ internal sealed class CalendarSourceConfiguration : IEntityTypeConfiguration<Cal
         builder.Property(c => c.Name).HasMaxLength(CalendarSource.MaxNameLength).IsRequired();
         builder.Property(c => c.LastError).HasMaxLength(500);
         builder.HasIndex(c => c.AccountId);
+
+        // One source per phone; it goes when the phone's token row does.
+        builder.HasOne<AccessToken>().WithMany().HasForeignKey(c => c.DeviceId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(c => c.DeviceId).IsUnique();
     }
 }
 

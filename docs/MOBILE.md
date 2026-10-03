@@ -153,6 +153,15 @@ greeting, a timer set by tool and announced two minutes later, the session survi
 APK. **Not yet:** the iOS CI build and TestFlight (needs the Apple Developer account), and the
 schema-generated protocol (§6).
 
+**Device calendar (2026-10-03), the first of M3.** "Use this phone's calendar" in the chat menu asks
+for READ/WRITE_CALENDAR. Once allowed, the app reads `CalendarContract.Instances` (visible
+calendars; declined and cancelled left out) from 12 hours ago to 14 days ahead and uploads it on
+start, every 15 minutes while open, and after adding an event. It reconnects the stream with
+`capabilities=calendar.write`, and answers `calendar.add` invokes addressed to its connection
+(expired or repeated ones ignored) by inserting into the primary writable calendar (Google's,
+when there is one). The server falls back to its own calendar when the phone doesn't answer.
+Turning it off is the system's app-permission screen.
+
 | Phase | Delivers | Done when |
 |---|---|---|
 | **M0. Scaffold** | KMP project, Android app, iOS CI build → TestFlight, server URL + login, schema-generated protocol | Log in on an Android phone; an empty iOS build arrives in TestFlight |

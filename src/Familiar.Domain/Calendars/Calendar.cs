@@ -7,6 +7,12 @@ public enum CalendarKind
 
     /// <summary>A subscribed iCal feed (a "secret address" from Google, Outlook, iCloud…): read-only, polled.</summary>
     Ics = 1,
+
+    /// <summary>
+    /// A phone's own calendars - every account it syncs - uploaded by the app as a rolling window
+    /// (docs/MOBILE.md §2). Writes go through the phone while it's connected.
+    /// </summary>
+    Device = 2,
 }
 
 /// <summary>A calendar the familiar can see (PLAN.md §6.4).</summary>
@@ -27,6 +33,9 @@ public sealed class CalendarSource
     /// a password to that calendar.
     /// </summary>
     public string? ProtectedUrl { get; set; }
+
+    /// <summary>For a phone's calendars: which signed-in device (its access token) uploads them.</summary>
+    public Guid? DeviceId { get; init; }
 
     public DateTimeOffset? LastSyncedAt { get; set; }
 

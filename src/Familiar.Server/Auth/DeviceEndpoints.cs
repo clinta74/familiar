@@ -113,6 +113,7 @@ public static class DeviceEndpoints
         FamiliarDbContext db,
         TimeProvider clock,
         ILoggerFactory loggers,
+        Calendars.CalendarStore calendars,
         CancellationToken ct)
     {
         if (http.User.AccountId() is not { } accountId)
@@ -133,6 +134,7 @@ public static class DeviceEndpoints
         {
             device.RevokedAt = clock.GetUtcNow();
             await db.SaveChangesAsync(ct);
+            await calendars.RemoveDeviceAsync(id, ct);
             loggers.CreateLogger(typeof(DeviceEndpoints)).DeviceSignedOut(id, device.Account!.Username);
         }
 

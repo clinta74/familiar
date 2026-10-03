@@ -1,5 +1,7 @@
 package app.familiar.shared.api
 
+import app.familiar.shared.protocol.DeviceCalendarUpload
+import app.familiar.shared.protocol.DeviceEventView
 import app.familiar.shared.protocol.DeviceLoginRequest
 import app.familiar.shared.protocol.DeviceLoginResponse
 import app.familiar.shared.protocol.ErrorBody
@@ -8,6 +10,7 @@ import app.familiar.shared.protocol.InterruptRequest
 import app.familiar.shared.protocol.MessageView
 import app.familiar.shared.protocol.SendMessageRequest
 import app.familiar.shared.protocol.ServerEvent
+import app.familiar.shared.protocol.ToolResultRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
@@ -20,6 +23,7 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -106,14 +110,35 @@ class FamiliarApi(
         call<Unit> { http.post("api/conversation/new") }
     }
 
+    /** The phone's calendars for the next while, replacing what it uploaded last time. */
+    suspend fun uploadDeviceCalendar(events: List<DeviceEventView>) {
+        call<Unit> {
+            http.put("api/calendars/device") {
+                contentType(ContentType.Application.Json)
+                setBody(DeviceCalendarUpload(events))
+            }
+        }
+    }
+
+    /** This phone's answer to a `tool.invoke`. */
+    suspend fun toolResult(result: ToolResultRequest) {
+        call<Unit> {
+            http.post("api/conversation/tool-result") {
+                contentType(ContentType.Application.Json)
+                setBody(result)
+            }
+        }
+    }
+
     /**
      * The conversation stream, until it ends or fails. With [lastEventId] (a reconnect), the server
      * replays what was missed, or sends `resync` when it can't.
      */
-    fun events(timeZone: String, lastEventId: String?): Flow<StreamEvent> = flow {
+    fun events(timeZone: String, lastEventId: String?, capabilities: Set<String> = emptySet()): Flow<StreamEvent> = flow {
+        val caps = if (capabilities.isEmpty()) "" else "&capabilities=" + capabilities.sorted().joinToString(",")
         try {
             http.sse(
-                urlString = "api/conversation/stream?timeZone=$timeZone",
+                urlString = "api/conversation/stream?timeZone=$timeZone$caps",
                 request = { lastEventId?.let { header("Last-Event-ID", it) } },
             ) {
                 incoming.collect { event ->

@@ -3,7 +3,7 @@ import { api } from '../api/client';
 
 interface Calendar {
   id: string;
-  kind: 'local' | 'ics';
+  kind: 'local' | 'ics' | 'device';
   name: string;
   lastSyncedAt: string | null;
   lastError: string | null;
@@ -92,11 +92,13 @@ export function CalendarSettings() {
         {calendars.map((c) => (
           <li key={c.id}>
             <div>
-              <strong>{c.kind === 'local' ? 'Familiar' : c.name}</strong>
+              <strong>{c.kind === 'local' ? 'Familiar' : c.kind === 'device' ? `${c.name}’s calendars` : c.name}</strong>
               <span className={c.lastError ? 'error' : 'muted'}>
                 {c.kind === 'local'
-                  ? 'Its own calendar: what you ask it to add goes here.'
-                  : c.lastError ?? (c.lastSyncedAt ? `Read-only feed · updated ${syncFormat.format(new Date(c.lastSyncedAt))}` : 'Not fetched yet')}
+                  ? 'Its own calendar: new events go here when your phone isn’t connected.'
+                  : c.kind === 'device'
+                    ? `Every calendar on the phone, from the Familiar app · updated ${c.lastSyncedAt ? syncFormat.format(new Date(c.lastSyncedAt)) : 'never'}. New events go here while the app is open.`
+                    : c.lastError ?? (c.lastSyncedAt ? `Read-only feed · updated ${syncFormat.format(new Date(c.lastSyncedAt))}` : 'Not fetched yet')}
               </span>
             </div>
             {c.kind === 'ics' && (
@@ -137,7 +139,7 @@ export function CalendarSettings() {
                 <span>
                   {e.title}
                   {e.location && <span className="muted"> · {e.location}</span>}
-                  {names.get(e.calendarId)?.kind === 'ics' && <span className="muted"> · {names.get(e.calendarId)?.name}</span>}
+                  {names.get(e.calendarId)?.kind !== 'local' && <span className="muted"> · {names.get(e.calendarId)?.name}</span>}
                 </span>
                 {names.get(e.calendarId)?.kind === 'local' && (
                   <button type="button" className="link" onClick={() => void act(calendarsApi.removeEvent(e.id))} aria-label={`Delete ${e.title}`}>✕</button>

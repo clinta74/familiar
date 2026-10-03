@@ -63,11 +63,21 @@ public sealed class CalendarStore(IDbContextFactory<FamiliarDbContext> db, IData
     }
 
     /// <summary>Events overlapping a window, soonest first.</summary>
+    /// <summary>
+    /// A phone's calendars older than this are left out: it's been signed out, or not opened in days,
+    /// and what it last said may well be wrong by now.
+    /// </summary>
+    public static readonly TimeSpan DeviceCalendarStale = TimeSpan.FromDays(3);
+
     public async Task<IReadOnlyList<CalendarEvent>> BetweenAsync(Guid accountId, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
     {
         await using var context = await db.CreateDbContextAsync(ct);
+        var fresh = clock.GetUtcNow() - DeviceCalendarStale;
+        var stale = context.CalendarSources
+            .Where(s => s.AccountId == accountId && s.Kind == CalendarKind.Device && (s.LastSyncedAt == null || s.LastSyncedAt < fresh))
+            .Select(s => s.Id);
         return await context.CalendarEvents.AsNoTracking()
-            .Where(e => e.AccountId == accountId && e.StartsAt < to && e.EndsAt > from)
+            .Where(e => e.AccountId == accountId && e.StartsAt < to && e.EndsAt > from && !stale.Contains(e.SourceId))
             .OrderBy(e => e.StartsAt).ThenBy(e => e.Title)
             .Take(200)
             .ToListAsync(ct);
@@ -104,6 +114,40 @@ public sealed class CalendarStore(IDbContextFactory<FamiliarDbContext> db, IData
         return local is not null && await context.CalendarEvents
             .Where(e => e.Id == eventId && e.SourceId == local)
             .ExecuteDeleteAsync(ct) > 0;
+    }
+
+    /// <summary>
+    /// A phone's calendars, replaced with what it uploaded: one source per phone, created the first
+    /// time, its events swapped wholesale (the phone sends its whole window each time).
+    /// </summary>
+    public async Task<CalendarSource> ReplaceDeviceEventsAsync(
+        Guid accountId, Guid deviceId, string deviceName, IReadOnlyList<FeedOccurrence> events, CancellationToken ct)
+    {
+        await using var context = await db.CreateDbContextAsync(ct);
+        var source = await context.CalendarSources.AsNoTracking().FirstOrDefaultAsync(s => s.DeviceId == deviceId, ct);
+        if (source is null)
+        {
+            source = new CalendarSource
+            {
+                AccountId = accountId,
+                Kind = CalendarKind.Device,
+                Name = deviceName.Length <= CalendarSource.MaxNameLength ? deviceName : deviceName[..CalendarSource.MaxNameLength],
+                DeviceId = deviceId,
+                CreatedAt = clock.GetUtcNow(),
+            };
+            context.CalendarSources.Add(source);
+            await context.SaveChangesAsync(ct);
+        }
+
+        await ReplaceFeedEventsAsync(source, events, ct);
+        return source;
+    }
+
+    /// <summary>A signed-out phone's calendars go with it.</summary>
+    public async Task RemoveDeviceAsync(Guid deviceId, CancellationToken ct)
+    {
+        await using var context = await db.CreateDbContextAsync(ct);
+        await context.CalendarSources.Where(s => s.DeviceId == deviceId).ExecuteDeleteAsync(ct);
     }
 
     /// <summary>Feeds not synced since <paramref name="before"/>.</summary>

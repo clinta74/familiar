@@ -1,6 +1,7 @@
 using Familiar.Agent.Llm;
 using Familiar.Agent.Speech;
 using Familiar.Server.Auth;
+using Familiar.Server.Devices;
 using Familiar.Server.Infrastructure;
 using Familiar.Server.Scheduling;
 using Familiar.Server.Tools;
@@ -46,6 +47,8 @@ public static class ConversationEndpoints
         group.MapGet("/audio/{clipId:guid}", ClipAsync);
         group.MapPost("/interrupt", InterruptAsync);
         group.MapPost("/new", StartOverAsync);
+        group.MapPost("/tool-result", (ToolResultRequest request, HttpContext http, DeviceTools devices) =>
+            devices.Answer(http.User.AccountId()!.Value, request) ? Results.NoContent() : Results.NotFound());
         group.MapPost("/confirm", (ConfirmRequest request, HttpContext http, ToolConfirmations confirmations) =>
             request.CallId is { } callId && confirmations.Answer(http.User.AccountId()!.Value, callId, request.Approve)
                 ? Results.NoContent()
@@ -65,11 +68,25 @@ public static class ConversationEndpoints
         ITextToSpeech tts,
         Scheduler scheduler,
         ConversationTurns turns,
+        DeviceTools devices,
         string? timeZone,
         bool? speak,
+        string? capabilities,
         CancellationToken ct)
     {
         var accountId = http.User.AccountId()!.Value;
+
+        // A phone says what it can do for the familiar while it's connected (PLAN.md §6.1).
+        // Browsers don't: device-side tools are for the phone apps.
+        DeviceSession? device = null;
+        IDisposable? registration = null;
+        if (http.User.DeviceId() is { } deviceId)
+        {
+            (device, registration) = devices.Connect(accountId, deviceId,
+                (capabilities ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        }
+
+        using var connected = registration;
 
         http.Response.ContentType = "text/event-stream";
         http.Response.Headers.CacheControl = "no-cache, no-transform";
@@ -104,7 +121,8 @@ public static class ConversationEndpoints
             var ready = new ReadyEvent(
                 new FamiliarSummary(profile.Result.Name, profile.Result.Expressiveness),
                 model.Result,
-                hearing.Result && voices.Result.Count > 0);
+                hearing.Result && voices.Result.Count > 0,
+                device?.ConnectionId);
 
             // The timers and reminders as they are now (changes follow as events), then ready: once
             // a client has ready, it has everything.

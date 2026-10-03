@@ -28,6 +28,7 @@ public static class EventTypes
     public const string ToolConfirmed = "tool.confirmed";
     public const string Jobs = "jobs";
     public const string Notify = "notify";
+    public const string ToolInvoke = "tool.invoke";
 }
 
 public enum FamiliarState
@@ -40,7 +41,11 @@ public enum FamiliarState
     Resting,
 }
 
-public sealed record ReadyEvent(FamiliarSummary Familiar, bool ModelAvailable, bool SpeechAvailable);
+/// <param name="Familiar">Its name and expressiveness.</param>
+/// <param name="ModelAvailable">The model server answers.</param>
+/// <param name="SpeechAvailable">Speech-to-text and text-to-speech both answer.</param>
+/// <param name="ConnectionId">For a phone that listed capabilities: its connection, which <c>tool.invoke</c> events address.</param>
+public sealed record ReadyEvent(FamiliarSummary Familiar, bool ModelAvailable, bool SpeechAvailable, string? ConnectionId = null);
 
 public sealed record FamiliarSummary(string Name, double Expressiveness);
 

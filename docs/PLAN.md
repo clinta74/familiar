@@ -112,7 +112,8 @@ alone.
 | ↑ | `POST /api/conversation/audio` | an utterance (Opus/WebM or WAV) after VAD end-of-speech (phase 2) |
 | ↑ | `POST /api/conversation/interrupt` | user started speaking / pressed stop |
 | ↑ | `POST /api/conversation/confirm` | `{ toolCallId, approved }` (phase 4) |
-| ↑ | `POST /api/conversation/tool-results` | result of a device-side tool (§6.1) |
+| ↑ | `POST /api/conversation/tool-result` | `{ callId, ok, result?, error? }` — a phone's answer to `tool.invoke` (§6.1) |
+| ↑ | `PUT /api/calendars/device` | a phone's calendars for the next two weeks, replacing its last upload (§6.4) |
 | ↓ | `ready` | first event: the familiar's name and whether the model is reachable |
 | ↓ | `state` | `idle` · `thinking` · `speaking` · `resting` (model unreachable) · `listening` · `using-tool` |
 | ↓ | `message` | a user message as stored (so other devices see it) |
@@ -311,6 +312,13 @@ to the model only for that client, and executes them by sending `tool.invoke` an
 `tool.result` (with a timeout, so a backgrounded phone fails the call instead of hanging the
 turn). The web client advertises few or none. Same risk classes, same confirmation flow, same
 audit row — the model can't tell the difference.
+
+*Built (2026-10-03):* a phone opens the stream with `?capabilities=calendar.write` (device tokens
+only; browsers are ignored) and gets a `connectionId` in `ready`. `create_event` asks the most
+recently connected such phone first: `tool.invoke` `{ callId, connectionId, tool: "calendar.add",
+arguments, expiresAt }`, answered by `POST /api/conversation/tool-result`. No answer within
+`Devices:ToolTimeoutSeconds` (15) or a failure, and the event goes into Familiar's own calendar
+instead, with the model told why. The tool keeps one name for the model either way.
 
 ### 6.2 Scheduler (timers & reminders)
 
@@ -661,6 +669,10 @@ cached persona and rules. *Calendars*: Familiar's own (read/write) and subscribe
 (read-only, Ical.Net expands RRULE/EXDATE/time zones 60 days ahead, refreshed every 30 min; the
 URL is encrypted with Data Protection and never sent back). CalDAV/Google writes are deferred:
 §12 item 3 is still open, and the phone apps' device calendar may make them unnecessary.
+*Device calendars* (2026-10-03): a phone uploads its next 14 days to `PUT /api/calendars/device`
+(one source per signed-in device, replaced wholesale, left out of the situation after 3 days
+without a sync, deleted with the device), and new events go to the phone while it's connected
+(§6.1).
 *Situation*: each turn's notes carry the next events, running timers, near reminders, and how long
 since you last talked. *Greeting*: a fresh connection after 3 quiet hours gets a hello first, once
 per gap across devices, switchable per familiar. Findings: the model does weekday arithmetic badly

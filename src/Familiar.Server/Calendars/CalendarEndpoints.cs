@@ -1,5 +1,6 @@
 using Familiar.Domain.Calendars;
 using Familiar.Server.Auth;
+using Microsoft.EntityFrameworkCore;
 
 namespace Familiar.Server.Calendars;
 
@@ -18,6 +19,19 @@ public sealed record EventView(Guid Id, Guid CalendarId, string Title, string? L
 /// <param name="Url">Its secret iCal address (https:// or webcal://).</param>
 public sealed record AddFeedRequest(string? Name, string? Url);
 
+/// <summary>One event (or occurrence) from a phone's calendar.</summary>
+/// <param name="ExternalId">The phone's id for it (instance id plus start), stable across uploads.</param>
+/// <param name="Title">Its title.</param>
+/// <param name="Location">Where, if it says.</param>
+/// <param name="StartsAt">When it starts; for an all-day event, UTC midnight of its date.</param>
+/// <param name="EndsAt">When it ends.</param>
+/// <param name="AllDay">A whole-day event.</param>
+/// <param name="Calendar">Which of the phone's calendars ("Work", "sam@gmail.com").</param>
+public sealed record DeviceEventView(string? ExternalId, string? Title, string? Location, DateTimeOffset StartsAt, DateTimeOffset EndsAt, bool AllDay, string? Calendar = null);
+
+/// <param name="Events">Every event in the window the phone covers (the next couple of weeks).</param>
+public sealed record DeviceCalendarUpload(IReadOnlyList<DeviceEventView>? Events);
+
 public static class CalendarEndpoints
 {
     public static void MapCalendarEndpoints(this IEndpointRouteBuilder routes)
@@ -32,6 +46,7 @@ public static class CalendarEndpoints
         });
 
         group.MapPost("/", AddFeedAsync);
+        group.MapPut("/device", UploadDeviceAsync);
 
         group.MapPost("/{id:guid}/sync", async (Guid id, HttpContext http, CalendarStore store, FeedSync sync, CancellationToken ct) =>
         {
@@ -58,6 +73,44 @@ public static class CalendarEndpoints
 
         group.MapDelete("/events/{id:guid}", async (Guid id, HttpContext http, CalendarStore store, CancellationToken ct) =>
             await store.DeleteLocalEventAsync(http.User.AccountId()!.Value, id, ct) ? Results.NoContent() : Results.NotFound());
+    }
+
+    /// <summary>
+    /// A phone's calendars (docs/MOBILE.md §2): the app uploads the next couple of weeks from every
+    /// account the phone syncs, replacing what it sent last time. Device tokens only - it's the
+    /// phone's own view of its calendars.
+    /// </summary>
+    private static async Task<IResult> UploadDeviceAsync(
+        DeviceCalendarUpload upload, HttpContext http, CalendarStore store, Familiar.Persistence.FamiliarDbContext db, CancellationToken ct)
+    {
+        if (http.User.DeviceId() is not { } deviceId)
+        {
+            return AuthEndpoints.Error(StatusCodes.Status400BadRequest, "Only the phone apps upload their calendars.");
+        }
+
+        var events = upload.Events ?? [];
+        if (events.Count > IcsFeed.MaxOccurrences)
+        {
+            return AuthEndpoints.Error(StatusCodes.Status400BadRequest, $"At most {IcsFeed.MaxOccurrences} events at a time.");
+        }
+
+        static string? Cap(string? text, int max) =>
+            string.IsNullOrWhiteSpace(text) ? null : (text.Trim().Length <= max ? text.Trim() : text.Trim()[..max]);
+
+        var occurrences = events
+            .Where(e => e.EndsAt >= e.StartsAt)
+            .Select((e, i) => new FeedOccurrence(
+                Cap(e.ExternalId, 400) ?? $"device-{i}",
+                Cap(e.Title, CalendarEvent.MaxTitleLength) ?? "(untitled)",
+                Cap(e.Location, CalendarEvent.MaxTitleLength),
+                e.StartsAt,
+                e.EndsAt,
+                e.AllDay))
+            .ToList();
+
+        var deviceName = await db.AccessTokens.Where(t => t.Id == deviceId).Select(t => t.Name).FirstOrDefaultAsync(ct) ?? "Phone";
+        var source = await store.ReplaceDeviceEventsAsync(http.User.AccountId()!.Value, deviceId, deviceName, occurrences, ct);
+        return Results.Ok(new { calendarId = source.Id, events = occurrences.Count });
     }
 
     /// <summary>Subscribes to a feed and fetches it straight away, so a bad address is reported now.</summary>

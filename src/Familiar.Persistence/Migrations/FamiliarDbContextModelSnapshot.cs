@@ -220,6 +220,10 @@ namespace Familiar.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<Guid?>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -250,6 +254,10 @@ namespace Familiar.Persistence.Migrations
 
                     b.HasIndex("AccountId")
                         .HasDatabaseName("ix_calendar_sources_account_id");
+
+                    b.HasIndex("DeviceId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_calendar_sources_device_id");
 
                     b.ToTable("calendar_sources", (string)null);
                 });
@@ -934,6 +942,12 @@ namespace Familiar.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_calendar_sources_accounts_account_id");
+
+                    b.HasOne("Familiar.Domain.Accounts.AccessToken", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_calendar_sources_access_tokens_device_id");
                 });
 
             modelBuilder.Entity("Familiar.Domain.Conversations.Conversation", b =>

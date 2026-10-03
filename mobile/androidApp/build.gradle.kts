@@ -34,6 +34,7 @@ android {
 dependencies {
     implementation(project(":shared"))
     implementation(libs.androidx.activity.compose)
+    implementation(libs.coroutines.core)
     implementation(libs.compose.runtime)
     implementation(libs.compose.ui)
     implementation(libs.compose.material3)

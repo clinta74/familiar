@@ -14,6 +14,31 @@ interface SecureStore {
     fun write(key: String, value: String?)
 }
 
+/**
+ * The phone's own calendars - every account it syncs (docs/MOBILE.md §2). Null on a platform or
+ * build that doesn't have it yet.
+ */
+interface DeviceCalendar {
+    /** May read events (the user granted it). */
+    fun canRead(): Boolean
+
+    /** May add events. */
+    fun canWrite(): Boolean
+
+    /** Asks the user for access (the system prompt); true when reading, at least, was allowed. */
+    suspend fun requestAccess(): Boolean
+
+    /** Events and occurrences between two instants (epoch milliseconds), across visible calendars. */
+    suspend fun upcoming(fromMillis: Long, toMillis: Long): List<app.familiar.shared.protocol.DeviceEventView>
+
+    /**
+     * Adds an event to the phone's main calendar; returns that calendar's name. Times are ISO-8601
+     * instants; an all-day event's are UTC midnights.
+     * @throws IllegalStateException when no calendar on the phone can take it.
+     */
+    suspend fun add(title: String, startsAt: String, endsAt: String, allDay: Boolean, timeZone: String?): String
+}
+
 /** A store in memory, for previews and tests. */
 class InMemoryStore : SecureStore {
     private val values = mutableMapOf<String, String>()

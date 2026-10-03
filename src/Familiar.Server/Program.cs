@@ -95,6 +95,7 @@ builder.Services.AddHttpClient(nameof(FeedSync), http =>
 builder.Services.AddSingleton<FeedSync>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<FeedSync>());
 builder.Services.AddSingleton<SituationProvider>();
+builder.Services.AddSingleton<Familiar.Server.Devices.DeviceTools>();
 builder.Services.AddSingleton(builder.Configuration.GetSection(AwarenessOptions.Section).Get<AwarenessOptions>() ?? new AwarenessOptions());
 
 // Hooks (PLAN.md §6.5): announcements in, webhooks out.
