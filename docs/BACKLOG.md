@@ -76,8 +76,6 @@ GLBs. Still open:
 
 - **2D spot splitting:** the 3D spot splits and reforms for a shake, a laugh or excitement; the flat
   one doesn't yet.
-- **Giraffe patches** come out small on the legs (the pattern is in each part's UV space, so a small
-  part gets small patches); a per-part pattern scale would fix it.
 - **Flat characters' arms** still hang with paws on the tummy; the 3D ones now stand to the ground
   like a sitting dog's. Decide whether the flat ones should follow.
 - A local image-to-3D model (TRELLIS / Hunyuan3D) as a reference for harder shapes: not needed so far.

@@ -346,8 +346,52 @@ export interface FurOptions {
   varying?: boolean;
   /** Strands per unit of the texture, for a shape much bigger than most: 7 is usual. */
   density?: number;
-  /** Coloured by the coat's pattern (patches in the ear colour), not plainly. */
-  pattern?: boolean;
+  /**
+   * Coloured by the coat's pattern (patches in the ear colour), not plainly. A number is how many
+   * times the pattern repeats across the shape's UVs: under 1 for a part small for its UV space (a
+   * leg), so its patches come out as big as everyone else's.
+   */
+  pattern?: boolean | number;
+}
+
+/** How often a shape's coat pattern repeats (FurOptions.pattern), or 0 for a plain coat. */
+function patternRepeat(options?: FurOptions): number {
+  if (!options?.pattern) return 0;
+  return options.pattern === true ? 1 : options.pattern;
+}
+
+/**
+ * How big a shape is for its UV space: the square root of its surface area over the area its UVs
+ * cover. Parts unwrapped separately each fill their own UV square, so a small part gets small
+ * texture features unless its texture repeats less (FurOptions.pattern).
+ */
+export function uvScale(geometry: THREE.BufferGeometry): number {
+  const position = geometry.getAttribute('position');
+  const uv = geometry.getAttribute('uv');
+  if (!uv) return 1;
+  const index = geometry.getIndex();
+  const count = index ? index.count : position.count;
+  const at = (i: number) => (index ? index.getX(i) : i);
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  let world = 0;
+  let flat = 0;
+  for (let i = 0; i + 2 < count; i += 3) {
+    const i0 = at(i);
+    const i1 = at(i + 1);
+    const i2 = at(i + 2);
+    a.fromBufferAttribute(position, i0);
+    b.fromBufferAttribute(position, i1).sub(a);
+    c.fromBufferAttribute(position, i2).sub(a);
+    world += b.cross(c).length() / 2;
+    const du1 = uv.getX(i1) - uv.getX(i0);
+    const dv1 = uv.getY(i1) - uv.getY(i0);
+    const du2 = uv.getX(i2) - uv.getX(i0);
+    const dv2 = uv.getY(i2) - uv.getY(i0);
+    flat += Math.abs(du1 * dv2 - du2 * dv1) / 2;
+  }
+  return flat > 0 ? Math.sqrt(world / flat) : 1;
 }
 
 /**
@@ -559,21 +603,30 @@ export abstract class Plush3D extends PlushCharacter {
     this.painted = { blush: -1, mouth: '' };
   }
 
-  /** The coat's pattern: a texture of patches, and the material for the skin under the fur. */
-  private pattern?: { canvas: HTMLCanvasElement; texture: THREE.CanvasTexture; base: THREE.MeshPhysicalMaterial };
+  /**
+   * The coat's pattern: one painting of patches, and for each repeat a texture of it and the
+   * material for the skin under the fur.
+   */
+  private pattern?: { canvas: HTMLCanvasElement; sheets: Map<number, { texture: THREE.CanvasTexture; base: THREE.MeshPhysicalMaterial }> };
 
-  private coatPattern() {
+  private coatPattern(repeat = 1) {
     if (!this.pattern) {
       const canvas = document.createElement('canvas');
       canvas.width = canvas.height = 512;
-      const texture = new THREE.CanvasTexture(canvas);
+      this.pattern = { canvas, sheets: new Map() };
+    }
+    let sheet = this.pattern.sheets.get(repeat);
+    if (!sheet) {
+      const texture = new THREE.CanvasTexture(this.pattern.canvas);
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(repeat, repeat);
       const base = new THREE.MeshPhysicalMaterial({ roughness: 1, sheen: 1, sheenRoughness: 0.45, bumpMap: this.fuzz, bumpScale: 1.2, map: texture });
       base.color.setScalar(0.66);
-      this.pattern = { canvas, texture, base };
+      sheet = { texture, base };
+      this.pattern.sheets.set(repeat, sheet);
     }
-    return this.pattern;
+    return sheet;
   }
 
   /**
@@ -582,7 +635,8 @@ export abstract class Plush3D extends PlushCharacter {
    * break at a seam - which giraffe patches do anyway.
    */
   private paintPattern(coat: string, patches: string) {
-    const { canvas, texture } = this.coatPattern();
+    this.coatPattern();
+    const { canvas, sheets } = this.pattern!;
     const ctx = canvas.getContext('2d')!;
     ctx.fillStyle = coat;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -607,7 +661,7 @@ export abstract class Plush3D extends PlushCharacter {
         ctx.fill();
       }
     }
-    texture.needsUpdate = true;
+    for (const { texture } of sheets.values()) texture.needsUpdate = true;
   }
 
   /**
@@ -634,6 +688,7 @@ export abstract class Plush3D extends PlushCharacter {
       if (material instanceof THREE.MeshStandardMaterial && material.alphaMap && material.alphaMap !== this.strands) material.alphaMap.dispose();
     }
     for (const texture of [this.fuzz, this.strands, this.domePaint?.texture, this.mouthPaint?.texture, this.sleep.material.map]) texture?.dispose();
+    for (const { texture } of this.pattern?.sheets.values() ?? []) texture.dispose();
     this.scene.environment?.dispose();
     this.renderer.dispose();
   }
@@ -710,8 +765,9 @@ export abstract class Plush3D extends PlushCharacter {
    */
   private shell(coat: FurColour, f: number, length: number, options: FurOptions = {}): Shell {
     const { bristle, varying, density } = options;
-    const variant = `${bristle ? 'b' : ''}${varying ? 'v' : ''}${density ?? ''}`;
-    if (options.pattern) coat = 'pattern';
+    const repeat = patternRepeat(options);
+    const variant = `${bristle ? 'b' : ''}${varying ? 'v' : ''}${density ?? ''}${repeat ? `p${repeat}` : ''}`;
+    if (repeat) coat = 'pattern';
     const key = `${coat}:${f}:${length}:${variant}`;
     const existing = this.shells.get(key);
     if (existing) return existing;
@@ -724,7 +780,7 @@ export abstract class Plush3D extends PlushCharacter {
     }
     const material = new THREE.MeshStandardMaterial({ roughness: 1, alphaMap: strands, alphaTest: 0.25 + 0.7 * f });
     if (coat === 'painted') material.map = this.domePaint!.texture;
-    if (coat === 'pattern') material.map = this.coatPattern().texture;
+    if (coat === 'pattern') material.map = this.coatPattern(repeat).texture;
     const out = (length * f).toFixed(4);
     const droop = (length * f * f * 0.45).toFixed(4);
     material.onBeforeCompile = (shader) => {
@@ -752,7 +808,8 @@ export abstract class Plush3D extends PlushCharacter {
   /** A furry shape: the base in the coat's root colour and layers of fur over it. */
   protected furry(geometry: THREE.BufferGeometry, length: number, coat: Coat = 'wool', options?: FurOptions): THREE.Group {
     const group = new THREE.Group();
-    group.add(new THREE.Mesh(geometry, options?.pattern ? this.coatPattern().base : this.furBase[coat]));
+    const repeat = patternRepeat(options);
+    group.add(new THREE.Mesh(geometry, repeat ? this.coatPattern(repeat).base : this.furBase[coat]));
     this.shellsOver(group, geometry, length, coat, options);
     return group;
   }

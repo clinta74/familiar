@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import type { PlushLook, Pose } from '../plush/engine';
-import { Plush3D, S, type Anchors, type Coat, type FaceSpec, type Frame, type FurOptions } from './Plush3D';
+import { Plush3D, S, uvScale, type Anchors, type Coat, type FaceSpec, type Frame, type FurOptions } from './Plush3D';
 
 /** Fur options a spec can give a mesh; `bristle: true` ties it to the character's live bristle. */
 export type ModelFur = Omit<FurOptions, 'bristle'> & { bristle?: boolean };
@@ -86,6 +86,11 @@ export class ModelPlush3D extends Plush3D {
       if (object instanceof THREE.Mesh) meshes.push(object);
     });
 
+    // Patterned parts share one patch size: each repeats the pattern in proportion to its size for
+    // its UV space, against the largest (the body), which keeps the pattern as painted.
+    const scales = new Map(meshes.filter((mesh) => spec.fur?.[mesh.name]?.pattern).map((mesh) => [mesh.name, uvScale(mesh.geometry)]));
+    const largest = Math.max(...scales.values());
+
     // Each mesh becomes what it says it is.
     let face: THREE.Mesh | undefined;
     for (const mesh of meshes) {
@@ -95,6 +100,9 @@ export class ModelPlush3D extends Plush3D {
         const mask = mesh.geometry.getAttribute('color');
         const { bristle, ...rest } = spec.fur?.[mesh.name] ?? {};
         const options: FurOptions = { ...rest, bristle: bristle ? this.bristle : undefined };
+        const scale = scales.get(mesh.name);
+        // Rounded, so parts much the same size share their materials.
+        if (scale) options.pattern = Math.max(0.1, Math.round((scale / largest) * 20) / 20);
         if (mask) {
           const lengths = new Float32Array(mask.count);
           for (let i = 0; i < mask.count; i++) lengths[i] = mask.getX(i);
