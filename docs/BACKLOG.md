@@ -62,6 +62,16 @@ What would actually cut the ~1 s of prefill before the first word:
 
 Decision needed: which of these is worth it.
 
+### 5a. Open the chat at its latest message
+
+When the conversation is restored (opening the app, reloading, coming back to Chat), it should
+show the bottom, where the latest messages are. On the web it doesn't always: `ChatPanel` only
+follows the conversation when the view is already near the bottom (so reading back isn't
+interrupted), and when the history arrives all at once the view is still at the top, so it stays
+there. Jump to the bottom on the first load of the history (and after a resync or a new
+conversation), without animating; keep the "don't yank someone reading back" rule for messages that
+arrive afterwards. Check the Android app's chat does the same when it opens and after a reconnect.
+
 ---
 
 ## Avatars
