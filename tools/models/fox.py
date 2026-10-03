@@ -75,7 +75,7 @@ def build():
         capsule((0, -0.45, -0.12), (0, -0.85, -0.08), 0.28),
         ellipsoid((0, -1.08, -0.04), (0.52, 0.5, 0.44)),
         ellipsoid((0, -1.64, -0.16), (0.46, 0.52, 0.5)),
-        *limb_masses((0.27, -0.96, 0.3), 0.095, (0.5, -2.1, 0.1), (0.17, 0.12, 0.28), haunches=False),
+        *limb_masses((0.27, -0.96, 0.3), 0.095, (0.5, -2.1, 0.1), (0.17, 0.12, 0.28), haunches=False, reach=0.2, end="paw"),
     ], lumps=0.02, faces=5000)
     role(parent_to(torso, body), "fur", "wool", 0.11)
 

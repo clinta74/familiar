@@ -388,8 +388,8 @@ def foreleg(body, suffix, shoulder, radius, end, coat="wool", fur=0.07, paw_coat
     # Thick at the shoulder (it grows out of the torso's shoulder, see limb_masses), tapering to the
     # elbow, which shows a little at the back.
     upper = blob(f"arm_{suffix}_upper", [
-        *chain([(sx, sy, sz), (ex, ey, ez)], [radius * 1.35, radius * 1.0], 6),
-        ball((sx, sy - 0.03, sz - 0.04), radius * 1.45),
+        *chain([(sx, sy, sz), (ex, ey, ez)], [radius * 1.1, radius * 1.0], 6),
+        ball((sx, sy - 0.03, sz - 0.06), radius * 1.15),
         ball((ex, ey + radius * 0.3, ez - radius * 0.35), radius * 0.95),
     ], lumps=lumps, faces=1300)
     role(parent_to(upper, arm), "fur", coat, fur)
@@ -413,20 +413,29 @@ def foreleg(body, suffix, shoulder, radius, end, coat="wool", fur=0.07, paw_coat
     return arm
 
 
-def limb_masses(shoulder, radius, foot, foot_radii, haunches=True):
+def limb_masses(shoulder, radius, foot, foot_radii, haunches=True, reach=0.0, end="paw"):
     """
     Metaball elements for the torso, both sides, so the legs grow out of it rather than being
     stuck on: a shoulder where each front leg starts (the leg's top sinks into it), and a haunch -
     a sitting animal's folded thigh - over and behind each hind foot, which tucks out from under it.
     Arguments as for foreleg and hind_foot (either side's). Without haunches when the hind legs
     have thighs of their own (hind_leg).
+
+    The shoulder carries on down the top of the leg as a tapering sleeve, melted into the chest, so
+    chest, shoulder and upper leg are one surface and the leg only shows as its own lower down
+    (its top sits inside the sleeve). `reach` and `end` as the foreleg's, to follow its line.
     """
     sx, sy, sz = shoulder
+    length = sy - (GROUND + (0.035 if end == "hoof" else 0.07))
     fx, fy, fz = foot
     rx, ry, rz = foot_radii
     elements = []
     for side in (-1, 1):
-        elements.append(ellipsoid((side * abs(sx) * 0.95, sy + 0.04, sz - 0.14), (radius * 1.75, radius * 2.7, radius * 1.6)))
+        x = side * abs(sx)
+        elements.append(ellipsoid((x * 0.95, sy + 0.04, sz - 0.14), (radius * 1.75, radius * 2.7, radius * 1.6)))
+        elements.extend(chain(
+            [(x * 0.97, sy + 0.02, sz - 0.07), (x, sy - length * 0.22, sz + reach * 0.22), (x, sy - length * 0.4, sz + reach * 0.4)],
+            [radius * 1.5, radius * 1.22, radius * 1.02], 8, stiffness=1.6))
         if haunches:
             elements.append(ellipsoid((side * abs(fx) * 0.92, fy + ry + 0.14, fz - rz * 0.6), (rx * 1.35, 0.3, rz * 1.45)))
     return elements
