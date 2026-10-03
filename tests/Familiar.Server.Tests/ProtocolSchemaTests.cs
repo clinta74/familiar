@@ -14,8 +14,29 @@ namespace Familiar.Server.Tests;
 /// </summary>
 public sealed class ProtocolSchemaTests
 {
-    private static string SchemaPath([CallerFilePath] string here = "") =>
-        Path.GetFullPath(Path.Combine(Path.GetDirectoryName(here)!, "..", "..", "protocol", "familiar.schema.json"));
+    /// <summary>
+    /// The repository's copy. From this source file's path where it's real; CI builds are deterministic
+    /// (paths mapped to /_/), so otherwise the first folder up from the tests with the solution in it.
+    /// </summary>
+    private static string SchemaPath([CallerFilePath] string here = "")
+    {
+        var fromSource = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(here)!, "..", ".."));
+        var root = File.Exists(Path.Combine(fromSource, "Familiar.slnx"))
+            ? fromSource
+            : new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() }
+                .SelectMany(start => Ancestors(new DirectoryInfo(start)))
+                .FirstOrDefault(dir => File.Exists(Path.Combine(dir.FullName, "Familiar.slnx")))?.FullName
+                ?? fromSource;
+        return Path.Combine(root, "protocol", "familiar.schema.json");
+    }
+
+    private static IEnumerable<DirectoryInfo> Ancestors(DirectoryInfo? dir)
+    {
+        for (; dir is not null; dir = dir.Parent)
+        {
+            yield return dir;
+        }
+    }
 
     [Fact]
     public void Every_stream_event_is_in_the_protocol()
