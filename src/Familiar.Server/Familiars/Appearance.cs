@@ -18,7 +18,7 @@ public sealed record LlamaColours(string Wool, string Face, string Ear, string B
 /// How a familiar looks (PLAN.md §5.5). Either the built-in plush llama, coloured and dressed, or an
 /// uploaded VRM model.
 /// </summary>
-/// <param name="Model">A built-in character (llama, fox, hedgehog, monster, spot) or "vrm".</param>
+/// <param name="Model">A built-in character (llama, fox, hedgehog, monster, otter, giraffe, spot) or "vrm".</param>
 /// <param name="VrmId">For "vrm", which uploaded model.</param>
 /// <param name="Colours">The character's colours (what each paints depends on the character).</param>
 /// <param name="Accessory">What it wears: none, bow, scarf, glasses, flower. The spot wears nothing.</param>
@@ -27,7 +27,7 @@ public sealed partial record AppearanceView(string Model, Guid? VrmId, LlamaColo
 {
     public static readonly AppearanceView Default = new("llama", null, LlamaColours.Classic, "none");
 
-    public static readonly IReadOnlyList<string> Models = ["llama", "fox", "hedgehog", "monster", "spot", "vrm"];
+    public static readonly IReadOnlyList<string> Models = ["llama", "fox", "hedgehog", "monster", "otter", "giraffe", "spot", "vrm"];
 
     public static readonly IReadOnlyList<string> Accessories = ["none", "bow", "scarf", "glasses", "flower"];
 
@@ -64,6 +64,8 @@ public sealed partial record AppearanceView(string Model, Guid? VrmId, LlamaColo
         "fox" => "You look like a soft plush fox with big pointed ears and a bushy tail, and you're happy being one.",
         "hedgehog" => "You look like a round plush hedgehog with soft prickles and a little button nose, and you're happy being one.",
         "monster" => "You look like a small, fuzzy, friendly monster with big googly eyes and stubby horns, and you're happy being one.",
+        "otter" => "You look like a sleek plush otter with a big whiskery muzzle and a thick tail, and you're happy being one.",
+        "giraffe" => "You look like a plush giraffe with a long neck, a patchwork coat, little horns and long lashes, and you're happy being one.",
         "spot" => "You look like a soft spot of colour with no face: you show how you feel by changing your shape, your surface and your colour, and you're happy being one.",
         "vrm" => "",
         _ => Familiar.Agent.Prompting.PromptBuilder.DefaultLook,

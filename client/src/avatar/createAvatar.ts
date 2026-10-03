@@ -24,6 +24,10 @@ async function character(container: HTMLElement, appearance: Appearance): Promis
       return new (await import('./PlushHedgehogAvatar')).PlushHedgehogAvatar(container, appearance);
     case 'monster':
       return new (await import('./PlushMonsterAvatar')).PlushMonsterAvatar(container, appearance);
+    case 'otter':
+      return new (await import('./PlushOtterAvatar')).PlushOtterAvatar(container, appearance);
+    case 'giraffe':
+      return new (await import('./PlushGiraffeAvatar')).PlushGiraffeAvatar(container, appearance);
     case 'spot':
       return new (await import('./SpotAvatar')).SpotAvatar(container, appearance);
     default:

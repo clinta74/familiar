@@ -286,3 +286,16 @@
   fill: var(--muted, #6b6880);
   font: 700 22px system-ui, sans-serif;
 }
+
+/* Patches (a giraffe's), dark noses and knobs: the third colour, flat. */
+.plush-patch {
+  fill: var(--plush-ear);
+}
+
+.plush-whisker {
+  fill: none;
+  stroke: var(--plush-thread);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  opacity: 0.75;
+}

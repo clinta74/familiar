@@ -126,7 +126,7 @@ public sealed class StudioTests(PostgresFixture postgres)
         await using var stream = await SseClient.ConnectAsync(client);
         await stream.ReadUntilAsync(Conversation.EventTypes.Ready);
 
-        foreach (var (model, look) in new[] { ("fox", "plush fox"), ("hedgehog", "plush hedgehog"), ("monster", "fuzzy, friendly monster"), ("spot", "spot of colour with no face"), ("llama", "plush llama") })
+        foreach (var (model, look) in new[] { ("fox", "plush fox"), ("hedgehog", "plush hedgehog"), ("monster", "fuzzy, friendly monster"), ("otter", "plush otter"), ("giraffe", "plush giraffe"), ("spot", "spot of colour with no face"), ("llama", "plush llama") })
         {
             var familiar = await (await client.GetAsync("/api/familiar")).ReadAsync<FamiliarView>();
             var saved = await (await client.PutAsJsonAsync("/api/familiar", familiar with { Appearance = familiar.Appearance! with { Model = model } })).ReadAsync<FamiliarView>();
@@ -136,7 +136,7 @@ public sealed class StudioTests(PostgresFixture postgres)
             await stream.ReadUntilStateAsync(Conversation.FamiliarState.Idle);
             var persona = app.Llm.LastPrompt![0].Content;
             Assert.Contains(look, persona, StringComparison.Ordinal);
-            Assert.Single(new[] { "plush llama", "plush fox", "plush hedgehog", "monster", "spot of colour" }, l => persona.Contains(l, StringComparison.Ordinal));
+            Assert.Single(new[] { "plush llama", "plush fox", "plush hedgehog", "monster", "plush otter", "plush giraffe", "spot of colour" }, l => persona.Contains(l, StringComparison.Ordinal));
         }
     }
 

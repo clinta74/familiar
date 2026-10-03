@@ -15,7 +15,7 @@ export interface LlamaColours {
 }
 
 /** The built-in characters. Each is drawn in code: no assets, works offline, no licence to track. */
-export type CharacterModel = 'llama' | 'fox' | 'hedgehog' | 'monster' | 'spot';
+export type CharacterModel = 'llama' | 'fox' | 'hedgehog' | 'monster' | 'otter' | 'giraffe' | 'spot';
 
 /** How a built-in character is drawn: flat (SVG), or modelled and lit (three.js). */
 export type AvatarStyle = '2d' | '3d';
@@ -105,6 +105,34 @@ export const characters: readonly CharacterInfo[] = [
       { name: 'Bubblegum', colours: { wool: '#f28bbd', face: '#ffd0e6', ear: '#8ecae6', blush: '#e5527f', accent: '#ffb703' } },
     ],
     colourLabels: { wool: 'Fur', face: 'Belly', ear: 'Horns & paws', blush: 'Cheeks', accent: 'Accessory' },
+    accessories,
+    has3d: true,
+  },
+  {
+    id: 'otter',
+    name: 'Otter',
+    blurb: 'Sleek and round, with a big whiskery muzzle and a thick tail curled round beside it.',
+    presets: [
+      { name: 'River', colours: { wool: '#8a5a3c', face: '#ecd9c0', ear: '#3f2a1f', blush: '#f2a3a3', accent: '#2e7d8c' } },
+      { name: 'Sea', colours: { wool: '#6b5a4e', face: '#f1e6d6', ear: '#2f2620', blush: '#f0a6b8', accent: '#e8b04a' } },
+      { name: 'Golden', colours: { wool: '#b37b46', face: '#f5e4c8', ear: '#5a3a22', blush: '#f4a9a0', accent: '#5d9a4a' } },
+      { name: 'Snow', colours: { wool: '#cfc6bc', face: '#fbf7f1', ear: '#6f6359', blush: '#f4a9b8', accent: '#8d5bd6' } },
+    ],
+    colourLabels: { wool: 'Coat', face: 'Muzzle & chest', ear: 'Nose & paws', blush: 'Cheeks', accent: 'Accessory' },
+    accessories,
+    has3d: true,
+  },
+  {
+    id: 'giraffe',
+    name: 'Giraffe',
+    blurb: 'A long neck, a patchwork coat, little horns and the longest lashes of all.',
+    presets: [
+      { name: 'Savanna', colours: { wool: '#f2c66b', face: '#faecd0', ear: '#a8612f', blush: '#f4a0a0', accent: '#2e7d8c' } },
+      { name: 'Sunset', colours: { wool: '#f4a65e', face: '#fde3c6', ear: '#8c3f22', blush: '#ef8f8f', accent: '#7c5cff' } },
+      { name: 'Pastel', colours: { wool: '#f7dfa8', face: '#fff4de', ear: '#d9a06a', blush: '#f4a9b8', accent: '#3d7bd9' } },
+      { name: 'Midnight', colours: { wool: '#5b5770', face: '#d8d3e6', ear: '#2c2a38', blush: '#e891a6', accent: '#f5c542' } },
+    ],
+    colourLabels: { wool: 'Coat', face: 'Muzzle & tummy', ear: 'Patches, mane & horns', blush: 'Cheeks', accent: 'Accessory' },
     accessories,
     has3d: true,
   },
