@@ -98,19 +98,22 @@ def chain(points, radii, count, stiffness=2.0):
     return [ball(tuple(at(i / (count - 1))), radius(i / (count - 1)), stiffness) for i in range(count)]
 
 
-def tuft(length, radius, at, angle_z, angle_y=0.0, flat=0.55, curl=0.02):
+def tuft(length, radius, at, angle_z, angle_y=0.0, flat=0.55, curl=0.02, angle_x=0.0):
     """
     A deform for `shaped`: a pointed tuft `length` long from a base `radius` wide, built pointing up,
-    then turned `angle_z` about the view axis and `angle_y` about the vertical, and moved to `at`.
+    then tipped `angle_x` towards the viewer, turned `angle_z` about the view axis and `angle_y` about
+    the vertical, and moved to `at`. Claws and horns too.
     """
     ry = length / 2
     cz, sz = math.cos(angle_z), math.sin(angle_z)
     cy, sy = math.cos(angle_y), math.sin(angle_y)
+    cx, sx = math.cos(angle_x), math.sin(angle_x)
 
     def deform(x, y, z):
         t = (y / ry + 1) / 2
         narrow = 1 - 0.92 * t ** 1.6
         x, y, z = x * narrow, y + ry, z * flat * narrow + curl * t * t
+        y, z = y * cx - z * sx, y * sx + z * cx
         x, y = x * cz - y * sz, x * sz + y * cz
         x, z = x * cy + z * sy, -x * sy + z * cy
         return x + at[0], y + at[1], z + at[2]
@@ -201,6 +204,16 @@ def _unwrap(mesh):
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.02)
     bpy.ops.object.mode_set(mode="OBJECT")
+
+
+def ring(name, radius, tube, at):
+    """A flat ring (a torus) round the vertical, centred at `at`: ridges on a horn."""
+    bpy.ops.mesh.primitive_torus_add(major_radius=radius, minor_radius=tube, major_segments=32, minor_segments=8, location=P(*at))
+    ob = bpy.context.active_object
+    ob.name = name
+    bpy.ops.object.shade_smooth()
+    _unwrap(ob)
+    return ob
 
 
 def shaped(name, radii, deform, segments=(40, 28), faces=1500):

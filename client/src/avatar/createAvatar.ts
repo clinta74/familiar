@@ -11,7 +11,7 @@ const characters3d: Partial<Record<CharacterModel, (container: HTMLElement, look
   llama: async (container, look) => (await import('./ModelLlama3D')).createLlama(container, look),
   fox: async (container, look) => (await import('./ModelFox3D')).createFox(container, look),
   hedgehog: async (container, look) => (await import('./ModelHedgehog3D')).createHedgehog(container, look),
-  monster: async (container, look) => new (await import('./PlushMonster3D')).PlushMonster3D(container, look),
+  monster: async (container, look) => (await import('./ModelMonster3D')).createMonster(container, look),
   spot: async (container, look) => new (await import('./Spot3D')).Spot3D(container, look),
 };
 
