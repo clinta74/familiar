@@ -4,6 +4,7 @@ import app.familiar.shared.api.FamiliarApi
 import app.familiar.shared.auth.SignedIn
 import app.familiar.shared.avatar.AvatarController
 import app.familiar.shared.conversation.ConversationController
+import app.familiar.shared.platform.DeviceAlarms
 import app.familiar.shared.platform.DeviceCalendar
 import app.familiar.shared.platform.SecureStore
 import app.familiar.shared.protocol.ServerEvent
@@ -37,6 +38,8 @@ class FamiliarSession(
     speechAudio: SpeechAudio?,
     val microphone: Microphone?,
     handsFreeAudio: HandsFreeAudio?,
+    /** The phone's alarms, kept in step with the timers and reminders. */
+    private val alarms: DeviceAlarms? = null,
 ) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     val api = FamiliarApi(signedIn.server, signedIn.token)
@@ -109,6 +112,7 @@ class FamiliarSession(
             avatar.handle(event, audible = player?.isPlaying == true)
             when (event) {
                 is ServerEvent.Ready -> scope.launch { refreshLook() }
+                is ServerEvent.Jobs -> alarms?.sync(event.jobs, controller.state.value.familiarName)
                 is ServerEvent.Audio -> if (controller.speak) player?.enqueue(event.clip)
                 is ServerEvent.ReplyStart, ServerEvent.Cleared -> player?.stop()
                 else -> Unit
@@ -137,6 +141,12 @@ class FamiliarSession(
         started = true
         controller.start()
         scope.launch { refreshLook() }
+        // The stream sends the list when it changes; this is the list as it is now.
+        if (alarms != null) {
+            scope.launch {
+                runCatching { api.jobs() }.getOrNull()?.let { alarms.sync(it, controller.state.value.familiarName) }
+            }
+        }
     }
 
     /** The familiar is thinking or talking. */

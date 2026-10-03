@@ -37,7 +37,10 @@ class ProtocolTests {
         val audio = ServerEvent.parse("audio", """{"replyId":"r1","seq":0,"url":"/api/conversation/audio/c1","text":"Hi.","words":[{"word":"Hi","start":0.0,"end":0.3}]}""")
         assertEquals("Hi", assertIs<ServerEvent.Audio>(audio).clip.words!!.single().word)
 
-        assertIs<ServerEvent.Other>(ServerEvent.parse("jobs", """{"jobs":[]}"""))
+        assertIs<ServerEvent.Other>(ServerEvent.parse("something.new", """{"x":1}"""))
+        val jobs = ServerEvent.parse("jobs", """{"jobs":[{"id":"j1","kind":"timer","label":"pasta","dueAt":"2026-10-03T18:00:00Z","durationSeconds":600,"createdAt":"2026-10-03T17:50:00Z","ring":true}]}""")
+        val timer = assertIs<ServerEvent.Jobs>(jobs).jobs.single()
+        assertEquals(Triple("pasta", true, true), Triple(timer.label, timer.isTimer, timer.ring))
         assertIs<ServerEvent.Resync>(ServerEvent.parse("resync", "{}"))
     }
 }

@@ -39,6 +39,16 @@ interface DeviceCalendar {
     suspend fun add(title: String, startsAt: String, endsAt: String, allDay: Boolean, timeZone: String?): String
 }
 
+/**
+ * The phone's own alarms for the familiar's timers and reminders (docs/MOBILE.md, M3): they ring
+ * with no connection at all - in airplane mode, with the server down. Kept in step with the server's
+ * list whenever it changes.
+ */
+interface DeviceAlarms {
+    /** Replaces the alarms with these (the account's pending jobs). */
+    fun sync(jobs: List<app.familiar.shared.protocol.JobView>, familiarName: String)
+}
+
 /** A store in memory, for previews and tests. */
 class InMemoryStore : SecureStore {
     private val values = mutableMapOf<String, String>()

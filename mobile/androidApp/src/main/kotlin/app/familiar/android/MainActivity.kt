@@ -14,10 +14,16 @@ import app.familiar.shared.ui.FamiliarApp
 import app.familiar.shared.voice.AndroidHandsFree
 import app.familiar.shared.voice.AndroidMicrophone
 import app.familiar.shared.voice.AndroidSpeechAudio
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 
 /** The app's one screen; everything inside is the shared Compose UI (mobile/shared). */
 class MainActivity : ComponentActivity() {
+    private companion object {
+        const val ASKED_NOTIFICATIONS = "asked-notifications"
+    }
+
     private var permissionAnswer: CompletableDeferred<Unit>? = null
 
     /** The system permission prompt, for whichever permissions are asked (calendar, microphone). */
@@ -39,6 +45,11 @@ class MainActivity : ComponentActivity() {
                 AppServices.speech,
                 AppServices.microphone,
                 AppServices.handsFree,
+                AppServices.alarms,
+                onSession = {
+                    askForNotifications()
+                    Push.register(this)
+                },
             )
         }
     }
@@ -47,6 +58,19 @@ class MainActivity : ComponentActivity() {
         if (Permissions.activity === this) Permissions.activity = null
         permissionAnswer?.complete(Unit)
         super.onDestroy()
+    }
+
+    /**
+     * Timers and reminders ring as notifications (PhoneAlarms), which Android 13+ won't show without
+     * permission: asked once, after signing in, rather than when the first timer goes off unseen.
+     */
+    private fun askForNotifications() {
+        if (Build.VERSION.SDK_INT < 33) return
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        val prefs = getSharedPreferences("app", MODE_PRIVATE)
+        if (prefs.getBoolean(ASKED_NOTIFICATIONS, false)) return
+        prefs.edit().putBoolean(ASKED_NOTIFICATIONS, true).apply()
+        lifecycleScope.launch { Permissions.ask(Manifest.permission.POST_NOTIFICATIONS) }
     }
 
     /** Shows the prompt and waits for the answer. */
@@ -86,6 +110,8 @@ object AppServices {
         private set
     var handsFree: AndroidHandsFree? = null
         private set
+    lateinit var alarms: PhoneAlarms
+        private set
 
     fun init(context: Context) {
         if (::store.isInitialized) return
@@ -98,6 +124,7 @@ object AppServices {
             Permissions.ask(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
         }
         speech = AndroidSpeechAudio(context)
+        alarms = PhoneAlarms(context)
         microphone = AndroidMicrophone(context) { Permissions.ask(Manifest.permission.RECORD_AUDIO) }
         handsFree = AndroidHandsFree(
             context,

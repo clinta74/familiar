@@ -107,6 +107,35 @@ data class ToolFinishedEvent(val replyId: String, val callId: String, val tool: 
 @Serializable
 data class NotifyEvent(val id: String, val kind: String, val label: String, val text: String)
 
+/**
+ * A pending timer or reminder. [ring]: it rings until dismissed (timers, and reminders set as alarms)
+ * rather than notifying. The phone keeps an alarm for each, so they go off with no connection.
+ */
+@Serializable
+data class JobView(
+    val id: String,
+    val kind: String,
+    val label: String,
+    val dueAt: String,
+    val durationSeconds: Int? = null,
+    val ring: Boolean = false,
+) {
+    val isTimer: Boolean get() = kind.equals("timer", ignoreCase = true)
+}
+
+@Serializable
+data class JobsEvent(val jobs: List<JobView>)
+
+/** Something that went off recently, for a phone woken by a push to show. */
+@Serializable
+data class NotificationView(val id: String, val kind: String, val title: String, val body: String, val at: String)
+
+@Serializable
+data class PushKeyResponse(val publicKey: String)
+
+@Serializable
+data class SubscribeRequest(val endpoint: String)
+
 /** A word as the TTS service timed it, in seconds from the start of its clip. */
 @Serializable
 data class SpokenWord(val word: String, val start: Double, val end: Double)
@@ -178,6 +207,7 @@ object EventTypes {
     const val NOTIFY = "notify"
     const val TOOL_INVOKE = "tool.invoke"
     const val AUDIO = "audio"
+    const val JOBS = "jobs"
 }
 
 /** One event from the conversation stream, decoded. Events this app doesn't use yet are [Other]. */
@@ -197,6 +227,7 @@ sealed interface ServerEvent {
     data class Notify(val event: NotifyEvent) : ServerEvent
     data class ToolInvoke(val event: ToolInvokeEvent) : ServerEvent
     data class Audio(val clip: AudioEvent) : ServerEvent
+    data class Jobs(val jobs: List<JobView>) : ServerEvent
     data object Cleared : ServerEvent
     data object Resync : ServerEvent
     data class Other(val type: String) : ServerEvent
@@ -221,6 +252,7 @@ sealed interface ServerEvent {
                 EventTypes.NOTIFY -> Notify(FamiliarJson.decodeFromString(json))
                 EventTypes.TOOL_INVOKE -> ToolInvoke(FamiliarJson.decodeFromString(json))
                 EventTypes.AUDIO -> Audio(FamiliarJson.decodeFromString(json))
+                EventTypes.JOBS -> Jobs(FamiliarJson.decodeFromString<JobsEvent>(json).jobs)
                 EventTypes.CLEARED -> Cleared
                 EventTypes.RESYNC -> Resync
                 else -> Other(type ?: "message")

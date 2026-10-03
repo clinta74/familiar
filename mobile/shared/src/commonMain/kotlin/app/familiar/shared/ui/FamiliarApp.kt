@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import app.familiar.shared.auth.Session
+import app.familiar.shared.platform.DeviceAlarms
 import app.familiar.shared.platform.DeviceCalendar
 import app.familiar.shared.platform.SecureStore
 import app.familiar.shared.session.FamiliarSession
@@ -30,6 +31,9 @@ fun FamiliarApp(
     speechAudio: SpeechAudio? = null,
     microphone: Microphone? = null,
     handsFree: HandsFreeAudio? = null,
+    alarms: DeviceAlarms? = null,
+    /** Signed in (or still signed in, on opening): the platform registers for push. */
+    onSession: () -> Unit = {},
 ) {
     val auth = remember { Session(store) }
     var signedIn by remember { mutableStateOf(auth.current()) }
@@ -47,9 +51,10 @@ fun FamiliarApp(
             )
         } else {
             val session = remember(current) {
-                FamiliarSessions.open(current) { FamiliarSession(current, store, calendar, speechAudio, microphone, handsFree) }
+                FamiliarSessions.open(current) { FamiliarSession(current, store, calendar, speechAudio, microphone, handsFree, alarms) }
             }
             val ended by session.ended.collectAsState()
+            LaunchedEffect(session) { onSession() }
             LaunchedEffect(ended) {
                 if (ended) {
                     auth.clear()

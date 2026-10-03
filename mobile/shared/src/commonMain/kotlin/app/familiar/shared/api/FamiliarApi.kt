@@ -7,6 +7,10 @@ import app.familiar.shared.protocol.DeviceLoginResponse
 import app.familiar.shared.protocol.ErrorBody
 import app.familiar.shared.protocol.FamiliarJson
 import app.familiar.shared.protocol.InterruptRequest
+import app.familiar.shared.protocol.JobView
+import app.familiar.shared.protocol.NotificationView
+import app.familiar.shared.protocol.PushKeyResponse
+import app.familiar.shared.protocol.SubscribeRequest
 import app.familiar.shared.protocol.MessageView
 import app.familiar.shared.protocol.SendMessageRequest
 import app.familiar.shared.protocol.ServerEvent
@@ -132,6 +136,25 @@ class FamiliarApi(
 
     /** A spoken sentence, by the url its `audio` event gave. */
     suspend fun clip(url: String): ByteArray = call { http.get(url.trimStart('/')) }
+
+    /** The pending timers and reminders. */
+    suspend fun jobs(): List<JobView> = call { http.get("api/jobs") }
+
+    /** What went off in the last few minutes (for a push, which says only that something did). */
+    suspend fun recentNotifications(): List<NotificationView> = call { http.get("api/notifications/recent") }
+
+    /** The server's VAPID key: only pushes signed with it reach this phone. */
+    suspend fun pushKey(): String = call<PushKeyResponse> { http.get("api/push/key") }.publicKey
+
+    /** This phone's push endpoint (on the household's ntfy); replaces the last one. */
+    suspend fun subscribePush(endpoint: String) {
+        call<Unit> {
+            http.post("api/push/subscriptions") {
+                contentType(ContentType.Application.Json)
+                setBody(SubscribeRequest(endpoint))
+            }
+        }
+    }
 
     /** The phone's calendars for the next while, replacing what it uploaded last time. */
     suspend fun uploadDeviceCalendar(events: List<DeviceEventView>) {

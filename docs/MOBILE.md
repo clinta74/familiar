@@ -221,6 +221,32 @@ open and each utterance is sent when the user stops talking, with the screen off
   became "hftester"). Players now report nothing heard once a reply has played out, and the server
   counts the heard words and keeps the stored reply's own spelling, cutting nothing if all was heard.
 
+**M3: alarms on the phone, and push through ntfy (2026-10-03).** "Wake me at 7" rings in airplane
+mode.
+- *Alarms.* Every pending timer and reminder is also one of the phone's own alarms
+  (`PhoneAlarms`, `AlarmManager.setAlarmClock` - exact, via USE_EXACT_ALARM, which Android 13+
+  grants on install), kept in step with the server's list: the stream's `jobs` event, the list on
+  opening, and a push when it changes while the app is closed. They're put back after a restart, and
+  any missed while the phone was off go off at once, marked so. Timers and reminders set as alarms
+  ring - the alarm sound on the alarm volume, again and again, full screen over the lock screen -
+  until dismissed; other reminders are an ordinary notification. The server's `create_reminder`
+  has `alarm: true` for that ("wake me", "don't let me miss"), and `JobView.ring` says which ring.
+  Notification permission is asked once after signing in (Android 13+ shows nothing without it).
+- *Push (decided: ntfy).* The phone registers with its UnifiedPush distributor - the ntfy Android
+  app, pointed at the household's ntfy - using the server's VAPID key, so only this server's pushes
+  get through, and gives the server its endpoint, tied to the device (signing the device out removes
+  it). Pushes stay content-free: on one, the app fetches the pending list (and resets its alarms)
+  and what went off recently, and shows what it hasn't already. The server pushes phones whenever
+  the timers change, as well as when one goes off. `Push:UnifiedPushServer` names the ntfy; it's the
+  one local-network address the server will push to. The NAS compose has an `ntfy` service.
+- Verified: on an emulator, a timer asked for in the chat became an exact alarm clock and, in
+  airplane mode with the app in the background, rang ("Pip: time's up - Your tea timer is done.")
+  until Dismiss; and against a real ntfy, setting and cancelling a timer each put a content-free
+  message on the phone's topic, the server's VAPID header accepted. Not yet: the ntfy Android app
+  as the distributor (not on the emulator) - so registration and waking by push are untested on a
+  device - and a reboot restoring alarms (backlog item 8, the phone). The real model set "wake me
+  up in 2 minutes" as a 2-minute timer, which rings anyway.
+
 **Device calendar (2026-10-03), the first of M3.** "Use this phone's calendar" in the chat menu asks
 for READ/WRITE_CALENDAR. Once allowed, the app reads `CalendarContract.Instances` (visible
 calendars; declined and cancelled left out) from 12 hours ago to 14 days ahead and uploads it on
