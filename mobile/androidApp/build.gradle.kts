@@ -79,7 +79,8 @@ abstract class AvatarAssets : DefaultTask() {
 val avatarAssets = tasks.register<AvatarAssets>("avatarAssets") {
     dependsOn(buildAvatarPage)
     page.set(client.dir("dist-embed"))
-    vad.set(client.file("public/vad/silero_vad_v5.onnx"))
+    // Straight from the package (npm ci in client/), as the web client's copy script takes it.
+    vad.set(client.file("node_modules/@ricky0123/vad-web/dist/silero_vad_v5.onnx"))
 }
 
 androidComponents {
