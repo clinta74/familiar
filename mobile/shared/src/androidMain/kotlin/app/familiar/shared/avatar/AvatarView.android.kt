@@ -37,6 +37,7 @@ private val mimeTypes = mapOf(
     "svg" to "image/svg+xml",
     "png" to "image/png",
     "json" to "application/json",
+    "glb" to "model/gltf-binary",
 )
 
 @SuppressLint("SetJavaScriptEnabled")

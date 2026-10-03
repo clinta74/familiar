@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- A development page (npm run dev, then /gallery.html): never part of a build. -->
+    <title>Familiar avatar gallery</title>
+    <style>
+      body { margin: 0; padding: 16px; background: #f6f5fb; font: 14px system-ui, sans-serif; color: #1d1b26; }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      h2 { font-size: 16px; margin: 20px 0 6px; }
+      p.muted { color: #6b6880; margin: 0 0 12px; }
+      .row { display: flex; flex-wrap: wrap; gap: 6px; }
+      figure { margin: 0; width: var(--cell, 220px); background: #fff; border: 1px solid #e3e0ef; border-radius: 10px; overflow: hidden; }
+      figure > div, figure > img { display: block; width: var(--cell, 220px); height: calc(var(--cell, 220px) * 1.2); }
+      figcaption { padding: 4px 8px; font-size: 12px; color: #6b6880; border-top: 1px solid #e3e0ef; }
+      #status { position: sticky; top: 0; background: #f6f5fb; padding: 4px 0; }
+    </style>
+  </head>
+  <body>
+    <h1>Avatar gallery</h1>
+    <p class="muted">Every character, 3D and flat, across moods, gestures, colours and accessories. <code>?models=llama,fox</code> to choose; <code>&amp;style=2d</code> for the flat ones only; <code>&amp;moments=neutral,happy</code> for just those; <code>&amp;size=320</code> for bigger.</p>
+    <p id="status">Rendering…</p>
+    <div id="gallery"></div>
+    <script type="module" src="/src/dev/gallery.ts"></script>
+  </body>
+</html>

@@ -257,6 +257,12 @@ export interface FaceSpec {
   fur?: number;
   /** A big shiny black button for a nose, rather than a stitched felt one. */
   buttonNose?: boolean;
+  /**
+   * The face's own surface, from a model (in head coordinates), instead of the dome: painted through
+   * the dome's projection (which still says where the 2D drawing's face is), and what the eyes,
+   * brows and tear are placed on.
+   */
+  surface?: THREE.BufferGeometry;
 }
 
 /** The sitting body, from the 2D character's BodySpec numbers (its units), plus shapes in 3D. */
@@ -389,6 +395,9 @@ export abstract class Plush3D extends PlushCharacter {
   private readonly sleep: THREE.Sprite;
 
   private faceSpec?: FaceSpec;
+  /** The face surface, unmoved, for finding points on it (FaceSpec.surface). */
+  private faceProbe?: THREE.Mesh;
+  private readonly ray = new THREE.Raycaster();
   private domePaint?: Paint;
   private mouthPaint?: Paint;
   private eyes: Eye[] = [];
@@ -741,6 +750,35 @@ export abstract class Plush3D extends PlushCharacter {
     }
   }
 
+  /**
+   * Arms and feet a model brought (rather than buildBody made): moved by the pose the same way. The
+   * feet's toes turn out by `splay` degrees.
+   */
+  protected useLimbs(arms: { shoulder: THREE.Object3D; elbow: THREE.Object3D }[], feet: THREE.Object3D[], splay: number) {
+    this.arms = arms as { shoulder: THREE.Group; elbow: THREE.Group }[];
+    this.feet = feet as THREE.Group[];
+    feet.forEach((foot, i) => (foot.rotation.y = (i === 0 ? -1 : 1) * splay * (Math.PI / 180)));
+  }
+
+  /** The materials a model's plain parts take, by the role it gives them. */
+  protected materialFor(role: string): THREE.Material | undefined {
+    switch (role) {
+      case 'nose':
+        return this.nose;
+      case 'hoof':
+        return this.hoof;
+      case 'earInner':
+      case 'horn':
+        return this.earInner;
+      case 'claw':
+        return this.claw;
+      case 'accent':
+        return this.accent;
+      default:
+        return undefined;
+    }
+  }
+
   /** The end of an arm: a hoof, or a round paw (with claws, for the monster). */
   private extremity(kind: 'hoof' | 'paw' | 'claw', r: number, y: number, side: Side): THREE.Object3D {
     const group = new THREE.Group();
@@ -796,6 +834,11 @@ export abstract class Plush3D extends PlushCharacter {
 
   /** The point on the face dome at (x, y) seen from the front, and the surface's normal there. */
   protected onFace(x: number, y: number): { point: THREE.Vector3; normal: THREE.Vector3 } {
+    if (this.faceProbe) {
+      this.ray.set(new THREE.Vector3(x, y, 5), new THREE.Vector3(0, 0, -1));
+      const hit = this.ray.intersectObject(this.faceProbe, false)[0];
+      if (hit) return { point: hit.point.clone(), normal: (hit.normal ?? hit.face!.normal).clone().normalize() };
+    }
     const { centre, radii } = this.faceSpec!.dome;
     const nx = (x - centre.x) / radii.x;
     const ny = (y - centre.y) / radii.y;
@@ -810,9 +853,24 @@ export abstract class Plush3D extends PlushCharacter {
     this.faceSpec = spec;
     this.domePaint = new Paint(spec.dome);
     this.skin.map = this.domePaint.texture;
-    const domeShape = frontSphere();
-    domeShape.scale(spec.dome.radii.x, spec.dome.radii.y, spec.dome.radii.z);
-    domeShape.translate(spec.dome.centre.x, spec.dome.centre.y, spec.dome.centre.z);
+    let domeShape: THREE.BufferGeometry;
+    if (spec.surface) {
+      // A model's face: painted through the dome's projection, as if it were the dome.
+      domeShape = spec.surface;
+      const { centre, radii } = spec.dome;
+      const position = domeShape.getAttribute('position');
+      const uv = new Float32Array(position.count * 2);
+      for (let i = 0; i < position.count; i++) {
+        uv[i * 2] = ((position.getX(i) - centre.x) / radii.x) * 0.5 + 0.5;
+        uv[i * 2 + 1] = ((position.getY(i) - centre.y) / radii.y) * 0.5 + 0.5;
+      }
+      domeShape.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      this.faceProbe = new THREE.Mesh(domeShape);
+    } else {
+      domeShape = frontSphere();
+      domeShape.scale(spec.dome.radii.x, spec.dome.radii.y, spec.dome.radii.z);
+      domeShape.translate(spec.dome.centre.x, spec.dome.centre.y, spec.dome.centre.z);
+    }
     this.head.add(new THREE.Mesh(domeShape, this.skin));
     if (spec.fur) this.shellsOver(this.head, domeShape, spec.fur, 'painted');
 
