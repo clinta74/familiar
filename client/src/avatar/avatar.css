@@ -18,8 +18,7 @@
 
 .plush-llama {
   /* Both dimensions definite, so the viewBox is fitted inside the stage rather than sized from
-     the width and cropped. Overflow visible, so the neck can run on past the viewBox to the bottom
-     of the stage, which fades it out. */
+     the width and cropped. Overflow visible, so an ear tip or a tail can poke past the viewBox. */
   width: 100%;
   max-width: 460px;
   height: 100%;
@@ -143,7 +142,9 @@
   fill: var(--plush-hoof);
 }
 
-.plush-hoof-split {
+.plush-hoof-split,
+.plush-toes {
+  fill: none;
   stroke: var(--plush-wool-shadow);
   stroke-width: 2;
   stroke-linecap: round;

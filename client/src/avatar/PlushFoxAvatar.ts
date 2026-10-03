@@ -1,8 +1,8 @@
 import { llamaPalette } from './appearance';
 import { PlushCharacter, type PlushLook, type Pose } from './plush/engine';
 import {
-  buildAccessories, buildFace, buildOverlay, buildPaw, drawFace, drawOverlay, drawPaw, el, f, plushRoot, showAccessory, wool,
-  type AccessoryParts, type FaceLayout, type FaceParts, type Overlay, type Puff,
+  buildAccessories, buildBody, buildFace, buildOverlay, drawBody, drawFace, drawOverlay, el, f, plushRoot, showAccessory, wool,
+  type AccessoryParts, type BodyParts, type FaceLayout, type FaceParts, type Overlay,
 } from './plush/parts';
 
 const LAYOUT: FaceLayout = {
@@ -16,6 +16,8 @@ const LAYOUT: FaceLayout = {
 const EAR_X = 38;
 const EAR_Y = -44;
 const NECK_PIVOT_Y = 56;
+/** Where the tail joins the body; it swishes from here. */
+const HIP = { x: 36, y: 200 };
 
 /** A big pointed fox ear, base at the origin, pointing up, with a dark inside. */
 function ear(parent: SVGGElement): SVGGElement {
@@ -27,17 +29,18 @@ function ear(parent: SVGGElement): SVGGElement {
 }
 
 /**
- * A plush fox: big pointed ears that carry its mood the way the llama's do, a cream muzzle and
- * chest, and a bushy tail that swishes when it's happy.
+ * A plush fox, sitting up: big pointed ears that carry its mood the way the llama's do, a cream
+ * muzzle and a big cream bib down its chest, dark paws and feet, and a bushy tail curled round
+ * beside it that swishes when it's happy.
  */
 export class PlushFoxAvatar extends PlushCharacter {
   protected readonly root: SVGSVGElement;
+  private readonly body: BodyParts;
   private readonly head: SVGGElement;
   private readonly ears: [SVGGElement, SVGGElement];
   private readonly tail: SVGGElement;
   private readonly faceParts: FaceParts;
   private readonly overlay: Overlay;
-  private readonly paw: SVGGElement;
   private readonly accessories: AccessoryParts;
 
   constructor(container: HTMLElement, look?: PlushLook) {
@@ -45,22 +48,27 @@ export class PlushFoxAvatar extends PlushCharacter {
     const { root, id } = plushRoot('fox', 'Your familiar, a plush fox');
     this.root = root;
 
-    // The tail, behind everything: a bushy brush curling up on the right, white at the tip.
+    // The tail, behind everything: a bushy brush from the hip, curling up on the right, white at the tip.
     this.tail = el('g', {}, root);
-    el('path', { class: 'plush-wool plush-fuzzy plush-outlined', d: 'M40,150 C110,140 128,70 104,10 C96,-10 80,-14 76,2 C92,40 84,92 30,104 Z' }, this.tail);
-    el('path', { class: 'plush-skin plush-fuzzy', d: 'M104,10 C96,-10 80,-14 76,2 C80,12 84,22 86,30 C96,26 104,18 104,10 Z' }, this.tail);
+    el('path', { class: 'plush-wool plush-fuzzy plush-outlined', d: 'M26,206 C116,222 160,150 132,76 C121,44 84,48 82,76 C104,112 98,168 22,190 Z' }, this.tail);
+    el('path', { class: 'plush-skin plush-fuzzy', d: 'M132,76 C121,44 84,48 82,76 C86,88 91,98 94,108 C110,104 130,98 132,76 Z' }, this.tail);
 
-    // Neck and chest: coat at the sides, a cream bib down the middle, off the bottom of the stage.
-    const neck = el('g', {}, root);
-    const sides: Puff[] = [];
-    for (let y = 60; y <= 600; y += 24) sides.push([-48, y, 14], [48, y + 12, 14]);
-    wool(neck, sides);
-    el('rect', { x: -50, y: 40, width: 100, height: 600, class: 'plush-wool plush-fuzzy' }, neck);
-    const bib: Puff[] = [];
-    for (let y = 60; y <= 300; y += 22) bib.push([-14, y, 20], [14, y + 11, 20]);
-    wool(neck, bib, 'plush-cream');
+    this.body = buildBody(root, {
+      torso: (body) => {
+        // Sitting upright: a soft, slightly pear-shaped torso with a fluffy cream bib down the chest.
+        el('path', { class: 'plush-wool plush-fuzzy plush-outlined', d: 'M-58,66 C-76,108 -84,170 -74,214 L74,214 C84,170 76,108 58,66 C40,50 -40,50 -58,66 Z' }, body);
+        const bib = el('g', {}, body);
+        wool(bib, [[-36, 72, 14], [36, 72, 14], [-30, 96, 13], [30, 96, 13], [-23, 120, 12], [23, 120, 12], [-15, 144, 11], [15, 144, 11], [0, 164, 11]], 'plush-cream');
+        el('path', { class: 'plush-skin plush-fuzzy', d: 'M-40,64 C-32,96 -24,140 0,170 C24,140 32,96 40,64 C22,56 -22,56 -40,64 Z' }, bib);
+      },
+      neckPivotY: NECK_PIVOT_Y,
+      shoulder: [44, 94],
+      arm: { length: 98, width: 20, kind: 'paw' },
+      foot: [56, 206],
+      feet: { rx: 26, ry: 15, kind: 'paw', splay: 12 },
+    });
 
-    this.head = el('g', {}, root);
+    this.head = this.body.head;
     this.ears = [ear(this.head), ear(this.head)];
 
     // The head: wide at the cheeks, with fluffy tufts sticking out, narrowing to the snout.
@@ -91,7 +99,6 @@ export class PlushFoxAvatar extends PlushCharacter {
       scarf: { parent: this.head, y: 50, halfWidth: 40 },
     });
 
-    this.paw = buildPaw(root, 'paw');
     this.overlay = buildOverlay(root);
 
     container.appendChild(root);
@@ -106,8 +113,7 @@ export class PlushFoxAvatar extends PlushCharacter {
 
   protected draw(pose: Pose): void {
     const { face } = pose;
-    this.head.setAttribute('transform',
-      `translate(0 ${f(pose.dy)}) rotate(${f(pose.rotate)} 0 ${NECK_PIVOT_Y}) scale(${f(1 - pose.squash)} ${f(1 + pose.squash)})`);
+    drawBody(this.body, pose);
 
     // Fox ears swivel and flatten more than a llama's: perked forward when happy or curious, flat
     // out to the sides when sad or cross.
@@ -119,14 +125,13 @@ export class PlushFoxAvatar extends PlushCharacter {
       e.setAttribute('transform', `translate(${side * EAR_X} ${EAR_Y}) rotate(${f(angle)})`);
     });
 
-    // The tail: swishes when happy or excited, droops when sad, still otherwise.
+    // The tail: swishes when happy or excited, droops when sad, still otherwise. It moves with the body.
     const happy = pose.mood.joy + (pose.gesture?.name === 'excited' ? 1 : 0);
     const swish = Math.sin(pose.t * Math.PI * 2 * 1.6) * 10 * Math.min(1, happy) * pose.motion;
     const droop = pose.mood.sad * 18;
-    this.tail.setAttribute('transform', `rotate(${f(swish + droop)} 40 140)`);
+    this.tail.setAttribute('transform', `translate(0 ${f(pose.dy * 0.6)}) rotate(${f(swish + droop)} ${HIP.x} ${HIP.y})`);
 
     drawFace(this.faceParts, face, pose);
-    drawPaw(this.paw, pose);
     drawOverlay(this.overlay, pose);
   }
 }
