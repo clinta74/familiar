@@ -378,6 +378,8 @@ export abstract class Plush3D extends PlushCharacter {
   protected readonly thread: THREE.MeshStandardMaterial;
   protected readonly hoof: THREE.MeshPhysicalMaterial;
   protected readonly claw: THREE.MeshPhysicalMaterial;
+  /** A shiny black button: a hedgehog's or a fox's nose. */
+  protected readonly button = new THREE.MeshPhysicalMaterial({ color: '#181210', roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.05 });
   protected readonly accent: THREE.MeshPhysicalMaterial;
   private readonly bubble: THREE.MeshStandardMaterial;
 
@@ -497,8 +499,9 @@ export abstract class Plush3D extends PlushCharacter {
     }
     for (const shell of this.shells.values()) {
       if (shell.coat === 'painted') {
-        // The paint gives the colour; the roots are only darker.
-        shell.material.color.setScalar(0.72 + 0.28 * shell.f ** 0.7);
+        // The paint gives the colour; shaded root to tip as the coats are (roots ~36% darker, tips a
+        // little lighter), so painted fur matches the fur round it.
+        shell.material.color.setScalar(0.66 + 0.44 * shell.f ** 0.7);
         continue;
       }
       const { root, tip } = shades[shell.coat];
@@ -765,6 +768,8 @@ export abstract class Plush3D extends PlushCharacter {
     switch (role) {
       case 'nose':
         return this.nose;
+      case 'button':
+        return this.button;
       case 'hoof':
         return this.hoof;
       case 'earInner':

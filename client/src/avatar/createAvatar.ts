@@ -9,8 +9,8 @@ export const vrmUrl = (id: string) => `/api/avatars/${encodeURIComponent(id)}/mo
 /** The characters that have a 3D version (PLAN.md §5.0), loaded with three.js only when chosen. */
 const characters3d: Partial<Record<CharacterModel, (container: HTMLElement, look: Appearance) => Promise<AvatarDriver>>> = {
   llama: async (container, look) => (await import('./ModelLlama3D')).createLlama(container, look),
-  fox: async (container, look) => new (await import('./PlushFox3D')).PlushFox3D(container, look),
-  hedgehog: async (container, look) => new (await import('./PlushHedgehog3D')).PlushHedgehog3D(container, look),
+  fox: async (container, look) => (await import('./ModelFox3D')).createFox(container, look),
+  hedgehog: async (container, look) => (await import('./ModelHedgehog3D')).createHedgehog(container, look),
   monster: async (container, look) => new (await import('./PlushMonster3D')).PlushMonster3D(container, look),
   spot: async (container, look) => new (await import('./Spot3D')).Spot3D(container, look),
 };

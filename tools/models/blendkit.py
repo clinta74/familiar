@@ -74,6 +74,49 @@ def capsule(a, b, radius, stiffness=2.0):
     return ("CAPSULE", a, b, radius, stiffness)
 
 
+def chain(points, radii, count, stiffness=2.0):
+    """
+    Balls along a smooth curve through `points` (Catmull-Rom), their radii running through `radii`:
+    a tail, a neck, a horn. Metaball elements, for `blob`.
+    """
+    def at(u):
+        n = len(points) - 1
+        f = min(n - 1e-6, u * n)
+        i = int(f)
+        t = f - i
+        p0 = Vector(points[max(0, i - 1)])
+        p1 = Vector(points[i])
+        p2 = Vector(points[i + 1])
+        p3 = Vector(points[min(n, i + 2)])
+        return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t)
+
+    def radius(u):
+        f = u * (len(radii) - 1)
+        k = min(len(radii) - 2, int(f))
+        return radii[k] + (radii[k + 1] - radii[k]) * (f - k)
+
+    return [ball(tuple(at(i / (count - 1))), radius(i / (count - 1)), stiffness) for i in range(count)]
+
+
+def tuft(length, radius, at, angle_z, angle_y=0.0, flat=0.55, curl=0.02):
+    """
+    A deform for `shaped`: a pointed tuft `length` long from a base `radius` wide, built pointing up,
+    then turned `angle_z` about the view axis and `angle_y` about the vertical, and moved to `at`.
+    """
+    ry = length / 2
+    cz, sz = math.cos(angle_z), math.sin(angle_z)
+    cy, sy = math.cos(angle_y), math.sin(angle_y)
+
+    def deform(x, y, z):
+        t = (y / ry + 1) / 2
+        narrow = 1 - 0.92 * t ** 1.6
+        x, y, z = x * narrow, y + ry, z * flat * narrow + curl * t * t
+        x, y = x * cz - y * sz, x * sz + y * cz
+        x, z = x * cy + z * sy, -x * sy + z * cy
+        return x + at[0], y + at[1], z + at[2]
+    return deform
+
+
 def blob(name, elements, resolution=0.02, voxel=0.018, lumps=0.0, lump_size=0.14, faces=3000):
     """
     Melts metaball elements into one smooth mesh: converted, remeshed evenly, lumped if asked,
@@ -206,7 +249,7 @@ def role(mesh, kind, coat=None, fur=None):
     if fur is not None:
         mesh["fur"] = fur
     # Preview colours, by role, so a render shows the parts.
-    colours = {"fur": (0.95, 0.93, 0.9, 1), "face": (0.89, 0.82, 0.78, 1), "nose": (0.45, 0.36, 0.33, 1),
+    colours = {"fur": (0.95, 0.93, 0.9, 1), "face": (0.89, 0.82, 0.78, 1), "nose": (0.45, 0.36, 0.33, 1), "button": (0.1, 0.08, 0.07, 1),
                "hoof": (0.55, 0.47, 0.42, 1), "earInner": (0.75, 0.62, 0.55, 1), "plain": (0.8, 0.8, 0.8, 1)}
     mesh.color = colours.get(kind, (0.8, 0.8, 0.8, 1))
     if kind == "fur" and coat == "ear":

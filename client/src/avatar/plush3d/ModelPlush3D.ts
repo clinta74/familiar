@@ -4,6 +4,9 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import type { PlushLook, Pose } from '../plush/engine';
 import { Plush3D, S, type Anchors, type Coat, type FaceSpec, type Frame, type FurOptions } from './Plush3D';
 
+/** Fur options a spec can give a mesh; `bristle: true` ties it to the character's live bristle. */
+export type ModelFur = Omit<FurOptions, 'bristle'> & { bristle?: boolean };
+
 /**
  * A 3D character modelled in Blender (tools/models): its parts come from a GLB, everything else -
  * fur, colour, the painted face, eyes and lids, the pose - is Plush3D's, as for the characters built
@@ -29,7 +32,15 @@ export interface ModelSpec {
   /** Where the accessories go; `node` finds a part of the model by name. */
   anchors: (node: (name: string) => THREE.Object3D) => Anchors;
   /** Fur options for particular meshes, by name: prickles that bristle, say. */
-  fur?: Record<string, FurOptions>;
+  fur?: Record<string, ModelFur>;
+  /** Fur colours root to tip, for a coat that isn't shaded the usual way (dark-tipped prickles). */
+  furShade?: (coat: Coat, colour: string) => { root: THREE.Color; tip: THREE.Color } | undefined;
+  /**
+   * A model built in its own units, scaled up and moved by the head (the hedgehog's ball); and
+   * `rock`, for a character that is all head: it rocks and squashes from its pivot rather than
+   * nodding on a neck, and turns to look about less.
+   */
+  head?: { y: number; scale: number; rock?: boolean };
   /** Anything else that moves: a tail, bristling fur. */
   animate?: (pose: Pose, node: (name: string) => THREE.Object3D | undefined, character: ModelPlush3D) => void;
 }
@@ -79,7 +90,8 @@ export class ModelPlush3D extends Plush3D {
       if (role === 'fur') {
         // A fur mask painted in Blender (blendkit.fur_mask) arrives as the vertex colour's red.
         const mask = mesh.geometry.getAttribute('color');
-        const options = { ...spec.fur?.[mesh.name] };
+        const { bristle, ...rest } = spec.fur?.[mesh.name] ?? {};
+        const options: FurOptions = { ...rest, bristle: bristle ? this.bristle : undefined };
         if (mask) {
           const lengths = new Float32Array(mask.count);
           for (let i = 0; i < mask.count; i++) lengths[i] = mask.getX(i);
@@ -99,7 +111,11 @@ export class ModelPlush3D extends Plush3D {
         mesh.material = this.materialFor(role ?? '') ?? this.claw;
       }
     }
-    model.traverse((object) => this.nodes.set(object.name, object));
+    model.traverse((object) => {
+      this.nodes.set(object.name, object);
+      // Where each part rests, for animating it relative to there.
+      object.userData.rest = object.position.clone();
+    });
 
     // The model's head and body become the character's: its head moves on the neck.
     const head = this.nodes.get('head');
@@ -111,8 +127,13 @@ export class ModelPlush3D extends Plush3D {
       face.removeFromParent();
       this.buildFace({ ...spec.face, surface });
     }
-    for (const child of [...(head?.children ?? [])]) this.head.add(child);
-    for (const child of [...(body?.children ?? [])]) this.body.add(child);
+    // Copies of the lists: adding a child elsewhere takes it out of the list being walked.
+    for (const child of head?.children.slice() ?? []) this.head.add(child);
+    for (const child of body?.children.slice() ?? []) this.body.add(child);
+    if (spec.head) {
+      this.head.position.y = spec.head.y;
+      this.head.scale.setScalar(spec.head.scale);
+    }
 
     const named = (name: string) => this.nodes.get(name);
     const arms = (['L', 'R'] as const)
@@ -130,7 +151,20 @@ export class ModelPlush3D extends Plush3D {
     this.finish(look, spec.defaults);
   }
 
+  protected override furShade(coat: Coat, colour: string) {
+    return this.spec?.furShade?.(coat, colour) ?? super.furShade(coat, colour);
+  }
+
   protected drawParts(pose: Pose): void {
+    if (this.spec.head) {
+      this.head.scale.setScalar(this.spec.head.scale);
+      if (this.spec.head.rock) {
+        this.pivot.scale.set(1 + pose.squash * 0.6, 1 - pose.squash * 0.6, 1 + pose.squash * 0.6);
+        this.pivot.rotation.x *= 0.4;
+        this.pivot.rotation.y *= 0.6;
+      }
+    }
+
     const ears = ['ear_L', 'ear_R'].map((name) => this.nodes.get(name)).filter((ear): ear is THREE.Object3D => !!ear);
     if (this.spec.ears && ears.length === 2) this.drawEars(ears as THREE.Group[], pose, this.spec.ears.rest, this.spec.ears.droop, this.spec.ears.turn);
 
