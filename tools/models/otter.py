@@ -19,16 +19,17 @@ FACE = (0, -0.08, 0.55, 0.52)
 def build():
     head = node("head")
 
-    # The broad head, in short sleek fur, none over the face.
+    # The broad head, in short sleek fur, thinning onto the face.
     fur = blob("head_fur", [ellipsoid((0, 0.0, -0.12), (0.62, 0.54, 0.5))], lumps=0.008, faces=3500)
     role(parent_to(fur, head), "fur", "wool", 0.05)
-    fur_mask(fur, lambda x, y, z, nx, ny, nz: 1.0 if nz <= 0 else min(1.0, max(0.0, (math.hypot((x - FACE[0]) / FACE[2], (y - FACE[1]) / FACE[3]) - 0.9) / 0.3)))
+    fur_mask(fur, lambda x, y, z, nx, ny, nz: 1.0 if nz <= 0 else min(1.0, max(0.0, (math.hypot((x - FACE[0]) / FACE[2], (y - FACE[1]) / FACE[3]) - 0.75) / 0.45)))
 
-    # The face: round, coming forward into two whisker pads and a chin, one surface.
+    # The face: the front of the head, curving back into its fur at the sides (not a plate on it),
+    # coming forward into two whisker pads and a chin, one surface.
     face = blob("face", [
-        ellipsoid((0, 0.0, 0.14), (0.52, 0.48, 0.3)),
-        ball((-0.15, -0.3, 0.38), 0.17), ball((0.15, -0.3, 0.38), 0.17),
-        ball((0, -0.43, 0.33), 0.12),
+        ellipsoid((0, 0.0, -0.02), (0.52, 0.48, 0.46)),
+        ball((-0.14, -0.3, 0.46), 0.17), ball((0.14, -0.3, 0.46), 0.17),
+        ball((0, -0.44, 0.4), 0.12),
     ], faces=3500, voxel=0.012)
     role(parent_to(face, head), "face")
 
@@ -43,7 +44,7 @@ def build():
 
     # Whiskers from the pads, on their own pivots so they twitch and droop.
     for side, suffix in ((-1, "L"), (1, "R")):
-        root = (side * 0.27, -0.3, 0.44)
+        root = (side * 0.26, -0.3, 0.52)
         whiskers = node(f"whiskers_{suffix}", root, head)
         for i, (dy, angle) in enumerate(((0.02, 80), (-0.01, 92), (-0.04, 104))):
             whisker = shaped(f"whiskers_{suffix}{i}", (0.008, 0.17, 0.008),

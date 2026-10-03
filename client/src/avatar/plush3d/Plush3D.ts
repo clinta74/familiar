@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { llamaPalette, mix } from '../appearance';
+import { fromOklch, llamaPalette, mix, toOklch } from '../appearance';
 import type { FaceParams } from '../faceExpressions';
 import { PlushCharacter, type PlushLook, type Pose } from '../plush/engine';
 import type { FaceLayout } from '../plush/parts';
@@ -556,9 +556,11 @@ export abstract class Plush3D extends PlushCharacter {
   /** Recolours and redresses it in place, for the studio's live preview. */
   setLook(look: PlushLook): void {
     const p = llamaPalette(look.colours);
-    // The coat as its fur reads, lit and lightened at the tips: for painting a face in the coat's
-    // colour so it matches the fur round it.
-    p['--plush-coat-face'] = mix(look.colours.wool, '#ffffff', 0.16);
+    // The coat as its fur reads, lit and lightened at the tips, and a little greyer (fur is shaded
+    // towards a dusky brown at the roots): for painting a face in the coat's colour so it matches
+    // the fur round it rather than reading as a brighter mask.
+    const [l, c, h] = toOklch(look.colours.wool);
+    p['--plush-coat-face'] = mix(fromOklch(l, c * 0.7, h), '#ffffff', 0.16);
     this.palette = p;
     const white = new THREE.Color('#ffffff');
 
@@ -585,8 +587,11 @@ export abstract class Plush3D extends PlushCharacter {
     const lids = this.faceSpec?.lids === 'wool' ? look.colours.wool : p['--plush-skin']!;
     this.lidMaterial.color.set(lids);
     this.lidMaterial.sheenColor.set(lids).lerp(white, 0.4);
-    this.skin.sheenColor.set(p['--plush-skin']!).lerp(white, 0.4);
-    this.snoutMaterial.sheenColor.copy(this.skin.sheenColor);
+    // A face painted in the coat shines in the coat's colour, as the fur round it does; a cream
+    // sheen would make it glow lighter, like a mask.
+    const coatFace = this.faceSpec?.lids === 'wool';
+    this.skin.sheenColor.set(coatFace ? look.colours.wool : p['--plush-skin']!).lerp(white, coatFace ? 0.18 : 0.4);
+    this.snoutMaterial.sheenColor.set(p['--plush-skin']!).lerp(white, 0.4);
     this.earInner.color.set(p['--plush-ear']!);
     this.earInner.sheenColor.set(p['--plush-ear']!).lerp(white, 0.3);
     this.nose.color.set(p['--plush-nose']!);

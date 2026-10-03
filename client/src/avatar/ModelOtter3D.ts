@@ -16,7 +16,7 @@ export const otterModel: ModelSpec = {
   bubbles: [64, -84],
   face: {
     layout: OTTER_LAYOUT,
-    dome: { centre: new THREE.Vector3(0, 0, 0.14), radii: new THREE.Vector3(0.52, 0.48, 0.3), svg: [0, 0, 52, 48] },
+    dome: { centre: new THREE.Vector3(0, 0, -0.02), radii: new THREE.Vector3(0.52, 0.48, 0.46), svg: [0, 0, 52, 48] },
     philtrum: [25, 33],
     // The coat, with the pale whisker pads and chin, and the spots the whiskers grow from.
     paintDome: (p, palette) => {
@@ -36,7 +36,7 @@ export const otterModel: ModelSpec = {
         ctx.fill();
       }
     },
-    fur: 0.012,
+    fur: 0.02,
     // Lids in the coat: the face is painted in it.
     lids: 'wool',
   },
