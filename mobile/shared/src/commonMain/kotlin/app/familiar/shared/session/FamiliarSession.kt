@@ -18,6 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -106,6 +107,9 @@ class FamiliarSession(
 
     private var started = false
 
+    /** Listening for one thing said (opened as the assistant), not hands-free until switched off. */
+    private var once = false
+
     init {
         controller.speak = _voiceOn.value && player != null
         controller.onEvent = { event ->
@@ -126,6 +130,10 @@ class FamiliarSession(
             onUtterance = { utterance ->
                 _userSpeaking.value = false
                 controller.sendSpoken(utterance)
+                if (once) {
+                    once = false
+                    scope.launch { setHandsFree(false) }
+                }
             }
             onMisfire = { _userSpeaking.value = false }
             onStopped = {
@@ -214,6 +222,7 @@ class FamiliarSession(
     suspend fun setHandsFree(on: Boolean) {
         val listener = handsFree ?: return
         if (!on) {
+            once = false
             listener.stop()
             _handsFreeOn.value = false
             _userSpeaking.value = false
@@ -231,6 +240,28 @@ class FamiliarSession(
             _handsFreeOn.value = true
         } catch (exception: IllegalStateException) {
             controller.showError(exception.message ?: "Hands-free couldn't start.")
+        }
+    }
+
+    /**
+     * Opened as the phone's assistant (long-press home, the Quick Settings tile, the shortcut): listen
+     * for one thing said, as an assistant does, then stop - or stop after [ONCE_GIVE_UP_MS] of nothing.
+     * Hands-free that's already on stays on.
+     */
+    fun listenOnce() {
+        if (_handsFreeOn.value || handsFree == null) return
+        scope.launch {
+            once = true
+            setHandsFree(true)
+            if (!_handsFreeOn.value) {
+                once = false
+                return@launch
+            }
+            delay(ONCE_GIVE_UP_MS)
+            if (once && !_userSpeaking.value) {
+                once = false
+                setHandsFree(false)
+            }
         }
     }
 
@@ -270,6 +301,9 @@ class FamiliarSession(
     private companion object {
         /** "off" when the user turned replies' voice off; on by default. */
         const val VOICE_KEY = "voice"
+
+        /** How long listening once waits for the user to start talking. */
+        const val ONCE_GIVE_UP_MS = 12_000L
 
         /** Shorter than this is a tap on the mic button, not something said. */
         const val MIN_SPOKEN_SECONDS = 0.35

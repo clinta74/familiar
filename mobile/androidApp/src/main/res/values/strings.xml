@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Familiar</string>
+    <string name="shortcut_talk">Talk</string>
+    <string name="shortcut_talk_long">Talk to your familiar</string>
+    <string name="widget_description">What’s coming up, and a button to talk</string>
+    <string name="tile_talk">Familiar</string>
 </resources>

@@ -247,6 +247,20 @@ mode.
   device - and a reboot restoring alarms (backlog item 8, the phone). The real model set "wake me
   up in 2 minutes" as a 2-minute timer, which rings anyway.
 
+**M4: the phone's assistant (2026-10-03).** Long-press home opens Familiar listening.
+- *The assistant role:* a voice interaction service (with the session and recognition services
+  Android requires; recognition answers "not here" - speech is the server's), so Familiar can be
+  chosen in Settings > Default apps > Digital assistant app; the chat menu's "Make Familiar your
+  assistant" opens that page until it is. The assist gesture opens the app in the assistant's task.
+- *Listening once:* opened to talk - the assistant, the Quick Settings tile ("Familiar"), the app
+  shortcut ("Talk"), the widget's button - the familiar listens for one thing said, through
+  hands-free, then stops; or stops after 12 s of nothing. Hands-free that's already on stays on.
+- *Widget:* the next timer or reminder (from the phone's alarms, redrawn when they change) and Talk.
+- Verified on an emulator: with Familiar as the assistant, long-pressing home opened it listening
+  and it stopped after 12 s of quiet; the tile and the shortcut's intent the same; the menu item
+  opening the system's assistant page. Not yet: the widget on a home screen (needs the launcher),
+  and all of it on the phone.
+
 **Device calendar (2026-10-03), the first of M3.** "Use this phone's calendar" in the chat menu asks
 for READ/WRITE_CALENDAR. Once allowed, the app reads `CalendarContract.Instances` (visible
 calendars; declined and cancelled left out) from 12 hours ago to 14 days ahead and uploads it on

@@ -43,6 +43,9 @@ class PhoneAlarms(context: Context) : DeviceAlarms {
         store(wanted)
     }
 
+    /** The alarms still to go off, for the widget. */
+    fun upcoming(): List<Alarm> = stored().filter { it.dueAt > System.currentTimeMillis() }
+
     /** The familiar's name as last seen, for alarms set while the app isn't open. */
     fun familiarName(): String = prefs.getString(NAME, null) ?: "Familiar"
 
@@ -102,6 +105,7 @@ class PhoneAlarms(context: Context) : DeviceAlarms {
                 .put("dueAt", it.dueAt).put("ring", it.ring).put("familiar", it.familiar)
         })
         prefs.edit().putString(KEY, array.toString()).apply()
+        NextUpWidget.refresh(context)
     }
 
     companion object {

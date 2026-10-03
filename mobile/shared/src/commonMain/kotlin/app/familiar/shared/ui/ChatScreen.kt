@@ -89,7 +89,7 @@ private val avatarStates = setOf("idle", "listening", "thinking", "speaking", "r
  * screen - a hands-free conversation carries on with the screen off.
  */
 @Composable
-fun ChatScreen(session: FamiliarSession) {
+fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyList()) {
     val scope = rememberCoroutineScope()
     val controller = session.controller
     val avatar = session.avatar
@@ -271,6 +271,12 @@ fun ChatScreen(session: FamiliarSession) {
                                     if (calendarOn) controller.syncCalendar() else controller.useCalendar()
                                 },
                             )
+                        }
+                        actions.forEach { action ->
+                            DropdownMenuItem(text = { Text(action.label) }, onClick = {
+                                menu = false
+                                action.run()
+                            })
                         }
                         DropdownMenuItem(text = { Text("Sign out of ${session.signedIn.username}") }, onClick = {
                             menu = false

@@ -1,7 +1,12 @@
 package app.familiar.android
 
 import android.Manifest
+import android.app.role.RoleManager
 import android.content.Context
+import android.content.Intent
+import android.provider.Settings
+import app.familiar.shared.session.FamiliarSessions
+import app.familiar.shared.ui.PlatformAction
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -37,6 +42,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         AppServices.init(applicationContext)
         Permissions.activity = this
+        listenRequested = Talk.asked(intent)
         setContent {
             FamiliarApp(
                 AppServices.store,
@@ -49,9 +55,42 @@ class MainActivity : ComponentActivity() {
                 onSession = {
                     askForNotifications()
                     Push.register(this)
+                    listenIfAsked()
                 },
+                actions = assistantActions(),
             )
         }
+    }
+
+    /** Opened to talk (the assistant, the tile, a shortcut, the widget): listen once. */
+    private var listenRequested = false
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (Talk.asked(intent)) {
+            listenRequested = true
+            listenIfAsked()
+        }
+    }
+
+    private fun listenIfAsked() {
+        val session = FamiliarSessions.current ?: return
+        if (!listenRequested) return
+        listenRequested = false
+        session.listenOnce()
+    }
+
+    /** "Make Familiar your assistant", until it is: the system's choice, so its settings page. */
+    private fun assistantActions(): List<PlatformAction> {
+        val roles = getSystemService(RoleManager::class.java)
+        if (!roles.isRoleAvailable(RoleManager.ROLE_ASSISTANT) || roles.isRoleHeld(RoleManager.ROLE_ASSISTANT)) return emptyList()
+        return listOf(
+            PlatformAction("Make Familiar your assistant") {
+                runCatching { startActivity(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)) }
+                    .onFailure { startActivity(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS)) }
+            },
+        )
     }
 
     override fun onDestroy() {

@@ -23,6 +23,9 @@ import app.familiar.shared.voice.SpeechAudio
  * from the platform, and so do its microphone and hands-free listening. The signed-in session is the
  * app's ([FamiliarSessions]), not this screen's, so it survives the activity being recreated.
  */
+/** A menu item the platform provides. */
+class PlatformAction(val label: String, val run: () -> Unit)
+
 @Composable
 fun FamiliarApp(
     store: SecureStore,
@@ -34,6 +37,8 @@ fun FamiliarApp(
     alarms: DeviceAlarms? = null,
     /** Signed in (or still signed in, on opening): the platform registers for push. */
     onSession: () -> Unit = {},
+    /** Extra items for the chat's menu that only the platform can do ("Make Familiar your assistant"). */
+    actions: List<PlatformAction> = emptyList(),
 ) {
     val auth = remember { Session(store) }
     var signedIn by remember { mutableStateOf(auth.current()) }
@@ -62,7 +67,7 @@ fun FamiliarApp(
                     signedIn = null
                 }
             }
-            ChatScreen(session)
+            ChatScreen(session, actions)
         }
     }
 }

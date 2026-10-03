@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon: talk straight away. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="talk"
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:shortcutShortLabel="@string/shortcut_talk"
+        android:shortcutLongLabel="@string/shortcut_talk_long">
+        <intent
+            android:action="app.familiar.TALK"
+            android:targetPackage="app.familiar"
+            android:targetClass="app.familiar.android.MainActivity">
+            <extra android:name="app.familiar.LISTEN" android:value="true" />
+        </intent>
+    </shortcut>
+</shortcuts>
