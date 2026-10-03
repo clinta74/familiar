@@ -1,0 +1,287 @@
+/* The built-in characters' look (src/avatar), shared by the web app and the phone apps' embedded
+   avatar (avatar.html). The toys keep their colours whatever the theme. */
+
+:root {
+  --plush-wool: #fdfaf5;
+  --plush-wool-shadow: #d9cdbf;
+  --plush-skin: #e4d6cc;
+  --plush-skin-shadow: #c7b3a6;
+  --plush-snout: #ddcbbf;
+  --plush-ear: #b3a093;
+  --plush-thread: #5b463d;
+  --plush-nose: #7a6157;
+  --plush-button: #181210;
+  --plush-blush: #f4aab5;
+  --plush-hoof: #8e7a6e;
+  --tear: #8fd3ff;
+}
+
+.plush-llama {
+  /* Both dimensions definite, so the viewBox is fitted inside the stage rather than sized from
+     the width and cropped. Overflow visible, so an ear tip or a tail can poke past the viewBox. */
+  width: 100%;
+  max-width: 460px;
+  height: 100%;
+  overflow: visible;
+}
+
+.spot {
+  width: 100%;
+  max-width: 460px;
+  height: 100%;
+  overflow: visible;
+}
+
+.spot-sheen {
+  fill: #fff;
+}
+
+.vrm-avatar {
+  width: 100%;
+  height: 100%;
+}
+
+/* The llama is a toy, so its colours don't follow the theme. */
+.plush-fuzzy {
+  filter: var(--plush-fuzz);
+}
+
+.plush-wool {
+  fill: var(--plush-wool);
+}
+
+.plush-wool-outline {
+  fill: var(--plush-wool-shadow);
+}
+
+.plush-ear-outer {
+  stroke: var(--plush-wool-shadow);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.plush-ear-inner {
+  fill: var(--plush-ear);
+}
+
+.plush-curl {
+  fill: none;
+  stroke: var(--plush-wool-shadow);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.plush-skin {
+  fill: var(--plush-skin);
+}
+
+.plush-snout {
+  fill: var(--plush-snout);
+  stroke: var(--plush-skin-shadow);
+  stroke-width: 2;
+}
+
+.plush-thread {
+  fill: none;
+  stroke: var(--plush-thread);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+}
+
+.plush-lash {
+  fill: none;
+  stroke: var(--plush-button);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.plush-button {
+  fill: var(--plush-button);
+}
+
+.plush-button-shine {
+  fill: #fff;
+  opacity: 0.9;
+}
+
+.plush-lid {
+  fill: var(--plush-skin);
+  stroke: var(--plush-thread);
+  stroke-width: 1.6;
+}
+
+.plush-nose {
+  fill: var(--plush-nose);
+}
+
+.plush-nose-shine {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.45;
+}
+
+.plush-mouth {
+  fill: var(--plush-nose);
+  stroke: var(--plush-thread);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.plush-cheeks {
+  fill: var(--plush-blush);
+}
+
+.plush-tear {
+  fill: var(--tear);
+}
+
+.plush-hoof {
+  fill: var(--plush-hoof);
+}
+
+.plush-hoof-split,
+.plush-toes {
+  fill: none;
+  stroke: var(--plush-wool-shadow);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* The other plush characters' parts. */
+.plush-outlined {
+  stroke: var(--plush-wool-shadow);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.plush-cream .plush-wool {
+  fill: var(--plush-skin);
+}
+
+.plush-cream .plush-wool-outline {
+  fill: var(--plush-skin-shadow);
+}
+
+.plush-ear-tuft {
+  fill: var(--plush-skin);
+}
+
+.plush-spines {
+  fill: var(--plush-wool);
+  stroke: var(--plush-wool-shadow);
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+}
+
+/* The hedgehog's mottling, its tan ears and its paws. */
+.plush-streak {
+  fill: none;
+  stroke: var(--plush-thread);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  opacity: 0.45;
+}
+
+.plush-ear-outer-tan,
+.plush-paw {
+  fill: var(--plush-ear);
+  stroke: var(--plush-wool-shadow);
+  stroke-width: 2;
+}
+
+.plush-spines-back {
+  fill: var(--plush-wool-shadow);
+}
+
+.plush-horn {
+  fill: var(--plush-ear);
+  stroke: var(--plush-hoof);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+}
+
+.plush-horn-ridge {
+  fill: none;
+  stroke: var(--plush-hoof);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.plush-sclera {
+  fill: #fffdf8;
+  stroke: var(--plush-thread);
+  stroke-width: 2.4;
+}
+
+.plush-teeth {
+  fill: #fffdf8;
+  stroke: var(--plush-thread);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+.plush-bean {
+  fill: var(--plush-ear);
+}
+
+.plush-claw {
+  fill: none;
+  stroke: #fffdf8;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Eyes set in fur rather than a bare face get furry lids. */
+.plush-fox .plush-lid,
+.plush-monster .plush-lid {
+  fill: var(--plush-wool);
+}
+
+/* Accessories (the studio). --plush-accent is set per familiar. */
+.plush-accent {
+  fill: var(--plush-accent, #7c5cff);
+  stroke: var(--plush-accent-shadow, #563fb3);
+  stroke-width: 1.4;
+}
+
+.plush-accent-knot {
+  fill: var(--plush-accent-shadow, #563fb3);
+}
+
+.plush-accent-stripe {
+  fill: none;
+  stroke: var(--plush-accent-shadow, #563fb3);
+  stroke-width: 2;
+  stroke-dasharray: 3 4;
+}
+
+.plush-accent-fringe {
+  fill: none;
+  stroke: var(--plush-accent, #7c5cff);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.plush-glasses {
+  fill: rgb(255 255 255 / 0.12);
+  stroke: var(--plush-accent-shadow, #563fb3);
+  stroke-width: 2.6;
+}
+
+.plush-flower-centre {
+  fill: #f6d55c;
+}
+
+.plush-thinking {
+  fill: var(--accent, #7c5cff);
+  transition: opacity 0.3s;
+}
+
+.plush-sleep {
+  fill: var(--muted, #6b6880);
+  font: 700 22px system-ui, sans-serif;
+}

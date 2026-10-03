@@ -220,9 +220,10 @@ export interface Overlay {
 
 /** `top` is where the lowest bubble floats, above and to the right of the head. */
 export function buildOverlay(root: SVGSVGElement, top = -128): Overlay {
-  const thinking = el('g', { class: 'plush-thinking' }, root);
+  // Hidden until the first frame says otherwise.
+  const thinking = el('g', { class: 'plush-thinking', opacity: 0 }, root);
   [[72, top, 5], [88, top - 18, 7], [106, top - 38, 9]].forEach(([cx, cy, r]) => el('circle', { cx: cx!, cy: cy!, r: r! }, thinking));
-  const sleep = el('text', { x: 68, y: top + 16, class: 'plush-sleep', 'aria-hidden': 'true' }, root);
+  const sleep = el('text', { x: 68, y: top + 16, class: 'plush-sleep', opacity: 0, 'aria-hidden': 'true' }, root);
   sleep.textContent = 'z';
   return { thinking, sleep };
 }

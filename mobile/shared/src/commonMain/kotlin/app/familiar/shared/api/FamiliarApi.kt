@@ -110,6 +110,15 @@ class FamiliarApi(
         call<Unit> { http.post("api/conversation/new") }
     }
 
+    /** The familiar's profile; the app uses its `appearance` (how the avatar looks). */
+    suspend fun familiar(): kotlinx.serialization.json.JsonObject = call { http.get("api/familiar") }
+
+    /** An uploaded VRM model, for the avatar page, which can't fetch it itself. */
+    suspend fun avatarModel(id: String): ByteArray = call { http.get("api/avatars/$id/model") }
+
+    /** A spoken sentence, by the url its `audio` event gave. */
+    suspend fun clip(url: String): ByteArray = call { http.get(url.trimStart('/')) }
+
     /** The phone's calendars for the next while, replacing what it uploaded last time. */
     suspend fun uploadDeviceCalendar(events: List<DeviceEventView>) {
         call<Unit> {
@@ -134,8 +143,15 @@ class FamiliarApi(
      * The conversation stream, until it ends or fails. With [lastEventId] (a reconnect), the server
      * replays what was missed, or sends `resync` when it can't.
      */
-    fun events(timeZone: String, lastEventId: String?, capabilities: Set<String> = emptySet()): Flow<StreamEvent> = flow {
-        val caps = if (capabilities.isEmpty()) "" else "&capabilities=" + capabilities.sorted().joinToString(",")
+    fun events(
+        timeZone: String,
+        lastEventId: String?,
+        capabilities: Set<String> = emptySet(),
+        /** Speak the hello, if there is one. */
+        speak: Boolean = false,
+    ): Flow<StreamEvent> = flow {
+        val caps = (if (capabilities.isEmpty()) "" else "&capabilities=" + capabilities.sorted().joinToString(",")) +
+            (if (speak) "&speak=true" else "")
         try {
             http.sse(
                 urlString = "api/conversation/stream?timeZone=$timeZone$caps",
