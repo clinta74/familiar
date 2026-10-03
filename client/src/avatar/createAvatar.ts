@@ -1,10 +1,16 @@
-import type { Appearance } from './appearance';
+import type { Appearance, CharacterModel } from './appearance';
 import type { PlushCharacter } from './plush/engine';
 import { PlushLlamaAvatar } from './PlushLlamaAvatar';
 import type { AvatarDriver } from './types';
 
 /** Where an uploaded VRM model is fetched from (PLAN.md §5.5). */
 export const vrmUrl = (id: string) => `/api/avatars/${encodeURIComponent(id)}/model`;
+
+/** The characters that have a 3D version (PLAN.md §5.0), loaded with three.js only when chosen. */
+const characters3d: Partial<Record<CharacterModel, (container: HTMLElement, look: Appearance) => Promise<AvatarDriver>>> = {
+  llama: async (container, look) => new (await import('./PlushLlama3D')).PlushLlama3D(container, look),
+  fox: async (container, look) => new (await import('./PlushFox3D')).PlushFox3D(container, look),
+};
 
 /** The built-in characters other than the llama load on demand, so the default costs nothing extra. */
 async function character(container: HTMLElement, appearance: Appearance): Promise<PlushCharacter> {
@@ -37,13 +43,13 @@ export async function createAvatar(container: HTMLElement, appearance: Appearanc
     }
   }
 
-  if (appearance.style === '3d' && appearance.model === 'llama') {
+  const modelled = appearance.style === '3d' && appearance.model !== 'vrm' ? characters3d[appearance.model] : undefined;
+  if (modelled) {
     try {
-      const { PlushLlama3D } = await import('./PlushLlama3D');
-      return new PlushLlama3D(container, appearance);
+      return await modelled(container, appearance);
     } catch (error) {
-      // No WebGL (an old phone, a locked-down browser): the flat llama is still the llama.
-      console.warn('Could not start the 3D llama; drawing it flat.', error);
+      // No WebGL (an old phone, a locked-down browser): the flat character is still the character.
+      console.warn(`Could not start the 3D ${appearance.model}; drawing it flat.`, error);
     }
   }
 
