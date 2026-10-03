@@ -230,14 +230,15 @@ The first familiar is a **stuffed-toy llama**, drawn procedurally in SVG
 (`client/src/avatar/PlushLlamaAvatar.ts`): a white fleece cloud (outlined puffs with stitched
 curls, fuzzy-edged by an SVG displacement filter) framing a soft taupe face, a fringe down to the
 brows, tall ears with taupe insides, lashed button eyes with felt lids, a rounded snout with a
-Y-mouth, pink cheeks, and a long fleecy neck that runs off the bottom of the stage and fades out.
-Only the head moves on it. No assets, so it loads instantly, works offline and has no licence to
-track.
+Y-mouth, pink cheeks, sitting on a plump fleece body with its arms down at its sides, hooves out in
+front and curls on its chest. The body breathes, slumps when it's sad and leans a little into a
+tilt; the head bobs and turns on top of it. No assets, so it loads instantly, works offline and has
+no licence to track.
 
 Its ears carry much of the emotion — perked for joy and surprise, drooping for sadness, pinned
 back when cross, flicking now and then while idle — on top of the shared expression parameters
 (eyes, lids, brows, mouth, blush, tear, gaze) every renderer blends between. Gestures: nod,
-shake, tilt, shrug, and a fleecy hoof that pops up to wave.
+shake, tilt, shrug (arms out), and a wave with its right arm.
 
 **In 3D (2026-10-03, prototype).** `style: "3d"` in the appearance (the studio's Style switch)
 draws the llama with three.js instead (`client/src/avatar/PlushLlama3D.ts`): a whole plush toy
@@ -718,6 +719,13 @@ gestures are done in place (a wave is a pseudopod). The llama's animation became
 (`client/src/avatar/plush/`) that all of them run on; each character is just its drawing. Each has
 its own presets, colour labels and accessories (the spot wears none), and the persona says what the
 user picked — asked what it is, the hedgehog said "a little plush hedgehog with soft prickles".
+
+*Sitting (2026-10-02):* the four plush characters now sit, whole, like the toys they're after: a
+torso, hind feet out in front, arms at the sides (the right one waves; both go out for a shrug),
+the fox's tail curling up from its hip, the hedgehog a ball on two little feet. A shared body
+(`plush/parts.ts`: `buildBody`, `drawBody`) breathes with the head's bob, slumps when sad, leans a
+little into a tilt and kicks its feet up with each hop of joy. The stage no longer fades its bottom
+edge; the spot is unchanged.
 
 **Phase 7 (2026-10-02):** built, and the "done when" is met live: a Home Assistant-style
 `rest_command` POST with a hook token made the familiar announce "The washing machine has

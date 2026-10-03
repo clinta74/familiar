@@ -1,8 +1,8 @@
 import { llamaPalette } from './appearance';
 import { PlushCharacter, type PlushLook, type Pose } from './plush/engine';
 import {
-  buildAccessories, buildFace, buildOverlay, buildPaw, drawFace, drawOverlay, drawPaw, el, f, plushRoot, showAccessory, wool,
-  type AccessoryParts, type FaceLayout, type FaceParts, type Overlay, type Puff,
+  buildAccessories, buildBody, buildFace, buildOverlay, drawBody, drawFace, drawOverlay, el, f, plushRoot, showAccessory, wool,
+  type AccessoryParts, type BodyParts, type FaceLayout, type FaceParts, type Overlay, type Puff,
 } from './plush/parts';
 
 const LAYOUT: FaceLayout = {
@@ -37,18 +37,19 @@ function furRing(bristle: number, t: number): Puff[] {
 }
 
 /**
- * A fuzzy, friendly monster: a round ball of fur with big googly eyes, stubby horns and a wide mouth
- * with two little fangs. Its fur stands on end when it's startled or cross, and goes flat when sad.
+ * A fuzzy, friendly monster, sitting on its round furry bottom: big googly eyes, stubby horns, a
+ * wide mouth with two little fangs, a lighter belly and clawed paws. Its fur stands on end when
+ * it's startled or cross, and goes flat when sad.
  */
 export class PlushMonsterAvatar extends PlushCharacter {
   protected readonly root: SVGSVGElement;
+  private readonly body: BodyParts;
   private readonly head: SVGGElement;
   /** The fur tufts: outline circles and fur circles, moved each frame rather than rebuilt. */
   private readonly fur: { outline: SVGCircleElement[]; tuft: SVGCircleElement[] };
   private readonly horns: [SVGGElement, SVGGElement];
   private readonly faceParts: FaceParts;
   private readonly overlay: Overlay;
-  private readonly paw: SVGGElement;
   private readonly accessories: AccessoryParts;
 
   constructor(container: HTMLElement, look?: PlushLook) {
@@ -56,15 +57,26 @@ export class PlushMonsterAvatar extends PlushCharacter {
     const { root, id } = plushRoot('monster', 'Your familiar, a fuzzy monster');
     this.root = root;
 
-    // The body below, a furry trunk running off the stage, with a lighter belly.
-    const body = el('g', {}, root);
-    const sides: Puff[] = [];
-    for (let y = 80; y <= 600; y += 24) sides.push([-58, y, 16], [58, y + 12, 16]);
-    wool(body, sides);
-    el('rect', { x: -60, y: 60, width: 120, height: 600, class: 'plush-wool plush-fuzzy' }, body);
-    el('ellipse', { cx: 0, cy: 190, rx: 42, ry: 110, class: 'plush-skin plush-fuzzy' }, body);
+    this.body = buildBody(root, {
+      torso: (body) => {
+        // A furry, round-bottomed body with tufts round its edge and a lighter belly.
+        const edge: Puff[] = [];
+        for (let i = 0; i < 24; i++) {
+          const a = Math.PI * (-0.14 + (1.28 * i) / 23);
+          edge.push([Math.cos(a) * 78, 150 + Math.sin(a) * 66, i % 2 === 0 ? 15 : 12]);
+        }
+        wool(body, edge);
+        el('path', { class: 'plush-wool plush-fuzzy', d: 'M-52,70 C-70,90 -78,120 -78,150 C-78,186 -40,216 0,216 C40,216 78,186 78,150 C78,120 70,90 52,70 Z' }, body);
+        el('ellipse', { cx: 0, cy: 152, rx: 42, ry: 50, class: 'plush-skin plush-fuzzy' }, body);
+      },
+      neckPivotY: NECK_PIVOT_Y,
+      shoulder: [52, 100],
+      arm: { length: 90, width: 24, kind: 'claw', fluffy: true },
+      foot: [56, 206],
+      feet: { rx: 25, ry: 16, kind: 'claw', splay: 14 },
+    });
 
-    this.head = el('g', {}, root);
+    this.head = this.body.head;
     this.horns = [horn(this.head), horn(this.head)];
     const furGroup = el('g', {}, this.head);
     const ring = furRing(0, 0);
@@ -86,7 +98,6 @@ export class PlushMonsterAvatar extends PlushCharacter {
       scarf: { parent: this.head, y: 64, halfWidth: 52 },
     });
 
-    this.paw = buildPaw(root, 'claw');
     this.overlay = buildOverlay(root);
 
     container.appendChild(root);
@@ -101,8 +112,7 @@ export class PlushMonsterAvatar extends PlushCharacter {
 
   protected draw(pose: Pose): void {
     const { face } = pose;
-    this.head.setAttribute('transform',
-      `translate(0 ${f(pose.dy)}) rotate(${f(pose.rotate)} 0 ${NECK_PIVOT_Y}) scale(${f(1 - pose.squash)} ${f(1 + pose.squash)})`);
+    drawBody(this.body, pose);
 
     // Fur: stands up (bristle 1) when startled or cross, lies flat (-1) when sad; the wiggle
     // that twitches the llama's ears ruffles it.
@@ -122,7 +132,6 @@ export class PlushMonsterAvatar extends PlushCharacter {
     });
 
     drawFace(this.faceParts, face, pose);
-    drawPaw(this.paw, pose);
     drawOverlay(this.overlay, pose);
   }
 }

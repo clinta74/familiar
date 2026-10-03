@@ -267,8 +267,6 @@ button.link:hover:not(:disabled) {
   justify-content: center;
   align-items: center;
   overflow: hidden;
-  /* The llama's neck runs off the bottom of the stage; fade it rather than cut it. */
-  mask-image: linear-gradient(to bottom, #000 80%, transparent);
 }
 
 @media (min-width: 900px) {

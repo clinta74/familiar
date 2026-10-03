@@ -130,8 +130,12 @@ services:
     container_name: familiar-stt
     restart: always
     networks: [familiar]
+    # A named volume, not a folder under FAMILIAR_DATA_DIR: Speaches runs as its own user (uid
+    # 1000), and a bind-mounted folder Docker creates is owned by root, so the model download failed
+    # with "Permission denied" and every transcription then got 404. Docker gives a named volume the
+    # ownership the image expects. Only the downloaded model lives here; nothing to back up.
     volumes:
-      - ${FAMILIAR_DATA_DIR:-./data}/hf-cache:/home/ubuntu/.cache/huggingface/hub
+      - hf-cache:/home/ubuntu/.cache/huggingface/hub
     mem_limit: 4g
     logging: *logging
 
@@ -172,3 +176,6 @@ networks:
       config:
         # Fixed so Proxy__KnownNetworks can name it. muwbta uses 172.25.0.0/16.
         - subnet: ${FAMILIAR_SUBNET:-172.30.0.0/16}
+
+volumes:
+  hf-cache:

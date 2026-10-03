@@ -187,8 +187,14 @@ public sealed class VoiceTests(PostgresFixture postgres)
         await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
         app.Stt.Down = true;
         var client = await SignedInAsync(app);
+        await using var stream = await SseClient.ConnectAsync(client);
+        await stream.ReadUntilAsync(EventTypes.Ready);
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await SpeakAsync(client)).StatusCode);
+
+        // It went "thinking" when the recording arrived; it mustn't stay that way.
+        var events = await stream.ReadUntilStateAsync(FamiliarState.Idle);
+        Assert.Contains(events, e => e.Type == EventTypes.State && e.Payload<StateEvent>().State == FamiliarState.Thinking);
     }
 
     [Fact]
