@@ -214,6 +214,27 @@ class ConversationController(
         }
     }
 
+    /** Something said aloud, as a WAV (push-to-talk); the reply comes on the stream, spoken. */
+    fun sendSpoken(wav: ByteArray) {
+        scope.launch {
+            _state.update { it.copy(error = null) }
+            try {
+                api.sendSpoken(wav, currentTimeZoneId())?.let { message ->
+                    _state.update { ConversationReducer.apply(it, ServerEvent.Message(message)) }
+                }
+            } catch (exception: Exception) {
+                if (exception is CancellationException) throw exception
+                if (exception is ApiException && exception.unauthorized) onSignedOut()
+                _state.update { it.copy(error = exception.message ?: "Couldn't send that.") }
+            }
+        }
+    }
+
+    /** Shows a problem with the conversation (the microphone, say) where errors go. */
+    fun showError(message: String?) {
+        _state.update { it.copy(error = message) }
+    }
+
     /** Stop the reply; [heard] says how much of it was played aloud, which is what's kept. */
     fun interrupt(heard: InterruptRequest? = null) {
         scope.launch { runCatching { api.interrupt(heard) } }

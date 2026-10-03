@@ -28,6 +28,7 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.content.ByteArrayContent
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
@@ -96,6 +97,19 @@ class FamiliarApi(
                 setBody(SendMessageRequest(text, timeZone, speak))
             }
         }
+
+    /**
+     * Something said aloud (push-to-talk), as a WAV. The transcribed message, or null when nothing
+     * was heard - the server says so on the stream (`error`, no-speech). The reply is spoken.
+     */
+    suspend fun sendSpoken(wav: ByteArray, timeZone: String): MessageView? {
+        val response = checked {
+            http.post("api/conversation/audio?timeZone=$timeZone") {
+                setBody(ByteArrayContent(wav, ContentType("audio", "wav")))
+            }
+        }
+        return if (response.status == HttpStatusCode.NoContent) null else response.body()
+    }
 
     suspend fun interrupt(request: InterruptRequest? = null) {
         call<Unit> {
@@ -169,6 +183,14 @@ class FamiliarApi(
     }
 
     private suspend inline fun <reified T> call(request: () -> HttpResponse): T {
+        val response = checked(request)
+
+        @Suppress("UNCHECKED_CAST")
+        return if (T::class == Unit::class) Unit as T else response.body()
+    }
+
+    /** The response, once it's known to be a success; otherwise the server's reason, thrown. */
+    private suspend inline fun checked(request: () -> HttpResponse): HttpResponse {
         val response = try {
             request()
         } catch (exception: ApiException) {
@@ -180,9 +202,7 @@ class FamiliarApi(
         if (!response.status.isSuccess()) {
             throw ApiException(response.status.value, describe(response.status.value, response.bodyAsTextOrNull()))
         }
-
-        @Suppress("UNCHECKED_CAST")
-        return if (T::class == Unit::class) Unit as T else response.body()
+        return response
     }
 
     private suspend fun HttpResponse.bodyAsTextOrNull(): String? = try {

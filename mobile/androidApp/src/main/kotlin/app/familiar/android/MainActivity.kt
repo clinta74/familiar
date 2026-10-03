@@ -10,13 +10,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import app.familiar.shared.platform.AndroidDeviceCalendar
 import app.familiar.shared.platform.KeystoreStore
 import app.familiar.shared.ui.FamiliarApp
+import app.familiar.shared.voice.AndroidMicrophone
 import app.familiar.shared.voice.AndroidSpeechAudio
 import kotlinx.coroutines.CompletableDeferred
 
 /** The app's one screen; everything inside is the shared Compose UI (mobile/shared). */
 class MainActivity : ComponentActivity() {
     private var permissionAnswer: CompletableDeferred<Unit>? = null
-    private val calendarPermission = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+    /** The system permission prompt, for whichever permissions are asked (calendar, microphone). */
+    private val permissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         permissionAnswer?.complete(Unit)
         permissionAnswer = null
     }
@@ -31,10 +33,15 @@ class MainActivity : ComponentActivity() {
             .take(64)
         val calendar = AndroidDeviceCalendar(applicationContext) {
             val answer = CompletableDeferred<Unit>().also { permissionAnswer = it }
-            calendarPermission.launch(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR))
+            permissions.launch(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR))
             answer.await()
         }
         val speech = AndroidSpeechAudio(applicationContext)
-        setContent { FamiliarApp(store, deviceName, calendar, speech) }
+        val microphone = AndroidMicrophone(applicationContext) {
+            val answer = CompletableDeferred<Unit>().also { permissionAnswer = it }
+            permissions.launch(arrayOf(Manifest.permission.RECORD_AUDIO))
+            answer.await()
+        }
+        setContent { FamiliarApp(store, deviceName, calendar, speech, microphone) }
     }
 }

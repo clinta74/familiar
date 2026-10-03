@@ -179,7 +179,18 @@ to back; loudness is the RMS of the samples at the playback head, so lip-sync ne
 permission. Each clip's word timings go to the page once (`clip`) and loudness ~30 times a second
 (`level`). The voice is on by default, with a menu switch, and the hello is spoken too. Verified on
 an emulator: a two-sentence reply gave the page two timed clips and 161 level updates, and Stop
-mid-sentence stored the reply cut to the words played. **Next in M1:** push-to-talk.
+mid-sentence stored the reply cut to the words played.
+
+**M1: push-to-talk (2026-10-03).** A mic button beside the message box: hold to talk, let go to
+send. The first press asks for RECORD_AUDIO instead of recording; pressing while the familiar is
+speaking stops it (keeping what was heard), as on the web. `AndroidMicrophone` records 16 kHz mono
+16-bit from the voice-recognition source (at most 60 s) and reports loudness, which lights the
+button; the recording goes to `POST /api/conversation/audio` as a WAV (`wav()`, shared) and the
+reply comes back on the stream, spoken. A tap shorter than a third of a second says to hold it;
+sliding off the button cancels. The avatar listens while it's held. Verified on an emulator against
+the dev server with a throwaway account: the permission prompt on the first press, the hint on a
+tap, "listening" while held, and on release the recording transcribed and answered aloud.
+**M1 is done** apart from trying it on a real phone (backlog item 8).
 
 **Device calendar (2026-10-03), the first of M3.** "Use this phone's calendar" in the chat menu asks
 for READ/WRITE_CALENDAR. Once allowed, the app reads `CalendarContract.Instances` (visible

@@ -81,6 +81,13 @@ GLBs. Still open:
 
 Both, flat and 3D, in the studio with presets, accepted by the server, with a persona line.
 
+### 7a. Call the llama just "Llama"
+
+The studio lists it as "Plush llama" while the others are plain names (Fox, Hedgehog, Otter,
+Giraffe, Spot - and "Fuzzy monster"). Rename it to "Llama" everywhere it's shown: the studio's model
+list, the 3D renderer's label ("Your familiar, a plush llama"), the gallery, and the server's
+appearance names, keeping the model id `llama`. Decide whether "Fuzzy monster" becomes "Monster" too.
+
 ### 8. Check 3D on a real phone
 
 All five 3D characters were reviewed in a desktop browser only. Try them on the Pixel Fold in the
@@ -91,10 +98,9 @@ fewer fur shells on phones, a lower pixel ratio, and pausing rendering when noth
 
 ## Android (docs/MOBILE.md)
 
-### 9. Push-to-talk (the rest of M1)
+### 9. ~~Push-to-talk (the rest of M1)~~ — done (2026-10-03)
 
-Record with `AudioRecord` (RECORD_AUDIO, asked the first time), send to `POST /api/conversation/audio`
-as WAV; a hold-to-talk button that interrupts the familiar if it's speaking.
+Hold the mic button to talk, let go to send (MOBILE.md, M1). Still to do on a real phone, with item 8.
 
 ---
 

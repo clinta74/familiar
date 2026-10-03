@@ -57,7 +57,16 @@ import app.familiar.shared.conversation.ConversationController
 import app.familiar.shared.conversation.ToolChip
 import app.familiar.shared.platform.DeviceCalendar
 import app.familiar.shared.platform.SecureStore
+import app.familiar.shared.voice.Microphone
 import app.familiar.shared.voice.SpeechAudio
+import app.familiar.shared.voice.wav
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import app.familiar.shared.voice.SpeechPlayer
 import app.familiar.shared.protocol.ServerEvent
 import kotlinx.serialization.json.Json
@@ -87,6 +96,9 @@ private val toolDoing = mapOf(
 /** "off" when the user turned replies' voice off; on by default. */
 private const val VOICE_KEY = "voice"
 
+/** Shorter than this is a tap on the mic button, not something said. */
+private const val MIN_SPOKEN_SECONDS = 0.35
+
 /** How the familiar looked last time, per account: the avatar starts as that, not a stand-in. */
 private fun lookKey(username: String) = "look:$username"
 
@@ -104,6 +116,7 @@ fun ChatScreen(
     store: SecureStore,
     calendar: DeviceCalendar?,
     speechAudio: SpeechAudio?,
+    microphone: Microphone?,
     onSignedOut: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -174,6 +187,9 @@ fun ChatScreen(
 
     var draft by remember { mutableStateOf("") }
     var menu by remember { mutableStateOf(false) }
+    /** Push-to-talk: the button is held and the microphone is recording; how loud it hears. */
+    var recording by remember { mutableStateOf(false) }
+    var micLevel by remember { mutableStateOf(0.0) }
     val list = rememberLazyListState()
 
     // Follow the conversation as it grows.
@@ -184,6 +200,7 @@ fun ChatScreen(
 
     val busy = state.state == "thinking" || state.state == "speaking" || audible
     val status = when {
+        recording -> "listening… let go to send"
         state.connection == Connection.Reconnecting -> "reconnecting…"
         state.connection == Connection.Connecting -> "connecting…"
         state.state == "thinking" -> "thinking…"
@@ -194,6 +211,7 @@ fun ChatScreen(
 
     // Typing reads as the familiar listening.
     val avatarState = when {
+        recording -> "listening"
         audible -> "speaking"
         state.state == "idle" && draft.isNotBlank() -> "listening"
         state.state in avatarStates -> state.state
@@ -206,6 +224,45 @@ fun ChatScreen(
         val heard = player?.heard()
         player?.stop()
         controller.interrupt(heard)
+    }
+
+    /**
+     * The mic button went down: talking over the familiar stops it (and keeps what was heard), as
+     * on the web. The first time, it asks for the microphone instead of recording.
+     */
+    suspend fun startTalking(): Boolean {
+        val mic = microphone ?: return false
+        if (!mic.canRecord()) {
+            if (!mic.requestAccess()) controller.showError("${state.familiarName} needs the microphone to hear you. You can allow it in the app's settings.")
+            return false
+        }
+        if (busy) stopReply()
+        return try {
+            mic.start { level -> micLevel = level }
+            controller.showError(null)
+            recording = true
+            true
+        } catch (exception: IllegalStateException) {
+            controller.showError(exception.message ?: "Couldn't open the microphone.")
+            false
+        }
+    }
+
+    /** Let go: send what was said, unless it was too short to be anything (a tap). */
+    suspend fun stopTalking(send: Boolean) {
+        val mic = microphone ?: return
+        recording = false
+        micLevel = 0.0
+        if (!send) {
+            mic.cancel()
+            return
+        }
+        val pcm = mic.stop() ?: return
+        if (pcm.seconds < MIN_SPOKEN_SECONDS) {
+            controller.showError("Hold the microphone button while you talk, then let go.")
+            return
+        }
+        controller.sendSpoken(wav(pcm))
     }
 
     fun send() {
@@ -239,6 +296,30 @@ fun ChatScreen(
         }
 
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (microphone != null) {
+                // Hold to talk: recording while it's pressed, sent on release; a slide off cancels.
+                val ring = MaterialTheme.colorScheme.primary
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(if (recording) ring.copy(alpha = 0.25f + 0.5f * micLevel.toFloat()) else MaterialTheme.colorScheme.surfaceVariant)
+                        .border(2.dp, if (recording) ring else MaterialTheme.colorScheme.outline, CircleShape)
+                        .semantics { contentDescription = "Hold to talk to ${state.familiarName}" }
+                        .pointerInput(microphone) {
+                            detectTapGestures(onPress = {
+                                if (startTalking()) {
+                                    val released = tryAwaitRelease()
+                                    stopTalking(send = released)
+                                }
+                            })
+                        },
+                ) {
+                    Text(if (recording) "●" else "🎤", style = MaterialTheme.typography.titleMedium)
+                }
+            }
             OutlinedTextField(
                 value = draft,
                 onValueChange = { draft = it },
