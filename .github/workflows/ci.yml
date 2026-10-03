@@ -37,6 +37,9 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      # The TypeScript and Kotlin protocol types match protocol/familiar.schema.json (the server's
+      # tests check the schema matches its records): docs/MOBILE.md §6.
+      - run: npm run protocol:check
       - run: npm test
 
   # The Android app (docs/MOBILE.md): shared tests, and a debug APK to sideload, kept as an artifact.

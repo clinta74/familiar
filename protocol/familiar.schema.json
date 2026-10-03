@@ -1,0 +1,1063 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Familiar protocol",
+  "description": "The conversation stream's events and the request and response bodies the clients share. Generated from the server's records (src/Familiar.Server/Protocol/ProtocolSchema.cs) - don't edit; the TypeScript and Kotlin types are generated from this (client/scripts/protocol.mjs).",
+  "x-events": {
+    "ready": {
+      "constant": "Ready",
+      "payload": "ReadyEvent"
+    },
+    "state": {
+      "constant": "State",
+      "payload": "StateEvent"
+    },
+    "message": {
+      "constant": "Message",
+      "payload": "MessageView"
+    },
+    "reply.start": {
+      "constant": "ReplyStart",
+      "payload": "ReplyStartEvent"
+    },
+    "reply.delta": {
+      "constant": "ReplyDelta",
+      "payload": "ReplyDeltaEvent"
+    },
+    "reply.end": {
+      "constant": "ReplyEnd",
+      "payload": "ReplyEndEvent"
+    },
+    "reply.truncated": {
+      "constant": "ReplyTruncated",
+      "payload": "ReplyTruncatedEvent"
+    },
+    "expression": {
+      "constant": "Expression",
+      "payload": "ExpressionEvent"
+    },
+    "gesture": {
+      "constant": "Gesture",
+      "payload": "GestureEvent"
+    },
+    "audio": {
+      "constant": "Audio",
+      "payload": "AudioEvent"
+    },
+    "audio.end": {
+      "constant": "AudioEnd",
+      "payload": "AudioEndEvent"
+    },
+    "turn.error": {
+      "constant": "Error",
+      "payload": "ErrorEvent"
+    },
+    "tool.started": {
+      "constant": "ToolStarted",
+      "payload": "ToolStartedEvent"
+    },
+    "tool.finished": {
+      "constant": "ToolFinished",
+      "payload": "ToolFinishedEvent"
+    },
+    "tool.confirm": {
+      "constant": "ToolConfirm",
+      "payload": "ToolConfirmEvent"
+    },
+    "tool.confirmed": {
+      "constant": "ToolConfirmed",
+      "payload": "ToolConfirmedEvent"
+    },
+    "tool.invoke": {
+      "constant": "ToolInvoke",
+      "payload": "ToolInvokeEvent"
+    },
+    "jobs": {
+      "constant": "Jobs",
+      "payload": "JobsEvent"
+    },
+    "notify": {
+      "constant": "Notify",
+      "payload": "NotifyEvent"
+    },
+    "cleared": {
+      "constant": "Cleared",
+      "payload": null
+    },
+    "resync": {
+      "constant": "Resync",
+      "payload": null
+    }
+  },
+  "$defs": {
+    "AccountResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "username": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/AccountRole"
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "email",
+        "role"
+      ]
+    },
+    "AccountRole": {
+      "description": "What an account may do on this server.",
+      "type": "string",
+      "enum": [
+        "user",
+        "admin"
+      ]
+    },
+    "AudioEndEvent": {
+      "description": "The reply has no more clips coming: Clips were announced in total.",
+      "type": "object",
+      "properties": {
+        "replyId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "clips": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "replyId",
+        "clips"
+      ]
+    },
+    "AudioEvent": {
+      "description": "A spoken sentence is ready to fetch.",
+      "type": "object",
+      "properties": {
+        "replyId": {
+          "description": "The reply it belongs to.",
+          "type": "string",
+          "format": "uuid"
+        },
+        "seq": {
+          "description": "Its position in the reply; clips are played in this order.",
+          "type": "integer"
+        },
+        "url": {
+          "description": "Where to fetch the audio.",
+          "type": "string"
+        },
+        "text": {
+          "description": "What it says.",
+          "type": "string"
+        },
+        "words": {
+          "description": "When each word is spoken, if the TTS service says - for mouth shapes.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/SpokenWord"
+          }
+        }
+      },
+      "required": [
+        "replyId",
+        "seq",
+        "url",
+        "text",
+        "words"
+      ]
+    },
+    "ConfirmRequest": {
+      "type": "object",
+      "properties": {
+        "callId": {
+          "description": "The tool call being answered, from the tool.confirm event.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "approve": {
+          "description": "Whether the user allows it.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "callId",
+        "approve"
+      ]
+    },
+    "DeviceCalendarUpload": {
+      "type": "object",
+      "properties": {
+        "events": {
+          "description": "Every event in the window the phone covers (the next couple of weeks).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/DeviceEventView"
+          }
+        }
+      },
+      "required": [
+        "events"
+      ]
+    },
+    "DeviceEventView": {
+      "description": "One event (or occurrence) from a phone's calendar.",
+      "type": "object",
+      "properties": {
+        "externalId": {
+          "description": "The phone's id for it (instance id plus start), stable across uploads.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "description": "Its title.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "location": {
+          "description": "Where, if it says.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "startsAt": {
+          "description": "When it starts; for an all-day event, UTC midnight of its date.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "endsAt": {
+          "description": "When it ends.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "allDay": {
+          "description": "A whole-day event.",
+          "type": "boolean"
+        },
+        "calendar": {
+          "description": "Which of the phone's calendars (\"Work\", \"sam@gmail.com\").",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "externalId",
+        "title",
+        "location",
+        "startsAt",
+        "endsAt",
+        "allDay",
+        "calendar"
+      ]
+    },
+    "DeviceLoginRequest": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "password": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deviceName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "username",
+        "password",
+        "deviceName"
+      ]
+    },
+    "DeviceLoginResponse": {
+      "description": "Returned once, at sign-in. The token is never retrievable again.",
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string"
+        },
+        "device": {
+          "$ref": "#/$defs/DeviceSummary"
+        },
+        "account": {
+          "$ref": "#/$defs/AccountResponse"
+        }
+      },
+      "required": [
+        "token",
+        "device",
+        "account"
+      ]
+    },
+    "DeviceSummary": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lastUsedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "isCurrent": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "createdAt",
+        "expiresAt",
+        "lastUsedAt",
+        "isCurrent"
+      ]
+    },
+    "Emotion": {
+      "description": "What the familiar is feeling about what it's saying. Maps one-to-one onto VRM's preset expressions (happy, sad, angry, surprised, relaxed) plus neutral and thinking (PLAN.md §4.4).",
+      "type": "string",
+      "enum": [
+        "neutral",
+        "joy",
+        "sad",
+        "angry",
+        "surprised",
+        "relaxed",
+        "thinking"
+      ]
+    },
+    "ErrorEvent": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ]
+    },
+    "ExpressionEvent": {
+      "type": "object",
+      "properties": {
+        "emotion": {
+          "$ref": "#/$defs/Emotion"
+        },
+        "intensity": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "emotion",
+        "intensity"
+      ]
+    },
+    "FamiliarState": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "thinking",
+        "speaking",
+        "resting"
+      ]
+    },
+    "FamiliarSummary": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "expressiveness": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "expressiveness"
+      ]
+    },
+    "Gesture": {
+      "description": "A one-off body movement the familiar makes mid-sentence.",
+      "type": "string",
+      "enum": [
+        "nod",
+        "shake",
+        "tilt",
+        "wave",
+        "shrug",
+        "laugh",
+        "wink",
+        "sigh",
+        "yawn",
+        "excited"
+      ]
+    },
+    "GestureEvent": {
+      "type": "object",
+      "properties": {
+        "gesture": {
+          "$ref": "#/$defs/Gesture"
+        }
+      },
+      "required": [
+        "gesture"
+      ]
+    },
+    "InterruptRequest": {
+      "type": "object",
+      "properties": {
+        "replyId": {
+          "description": "The reply that was playing when the user interrupted.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "heard": {
+          "description": "What of it they heard: the reply is cut to this.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "replyId",
+        "heard"
+      ]
+    },
+    "JobKind": {
+      "type": "string",
+      "enum": [
+        "timer",
+        "reminder"
+      ]
+    },
+    "JobView": {
+      "description": "A pending timer or reminder, as the client shows it.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "The job.",
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "description": "Timer or reminder.",
+          "$ref": "#/$defs/JobKind"
+        },
+        "label": {
+          "description": "What it's for.",
+          "type": "string"
+        },
+        "dueAt": {
+          "description": "When it goes off.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "durationSeconds": {
+          "description": "For a timer, how long it was set for.",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "createdAt": {
+          "description": "When it was set.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "ring": {
+          "description": "It rings until dismissed (timers, and alarm reminders) rather than notifying.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "label",
+        "dueAt",
+        "durationSeconds",
+        "createdAt",
+        "ring"
+      ]
+    },
+    "JobsEvent": {
+      "description": "The account's pending jobs, sent whenever they change, so every device's timer list stays current.",
+      "type": "object",
+      "properties": {
+        "jobs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/JobView"
+          }
+        }
+      },
+      "required": [
+        "jobs"
+      ]
+    },
+    "MessageRole": {
+      "type": "string",
+      "enum": [
+        "user",
+        "assistant"
+      ]
+    },
+    "MessageView": {
+      "description": "A stored message, as both the history endpoint and the message event show it.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "role": {
+          "$ref": "#/$defs/MessageRole"
+        },
+        "text": {
+          "type": "string"
+        },
+        "emotion": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Emotion"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "intensity": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "interrupted": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "role",
+        "text",
+        "emotion",
+        "intensity",
+        "interrupted",
+        "createdAt"
+      ]
+    },
+    "NotificationView": {
+      "description": "Something that just happened, for the service worker to show as a notification.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "body",
+        "at"
+      ]
+    },
+    "NotifyEvent": {
+      "description": "Something went off or arrived: a timer, a reminder, an announcement from a hook. The reply that says it arrives as usual; this is for the chime.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "The job or announcement.",
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "description": "One of NotifyKinds.",
+          "type": "string"
+        },
+        "label": {
+          "description": "What it was for, or who sent it.",
+          "type": "string"
+        },
+        "text": {
+          "description": "What the familiar says about it.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "label",
+        "text"
+      ]
+    },
+    "PushKeyResponse": {
+      "type": "object",
+      "properties": {
+        "publicKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "publicKey"
+      ]
+    },
+    "ReadyEvent": {
+      "type": "object",
+      "properties": {
+        "familiar": {
+          "description": "Its name and expressiveness.",
+          "$ref": "#/$defs/FamiliarSummary"
+        },
+        "modelAvailable": {
+          "description": "The model server answers.",
+          "type": "boolean"
+        },
+        "speechAvailable": {
+          "description": "Speech-to-text and text-to-speech both answer.",
+          "type": "boolean"
+        },
+        "connectionId": {
+          "description": "For a phone that listed capabilities: its connection, which tool.invoke events address.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "familiar",
+        "modelAvailable",
+        "speechAvailable",
+        "connectionId"
+      ]
+    },
+    "ReplyDeltaEvent": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ]
+    },
+    "ReplyEndEvent": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "text": {
+          "type": "string"
+        },
+        "emotion": {
+          "$ref": "#/$defs/Emotion"
+        },
+        "intensity": {
+          "type": "number"
+        },
+        "interrupted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "emotion",
+        "intensity",
+        "interrupted"
+      ]
+    },
+    "ReplyStartEvent": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "ReplyTruncatedEvent": {
+      "description": "The user talked over a reply, so it was cut to what they actually heard (the model had usually finished writing it long before the familiar finished saying it).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ]
+    },
+    "SendMessageRequest": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "description": "What the user typed.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timeZone": {
+          "description": "The user's IANA time zone, for the situation in the prompt.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "speak": {
+          "description": "Speak the reply as well as showing it. Spoken messages are always answered aloud.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "text",
+        "timeZone",
+        "speak"
+      ]
+    },
+    "SpokenWord": {
+      "type": "object",
+      "properties": {
+        "word": {
+          "type": "string"
+        },
+        "start": {
+          "type": "number"
+        },
+        "end": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "word",
+        "start",
+        "end"
+      ]
+    },
+    "StateEvent": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "$ref": "#/$defs/FamiliarState"
+        }
+      },
+      "required": [
+        "state"
+      ]
+    },
+    "SubscribeRequest": {
+      "type": "object",
+      "properties": {
+        "endpoint": {
+          "description": "The push service URL from the browser's PushSubscription.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "keys": {
+          "description": "The browser's keys; stored, though content-free pushes don't need them.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SubscriptionKeys"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "endpoint",
+        "keys"
+      ]
+    },
+    "SubscriptionKeys": {
+      "type": "object",
+      "properties": {
+        "p256dh": {
+          "description": "The browser's public key.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "auth": {
+          "description": "The browser's auth secret.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "p256dh",
+        "auth"
+      ]
+    },
+    "ToolConfirmEvent": {
+      "description": "The familiar wants to do something outside Familiar and is asking first.",
+      "type": "object",
+      "properties": {
+        "replyId": {
+          "description": "The reply it's part of.",
+          "type": "string",
+          "format": "uuid"
+        },
+        "callId": {
+          "description": "Answer with this.",
+          "type": "string"
+        },
+        "tool": {
+          "description": "The tool's name.",
+          "type": "string"
+        },
+        "description": {
+          "description": "What it will do, for the user to allow or not.",
+          "type": "string"
+        },
+        "expiresAt": {
+          "description": "After this it counts as declined.",
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "replyId",
+        "callId",
+        "tool",
+        "description",
+        "expiresAt"
+      ]
+    },
+    "ToolConfirmedEvent": {
+      "description": "A confirmation request was answered (by any device), so the others can put theirs away.",
+      "type": "object",
+      "properties": {
+        "callId": {
+          "type": "string"
+        },
+        "approved": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "callId",
+        "approved"
+      ]
+    },
+    "ToolFinishedEvent": {
+      "type": "object",
+      "properties": {
+        "replyId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "callId": {
+          "type": "string"
+        },
+        "tool": {
+          "type": "string"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "replyId",
+        "callId",
+        "tool",
+        "ok",
+        "summary"
+      ]
+    },
+    "ToolInvokeEvent": {
+      "description": "A tool call for one particular phone to carry out.",
+      "type": "object",
+      "properties": {
+        "callId": {
+          "description": "Answer with this.",
+          "type": "string"
+        },
+        "connectionId": {
+          "description": "Which connection should act; every other device ignores it.",
+          "type": "string"
+        },
+        "tool": {
+          "description": "What to do, e.g. \"calendar.add\".",
+          "type": "string"
+        },
+        "arguments": {
+          "description": "Its arguments.",
+          "type": "object"
+        },
+        "expiresAt": {
+          "description": "After this, don't: the server has stopped waiting (a replayed invoke must not run twice).",
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "callId",
+        "connectionId",
+        "tool",
+        "arguments",
+        "expiresAt"
+      ]
+    },
+    "ToolResultRequest": {
+      "type": "object",
+      "properties": {
+        "callId": {
+          "description": "The tool.invoke being answered.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ok": {
+          "description": "Whether it worked.",
+          "type": "boolean"
+        },
+        "result": {
+          "description": "What happened, for the model (and the summary).",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "error": {
+          "description": "Why not, when it didn't.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "callId",
+        "ok",
+        "result",
+        "error"
+      ]
+    },
+    "ToolStartedEvent": {
+      "type": "object",
+      "properties": {
+        "replyId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "callId": {
+          "type": "string"
+        },
+        "tool": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "replyId",
+        "callId",
+        "tool"
+      ]
+    }
+  }
+}

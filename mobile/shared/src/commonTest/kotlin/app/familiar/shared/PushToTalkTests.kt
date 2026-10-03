@@ -49,7 +49,7 @@ class PushToTalkTests {
             sentType = request.body.contentType?.toString()
             sentBytes = (request.body as OutgoingContent.ByteArrayContent).bytes()
             respond(
-                ByteReadChannel("""{"id":"m1","role":"user","text":"set a timer"}"""),
+                ByteReadChannel("""{"id":"m1","role":"user","text":"set a timer","emotion":null,"intensity":null,"interrupted":false,"createdAt":"2026-10-03T12:00:00Z"}"""),
                 HttpStatusCode.Accepted,
                 headersOf(HttpHeaders.ContentType, "application/json"),
             )

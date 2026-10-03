@@ -10,6 +10,7 @@ import app.familiar.shared.conversation.ConversationState
 import app.familiar.shared.platform.InMemoryStore
 import app.familiar.shared.protocol.MessageView
 import app.familiar.shared.protocol.ServerEvent
+import app.familiar.shared.protocol.isTimer
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -45,6 +46,8 @@ class ProtocolTests {
     }
 }
 
+private const val AT = "2026-10-03T12:00:00Z"
+
 class ReducerTests {
     private fun run(vararg events: ServerEvent) = events.fold(ConversationState()) { s, e -> ConversationReducer.apply(s, e) }
 
@@ -58,14 +61,14 @@ class ReducerTests {
         assertEquals("Hello there", state.messages.single().text)
         assertTrue(state.messages.single().streaming)
 
-        val done = ConversationReducer.apply(state, ServerEvent.ReplyEnd(app.familiar.shared.protocol.ReplyEndEvent("r1", "Hello there!", "joy")))
+        val done = ConversationReducer.apply(state, ServerEvent.ReplyEnd(app.familiar.shared.protocol.ReplyEndEvent("r1", "Hello there!", "joy", 0.7, interrupted = false)))
         assertEquals("Hello there!", done.messages.single().text)
         assertEquals(false, done.messages.single().streaming)
     }
 
     @Test
     fun replayed_events_change_nothing() {
-        val message = ServerEvent.Message(MessageView("m1", "user", "hi"))
+        val message = ServerEvent.Message(MessageView("m1", "user", "hi", interrupted = false, createdAt = AT))
         assertEquals(1, run(message, message, ServerEvent.ReplyStart("r1"), ServerEvent.ReplyStart("r1")).messages.count { it.id == "m1" })
         assertEquals(2, run(message, message, ServerEvent.ReplyStart("r1"), ServerEvent.ReplyStart("r1")).messages.size)
     }
@@ -73,13 +76,13 @@ class ReducerTests {
     @Test
     fun history_keeps_what_the_stream_already_delivered() {
         val live = run(ServerEvent.ReplyStart("r2"))
-        val merged = ConversationReducer.history(live, listOf(MessageView("m1", "user", "hi"), MessageView("r1", "assistant", "hello")))
+        val merged = ConversationReducer.history(live, listOf(MessageView("m1", "user", "hi", interrupted = false, createdAt = AT), MessageView("r1", "assistant", "hello", interrupted = false, createdAt = AT)))
         assertEquals(listOf("m1", "r1", "r2"), merged.messages.map { it.id })
     }
 
     @Test
     fun ready_opens_the_connection_and_resting_shows_when_the_model_is_away() {
-        val ready = ServerEvent.parse("ready", """{"familiar":{"name":"Pip"},"modelAvailable":false,"speechAvailable":false}""")
+        val ready = ServerEvent.parse("ready", """{"familiar":{"name":"Pip","expressiveness":0.8},"modelAvailable":false,"speechAvailable":false}""")
         val state = run(ready)
         assertEquals(Connection.Open, state.connection)
         assertEquals("resting", state.state)

@@ -53,7 +53,7 @@ class DeviceCalendarTests {
         override suspend fun requestAccess() = true
 
         override suspend fun upcoming(fromMillis: Long, toMillis: Long) =
-            listOf(DeviceEventView("1:0", "School run", null, "2026-10-02T08:00:00Z", "2026-10-02T08:30:00Z", calendar = "sam@gmail.com"))
+            listOf(DeviceEventView("1:0", "School run", null, "2026-10-02T08:00:00Z", "2026-10-02T08:30:00Z", allDay = false, calendar = "sam@gmail.com"))
 
         override suspend fun add(title: String, startsAt: String, endsAt: String, allDay: Boolean, timeZone: String?): String {
             added.update { it + "$title $startsAt" }
@@ -68,7 +68,7 @@ class DeviceCalendarTests {
     @Test
     fun the_phone_adds_what_it_is_asked_once_and_keeps_the_server_up_to_date() = runTest {
         val stream = listOf(
-            "ready" to """{"familiar":{"name":"Pip"},"modelAvailable":true,"speechAvailable":false,"connectionId":"c1"}""",
+            "ready" to """{"familiar":{"name":"Pip","expressiveness":0.8},"modelAvailable":true,"speechAvailable":false,"connectionId":"c1"}""",
             "tool.invoke" to invoke("old", "c0"),
             "tool.invoke" to invoke("late", "c1", expires = "2020-01-01T00:00:00Z"),
             "tool.invoke" to invoke("x1", "c1"),

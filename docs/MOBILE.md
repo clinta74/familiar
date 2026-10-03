@@ -144,6 +144,21 @@ drift. The server's message records are the source of truth; a build step emits 
 from them, and the TS and Kotlin types are generated from it. CI fails if generated files are
 stale. REST uses the server's OpenAPI document the same way.
 
+*Built (2026-10-03):* `ProtocolCatalog` (src/Familiar.Server/Protocol/) lists every stream event
+with its payload record and the request and response bodies both clients use; `ProtocolSchema`
+writes them as **`protocol/familiar.schema.json`** - names, types and nullability as the server's
+JSON options write them, descriptions from its XML docs, each event with its `EventTypes` name.
+`client/scripts/protocol.mjs` turns that into `client/src/protocol/generated.ts` (string-union
+enums, interfaces, `EventPayloads`, `EventTypes`) and the phone's `protocol/Generated.kt`
+(`@Serializable` data classes; enums as strings with constants, so an app a version behind still
+reads a value it doesn't know). Checked in CI both ways: the server's tests fail if the schema is
+older than the records, and `npm run protocol:check` if the generated types are older than the
+schema. To change the protocol: change the record, run
+`FAMILIAR_WRITE_PROTOCOL=1 dotnet test --filter ProtocolSchemaTests`, then `npm run protocol` in
+client/. Generating them caught drift that had already happened: the web client was missing
+`audio.end`, `connectionId` and a job's `ring`; the app had invented defaults for fields the server
+always sends. Still hand-written: the web client's other REST types (auth, studio, settings).
+
 ---
 
 ## 7. Phases
@@ -161,8 +176,8 @@ with a Keystore AES key. Network security allows plain http (home/VPN) and user-
 NAS's self-signed certificate). Verified on an emulator against the dev server: sign-in, live
 greeting, a timer set by tool and announced two minutes later, the session surviving a restart
 (stored values encrypted), sign-out revoking the token. CI runs the shared tests and keeps a debug
-APK. **Not yet:** the iOS CI build and TestFlight (needs the Apple Developer account), and the
-schema-generated protocol (§6).
+APK. **Not yet:** the iOS CI build and TestFlight (needs the Apple Developer account). The
+schema-generated protocol (§6) followed on 2026-10-03.
 
 **M1 started (2026-10-03): the avatar.** The chat screen shows the familiar above the conversation
 on a phone and beside it on a wide screen (≥ 600 dp: an unfolded Fold, a tablet), in the look from

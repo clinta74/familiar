@@ -5,9 +5,10 @@ import type { Viseme } from './visemes';
 // Android and iOS apps will host the same renderer in a WebView (MOBILE.md §1.1), and it moves to
 // its own package when they do.
 
-export type Emotion = 'neutral' | 'joy' | 'sad' | 'angry' | 'surprised' | 'relaxed' | 'thinking';
+// What the familiar can feel and do: the server's (the generated protocol, MOBILE.md §6).
+import type { Emotion, Gesture } from '../protocol/generated';
 
-export type Gesture = 'nod' | 'shake' | 'tilt' | 'wave' | 'shrug' | 'laugh' | 'wink' | 'sigh' | 'yawn' | 'excited';
+export type { Emotion, Gesture };
 
 /** What the familiar is doing, which shapes its idle behaviour. */
 export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'resting';

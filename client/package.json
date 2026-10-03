@@ -7,6 +7,8 @@
     "predev": "node scripts/copy-vad-assets.mjs",
     "dev": "vite",
     "prebuild": "node scripts/copy-vad-assets.mjs",
+    "protocol": "node scripts/protocol.mjs",
+    "protocol:check": "node scripts/protocol.mjs --check",
     "build": "tsc -b && vite build",
     "build:embed": "vite build --config vite.embed.config.ts",
     "lint": "oxlint",
