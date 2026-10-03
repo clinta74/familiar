@@ -11,6 +11,7 @@ const characters3d: Partial<Record<CharacterModel, (container: HTMLElement, look
   llama: async (container, look) => new (await import('./PlushLlama3D')).PlushLlama3D(container, look),
   fox: async (container, look) => new (await import('./PlushFox3D')).PlushFox3D(container, look),
   hedgehog: async (container, look) => new (await import('./PlushHedgehog3D')).PlushHedgehog3D(container, look),
+  monster: async (container, look) => new (await import('./PlushMonster3D')).PlushMonster3D(container, look),
 };
 
 /** The built-in characters other than the llama load on demand, so the default costs nothing extra. */

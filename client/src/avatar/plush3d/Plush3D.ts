@@ -24,6 +24,8 @@ const FOV = 22;
 const TEX = 256;
 /** Layers of fur over each furry shape: more is softer and costs more. */
 const SHELLS = 12;
+/** A googly eye's size, from the 2D eye radius: big, as they should be. */
+const GOOGLY = 1.1;
 
 export type Side = -1 | 1;
 /** Which of the five colours a part takes: coat (wool), face, or ear (inner ears and paws). */
@@ -852,7 +854,7 @@ export abstract class Plush3D extends PlushCharacter {
     group.position.copy(point).addScaledVector(normal, -0.04);
     group.lookAt(group.position.clone().add(normal));
     const googly = layout.eyeStyle === 'googly';
-    const r = layout.eyeR * S * (googly ? 0.95 : 0.84);
+    const r = layout.eyeR * S * (googly ? GOOGLY : 0.84);
 
     const ball = new THREE.Group();
     const button = new THREE.Mesh(
@@ -913,7 +915,7 @@ export abstract class Plush3D extends PlushCharacter {
       eye.arc.visible = arch > 0.01;
       eye.arc.scale.set(arch, arch * (0.6 + 0.4 * pose.blink), arch);
       if (eye.pupil) {
-        const r = layout.eyeR * S * 0.95;
+        const r = layout.eyeR * S * GOOGLY;
         eye.pupil.position.set(face.gazeX * r * 0.4, -face.gazeY * r * 0.4, r * 0.82);
       }
     });

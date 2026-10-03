@@ -106,6 +106,7 @@ export const characters: readonly CharacterInfo[] = [
     ],
     colourLabels: { wool: 'Fur', face: 'Belly', ear: 'Horns & paws', blush: 'Cheeks', accent: 'Accessory' },
     accessories,
+    has3d: true,
   },
   {
     id: 'spot',
