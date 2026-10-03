@@ -122,7 +122,7 @@ function UserRow({ user, onChanged, onRemoved }: { user: AdminUser; onChanged: (
 }
 
 /**
- * The server's accounts, for admins (Settings › Users). Registration stays closed on the NAS; the
+ * The server's accounts, for admins (the Users page, /admin). Registration stays closed on the NAS; the
  * household's accounts are added here, each with a first password to pass on.
  */
 export function UserAdmin() {

@@ -217,6 +217,122 @@ button.link:hover:not(:disabled) {
   color: var(--text);
 }
 
+/* The current page: underlined in the accent. */
+.topbar nav a.active {
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.topbar nav a {
+  padding: 6px 2px;
+}
+
+/* --- account menu --- */
+
+.account-menu {
+  position: relative;
+}
+
+.account-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-weight: 500;
+}
+
+.account-button:hover:not(:disabled),
+.account-button[aria-expanded='true'] {
+  background: var(--bg);
+}
+
+.account-initial {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.account-caret {
+  color: var(--muted);
+}
+
+.account-popup {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 220px;
+  padding: 6px;
+  display: grid;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgb(20 10 60 / 0.16);
+}
+
+.account-who {
+  display: grid;
+  padding: 8px 10px 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.account-item {
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.account-item:hover:not(:disabled),
+.account-item:focus-visible {
+  background: var(--bg);
+  outline: none;
+}
+
+.account-item.sign-out {
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 8px 8px;
+  color: var(--error);
+}
+
+.settings-note {
+  margin: 0;
+  text-align: center;
+}
+
+/* On a phone the names give way: the mark, the three pages and the account initial fit one row. */
+@media (max-width: 560px) {
+  .brand span,
+  .account-name {
+    display: none;
+  }
+
+  .account-button {
+    padding: 3px 6px 3px 3px;
+    gap: 4px;
+  }
+
+  .topbar nav {
+    gap: 14px;
+  }
+}
+
 .content {
   max-width: 1120px;
   margin: 0 auto;

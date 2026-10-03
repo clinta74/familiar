@@ -8,26 +8,11 @@ item out (or delete it) when it ships, and say where in the commit.
 
 ## Web app
 
-### 1. A way back to the chat, and a tidier header
+### 1–3. ~~Header, account menu, admin page~~ — done (2026-10-03)
 
-The header has the Familiar mark, Studio, Settings and "Sign out *name*", but nothing that says
-**Chat** — the mark is the only way home, and it doesn't look like a link. Add an explicit Chat
-item (current page highlighted), and lay the header out as: mark + name on the left; Chat, Studio,
-Settings in the middle (a compact row or a menu at phone width); the account menu on the right
-(item 2).
-
-### 2. A proper account menu instead of the sign-out link
-
-"Sign out clint" is a bare link in the header. Replace it with an account button (initial or
-avatar) opening a menu: who's signed in, Settings, Users (admins only, item 3), and Sign out —
-with this device's other sessions a click away in Settings › Devices. Keyboard and screen-reader
-friendly (menu button pattern), closes on Escape and outside clicks.
-
-### 3. Admin gets its own page
-
-User administration is a section of Settings (Settings › Users). Move it to its own page
-(`/admin`), reachable from the account menu for admins only; Settings goes back to being about
-your own familiar and account. Server side is unchanged (the Admin policy already guards it).
+The header has Chat, Studio and Settings (the current page underlined) and an account button whose
+menu has Settings, Devices, Users (admins) and Sign out; user administration is its own page,
+`/admin`.
 
 ### 4. No flash of the default llama while the real look loads
 

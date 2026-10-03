@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { Link, useLocation } from 'react-router';
 import { authApi, type Device } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { FamiliarSettings } from './FamiliarSettings';
@@ -6,7 +7,6 @@ import { CalendarSettings } from './CalendarSettings';
 import { ConnectionsSettings } from './ConnectionsSettings';
 import { MemorySettings } from './MemorySettings';
 import { NotificationSettings } from './NotificationSettings';
-import { UserAdmin } from './UserAdmin';
 import { Shell } from './Shell';
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -99,6 +99,12 @@ function DeviceList() {
 
 export function SettingsPage() {
   const { account } = useAuth();
+  const { hash } = useLocation();
+
+  // A link to a section (the account menu's Devices) scrolls to it.
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [hash]);
 
   return (
     <Shell>
@@ -135,15 +141,14 @@ export function SettingsPage() {
           <h2>Password</h2>
           <PasswordForm />
         </section>
-        <section className="card">
+        <section className="card" id="devices">
           <h2>Devices</h2>
           <DeviceList />
         </section>
         {account?.role === 'admin' && (
-          <section className="card">
-            <h2>Users</h2>
-            <UserAdmin />
-          </section>
+          <p className="muted settings-note">
+            Users are managed on their own page: <Link to="/admin">Users</Link>, also in the account menu.
+          </p>
         )}
       </div>
     </Shell>
