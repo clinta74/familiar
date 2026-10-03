@@ -394,7 +394,8 @@ export abstract class Plush3D extends PlushCharacter {
   private eyes: Eye[] = [];
   private brows: THREE.Mesh[] = [];
   private tear?: THREE.Mesh;
-  private arms: THREE.Group[] = [];
+  /** Each arm: the shoulder (the upper arm swings from it) and the elbow (the forearm bends at it). */
+  private arms: { shoulder: THREE.Group; elbow: THREE.Group }[] = [];
   private feet: THREE.Group[] = [];
   private accessories: Partial<Record<'bow' | 'scarf' | 'glasses' | 'flower', THREE.Object3D>> = {};
 
@@ -564,12 +565,20 @@ export abstract class Plush3D extends PlushCharacter {
     this.pivot.rotation.set(face.gazeY * 0.16, face.gazeX * 0.32, -pose.rotate * 0.75 * deg, 'YXZ');
     this.head.scale.set(1 - pose.squash, 1 + pose.squash, 1 - pose.squash * 0.5);
 
-    // Arms out for a shrug; the right one comes up to wave. Feet kick up with each hop of joy.
-    const shrug = pose.gesture?.name === 'shrug' ? Math.sin(Math.PI * pose.gesture.u) * 30 : 0;
+    // Arms, bent at the elbow: resting with the paws forward on the tummy; out with the forearms
+    // turned up for a shrug; and the right one lifting out to the side, its forearm bending up at
+    // the elbow, to wave from there. Feet kick up with each hop of joy.
+    const shrug = pose.gesture?.name === 'shrug' ? Math.sin(Math.PI * pose.gesture.u) : 0;
     const paw = pose.pawLift ?? 0;
-    const rest = 9 * (1 - paw);
-    this.arms[0]?.rotation.set(-0.42, 0, -(shrug + pose.breath - 9) * deg);
-    this.arms[1]?.rotation.set(-0.42 + paw * 0.1, 0, (shrug + paw * 130 - pose.pawAngle * 0.7 + pose.breath - rest) * deg);
+    this.arms.forEach(({ shoulder, elbow }, i) => {
+      const side = i === 0 ? -1 : 1;
+      const lift = side === 1 ? paw : 0;
+      // Out from the body (degrees), mirrored: positive takes the paw away from the tummy.
+      const out = -6 + shrug * 32 + lift * 78 + pose.breath;
+      shoulder.rotation.set(-0.3 * (1 - lift) - shrug * 0.2, 0, side * out * deg);
+      const bend = 0.55 + shrug * 0.6;
+      elbow.rotation.set(-bend * (1 - lift), 0, side * (lift * (102 - pose.pawAngle)) * deg);
+    });
     this.feet.forEach((foot, i) => {
       const side = i === 0 ? -1 : 1;
       foot.rotation.x = -pose.hop * 0.4;
@@ -697,13 +706,19 @@ export abstract class Plush3D extends PlushCharacter {
     const footZ = spec.footZ ?? 0.3;
     const { length, width, kind } = spec.arm;
     const r = (width / 2) * S;
+    const half = (length * S) / 2;
     for (const side of [-1, 1] as const) {
+      // Upper arm and forearm, each a soft capsule; their rounded ends make the elbow.
       const shoulder = new THREE.Group();
       shoulder.position.copy(v(side * spec.shoulder[0], spec.shoulder[1], armZ * 100));
-      shoulder.add(this.furry(lumpy(limb(r, length * S - r), 0.012, 23 + side), 0.07));
-      shoulder.add(this.extremity(kind, r, -length * S, side));
+      shoulder.add(this.furry(lumpy(limb(r, half), 0.01, 23 + side), 0.07));
+      const elbow = new THREE.Group();
+      elbow.position.y = -half;
+      elbow.add(this.furry(lumpy(limb(r * 0.94, half - r * 0.5), 0.01, 27 + side), 0.07));
+      elbow.add(this.extremity(kind, r, -half, side));
+      shoulder.add(elbow);
       this.body.add(shoulder);
-      this.arms.push(shoulder);
+      this.arms.push({ shoulder, elbow });
     }
 
     const { rx, ry, splay } = spec.feet;
