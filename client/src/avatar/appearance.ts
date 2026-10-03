@@ -75,13 +75,13 @@ export const characters: readonly CharacterInfo[] = [
   {
     id: 'hedgehog',
     name: 'Hedgehog',
-    blurb: 'Soft prickles that bristle when it’s startled and lie flat when it’s sad.',
+    blurb: 'A round ball of soft prickles that bristle when it’s startled and lie flat when it’s sad.',
     presets: [
-      { name: 'Hedgerow', colours: { wool: '#7a5a43', face: '#f0dcc3', ear: '#c9a688', blush: '#f2a3a3', accent: '#5d9a4a' } },
+      { name: 'Hedgerow', colours: { wool: '#a38a74', face: '#f6ecdf', ear: '#d9b598', blush: '#f2a3a3', accent: '#5d9a4a' } },
       { name: 'Snowy', colours: { wool: '#d8d2c8', face: '#fbf6ef', ear: '#e3c5c2', blush: '#f4a9b8', accent: '#8d5bd6' } },
       { name: 'Cinnamon', colours: { wool: '#b06a3b', face: '#f6e2cc', ear: '#d99c7a', blush: '#f19a8e', accent: '#2e7d8c' } },
     ],
-    colourLabels: { wool: 'Prickles', face: 'Face', ear: 'Inner ears & paws', blush: 'Cheeks', accent: 'Accessory' },
+    colourLabels: { wool: 'Prickles', face: 'Face & tummy', ear: 'Ears & paws', blush: 'Cheeks', accent: 'Accessory' },
     accessories,
   },
   {

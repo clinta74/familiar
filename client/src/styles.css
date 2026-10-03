@@ -448,6 +448,22 @@ button.link:hover:not(:disabled) {
   stroke-linejoin: round;
 }
 
+/* The hedgehog's mottling, its tan ears and its paws. */
+.plush-streak {
+  fill: none;
+  stroke: var(--plush-thread);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  opacity: 0.45;
+}
+
+.plush-ear-outer-tan,
+.plush-paw {
+  fill: var(--plush-ear);
+  stroke: var(--plush-wool-shadow);
+  stroke-width: 2;
+}
+
 .plush-spines-back {
   fill: var(--plush-wool-shadow);
 }
@@ -513,6 +529,13 @@ button.link:hover:not(:disabled) {
   stroke: var(--plush-accent-shadow, #563fb3);
   stroke-width: 2;
   stroke-dasharray: 3 4;
+}
+
+.plush-accent-fringe {
+  fill: none;
+  stroke: var(--plush-accent, #7c5cff);
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
 .plush-glasses {

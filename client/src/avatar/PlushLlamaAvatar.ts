@@ -91,7 +91,7 @@ export class PlushLlamaAvatar extends PlushCharacter {
       bow: { parent: this.ears[0], transform: 'translate(0 -16) rotate(-12)' },
       glasses: { parent: this.head, layout: LAYOUT },
       flower: { parent: this.head, x: 30, y: -60 },
-      scarf: { parent: neck, y: 86, halfWidth: 62 },
+      scarf: { parent: this.head, y: 66, halfWidth: 50 },
     });
 
     // A fleecy hoof that pops up from below the stage to wave.

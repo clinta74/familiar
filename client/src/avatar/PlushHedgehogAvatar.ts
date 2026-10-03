@@ -1,60 +1,73 @@
 import { llamaPalette } from './appearance';
 import { PlushCharacter, type PlushLook, type Pose } from './plush/engine';
 import {
-  buildAccessories, buildFace, buildOverlay, buildPaw, drawFace, drawOverlay, drawPaw, el, f, plushRoot, showAccessory,
-  type AccessoryParts, type FaceLayout, type FaceParts, type Overlay,
+  buildAccessories, buildFace, buildOverlay, buildPaw, drawFace, drawOverlay, drawPaw, el, f, plushRoot, showAccessory, wool,
+  type AccessoryParts, type FaceLayout, type FaceParts, type Overlay, type Puff,
 } from './plush/parts';
 
 const LAYOUT: FaceLayout = {
-  eyeX: 20, eyeY: -4, eyeR: 9,
-  browY: -19, browInnerX: 10, browOuterX: 27,
-  mouthY: 50, mouthW: 8, mouthDrop: 11,
-  cheekX: 32, cheekY: 20,
+  eyeX: 17, eyeY: -17, eyeR: 9,
+  browY: -32, browInnerX: 8, browOuterX: 23,
+  mouthY: 24, mouthW: 6, mouthDrop: 9,
+  cheekX: 29, cheekY: 2,
   eyeStyle: 'button', lashes: false,
 };
 
-const NECK_PIVOT_Y = 60;
-
-/** How many prickles crown the head, front layer; the back layer has as many again, between them. */
-const HEAD_SPINES = 30;
-
-/** The crown runs from low on the left, over the top, to low on the right (SVG angles: down is π/2). */
-const CROWN_FROM = Math.PI * 0.72;
-const CROWN_TO = Math.PI * 2.28;
+/** The ball: everything hangs off it and it moves as one, rocking on its bottom. */
+const BALL = { cx: 0, cy: 8, rx: 92, ry: 96 };
+const PIVOT_Y = 100;
 
 /**
- * The prickles as one path: soft, rounded spikes around an arc. `length` is how far they stand up
- * (they bristle when it's startled or cross, lie flat when it's sad); `ripple` sends a wave along them.
+ * The fur's edge as one path of soft tufts around an ellipse: rounded, plush prickles rather than
+ * spines. `length` is how far they stand out - they bristle when it's startled or cross and lie
+ * flat when it's sad; `ripple` runs a wave round them.
  */
-export function spinePath(
-  cx: number, cy: number, radius: number, from: number, to: number, count: number, length: number, ripple: number, t: number, width = 0.62,
-): string {
+export function tuftPath(rx: number, ry: number, cx: number, cy: number, count: number, length: number, ripple: number, t: number): string {
   let d = '';
+  const at = (angle: number, out: number) => [cx + Math.cos(angle) * (rx + out), cy + Math.sin(angle) * (ry + out)] as const;
   for (let i = 0; i < count; i++) {
-    const a = from + ((to - from) * (i + 0.5)) / count;
-    const half = ((to - from) / count) * width;
-    const len = length * (1 + 0.18 * Math.sin(i * 1.7) + ripple * Math.sin(t * 9 - i * 0.8));
-    const base1 = [cx + Math.cos(a - half) * radius, cy + Math.sin(a - half) * radius];
-    const base2 = [cx + Math.cos(a + half) * radius, cy + Math.sin(a + half) * radius];
-    // The tip leans back a little, as fur does.
-    const tipA = a + 0.12;
-    const tip = [cx + Math.cos(tipA) * (radius + len), cy + Math.sin(tipA) * (radius + len)];
-    const ctrl = [cx + Math.cos(a) * (radius + len * 0.55), cy + Math.sin(a) * (radius + len * 0.55)];
-    d += `M${f(base1[0]!)},${f(base1[1]!)} Q${f(ctrl[0]! - 3)},${f(ctrl[1]!)} ${f(tip[0]!)},${f(tip[1]!)} Q${f(ctrl[0]! + 3)},${f(ctrl[1]!)} ${f(base2[0]!)},${f(base2[1]!)} Z `;
+    const a = (i / count) * Math.PI * 2;
+    const half = (Math.PI / count) * 0.95;
+    const len = length * (0.75 + 0.35 * Math.abs(Math.sin(i * 2.3))) * (1 + ripple * Math.sin(t * 9 - i * 0.7));
+    const [x1, y1] = at(a - half, -2);
+    const [x2, y2] = at(a + half, -2);
+    const [tx, ty] = at(a + 0.04, len);
+    const [c1x, c1y] = at(a - half * 0.55, len * 0.7);
+    const [c2x, c2y] = at(a + half * 0.55, len * 0.7);
+    d += `M${f(x1)},${f(y1)} Q${f(c1x)},${f(c1y)} ${f(tx)},${f(ty)} Q${f(c2x)},${f(c2y)} ${f(x2)},${f(y2)} Z `;
   }
   return d;
 }
 
+/** Short dark-tipped strokes in the fur, pointing outwards: the mottling of a plush hedgehog. */
+function streaks(parent: SVGGElement) {
+  let d = '';
+  for (let ring = 0; ring < 4; ring++) {
+    const count = 26 + ring * 6;
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + ring * 0.37;
+      const r = 0.62 + ring * 0.1 + 0.03 * Math.sin(i * 3.1);
+      const x = BALL.cx + Math.cos(a) * BALL.rx * r;
+      const y = BALL.cy + Math.sin(a) * BALL.ry * r;
+      // Not over the face and its ruff, nor the tummy.
+      if (Math.hypot(x / 58, (y + 6) / 54) < 1 || Math.hypot(x / 44, (y - 66) / 40) < 1) continue;
+      const len = 7 + 4 * Math.abs(Math.sin(i * 1.9 + ring));
+      d += `M${f(x)},${f(y)} l${f(Math.cos(a) * len)},${f(Math.sin(a) * len)} `;
+    }
+  }
+  el('path', { class: 'plush-streak', d }, parent);
+}
+
 /**
- * A plush hedgehog: a round, soft face in a crown of prickles. The prickles are its ears, emotionally
- * speaking - they bristle up when it's surprised or cross and lie flat when it's sad or sleepy.
+ * A plush hedgehog, after the classic round toy: a ball of soft, mottled fur with a cream face in
+ * a fluffy ruff, little round ears, a short snout with a big button nose, and its paws held in
+ * front. Its prickles - soft tufts round its edge - bristle when it's startled or cross and lie
+ * flat when it's sad.
  */
 export class PlushHedgehogAvatar extends PlushCharacter {
   protected readonly root: SVGSVGElement;
   private readonly head: SVGGElement;
-  /** Back and front layers of prickles, on the head and down the sides of the body. */
-  private readonly spines: [SVGPathElement, SVGPathElement];
-  private readonly bodySpines: [SVGPathElement, SVGPathElement];
+  private readonly tufts: [SVGPathElement, SVGPathElement];
   private readonly ears: [SVGGElement, SVGGElement];
   private readonly faceParts: FaceParts;
   private readonly overlay: Overlay;
@@ -66,45 +79,61 @@ export class PlushHedgehogAvatar extends PlushCharacter {
     const { root, id } = plushRoot('hedgehog', 'Your familiar, a plush hedgehog');
     this.root = root;
 
-    // The body, a prickly back running down past the stage.
-    const body = el('g', {}, root);
-    this.bodySpines = [el('path', { class: 'plush-spines plush-spines-back plush-fuzzy' }, body), el('path', { class: 'plush-spines plush-fuzzy' }, body)];
-    el('ellipse', { cx: 0, cy: 170, rx: 70, ry: 130, class: 'plush-wool plush-fuzzy plush-outlined' }, body);
-    el('ellipse', { cx: 0, cy: 175, rx: 34, ry: 100, class: 'plush-skin plush-fuzzy' }, body);
-
+    // All one piece: a hedgehog toy has no neck to speak of.
     this.head = el('g', {}, root);
-    this.spines = [el('path', { class: 'plush-spines plush-spines-back plush-fuzzy' }, this.head), el('path', { class: 'plush-spines plush-fuzzy' }, this.head)];
-    el('circle', { cx: 0, cy: 0, r: 62, class: 'plush-wool plush-fuzzy plush-outlined' }, this.head);
 
-    // Little round ears, peeking out where the face meets the prickles.
+    // The fur's edge, two layers of tufts: the back one darker, so the edge reads as fur.
+    this.tufts = [
+      el('path', { class: 'plush-spines plush-spines-back plush-fuzzy' }, this.head),
+      el('path', { class: 'plush-spines plush-fuzzy' }, this.head),
+    ];
+    el('ellipse', { ...BALL, class: 'plush-wool plush-fuzzy' }, this.head);
+    streaks(this.head);
+
+    // Little round ears, set into the fur above the ruff.
     const roundEar = () => {
       const g = el('g', {}, this.head);
-      el('circle', { cx: 0, cy: 0, r: 11, class: 'plush-skin plush-fuzzy plush-outlined' }, g);
-      el('circle', { cx: 0, cy: 1, r: 6, class: 'plush-ear-inner' }, g);
+      el('ellipse', { cx: 0, cy: 0, rx: 13, ry: 12, class: 'plush-ear-outer-tan plush-fuzzy' }, g);
+      el('ellipse', { cx: 0, cy: 1, rx: 7, ry: 6.5, class: 'plush-ear-inner' }, g);
       return g;
     };
     this.ears = [roundEar(), roundEar()];
 
-    // The face: a soft round patch, coming to a pointed snout.
-    el('path', {
-      class: 'plush-skin plush-fuzzy',
-      d: 'M-50,-6 C-50,-40 -26,-48 0,-48 C26,-48 50,-40 50,-6 C50,22 34,40 16,48 C10,52 6,56 0,56 C-6,56 -10,52 -16,48 C-34,40 -50,22 -50,-6 Z',
-    }, this.head);
+    // The tummy, low on the ball.
+    el('ellipse', { cx: 0, cy: 66, rx: 40, ry: 38, class: 'plush-skin plush-fuzzy' }, this.head);
+
+    // The ruff: a fluffy cream frame round the face.
+    const ruff: Puff[] = [];
+    for (let i = 0; i < 18; i++) {
+      const a = Math.PI * (0.92 + (1.16 * i) / 17);
+      ruff.push([Math.cos(a) * 45, -6 + Math.sin(a) * 41, i % 2 === 0 ? 13 : 11]);
+    }
+    for (const x of [-43, 43]) ruff.push([x, 12, 12], [x * 0.82, 26, 11]);
+    wool(this.head, ruff, 'plush-cream');
+
+    // The face: a soft oval, coming forward into a short snout.
+    el('ellipse', { cx: 0, cy: -4, rx: 39, ry: 36, class: 'plush-skin plush-fuzzy' }, this.head);
 
     this.faceParts = buildFace(this.head, LAYOUT, id, {
       beforeMouth: (head) => {
-        el('ellipse', { cx: 0, cy: 32, rx: 15, ry: 14, class: 'plush-snout' }, head);
-        el('circle', { cx: 0, cy: 40, r: 7, class: 'plush-button' }, head);
-        el('circle', { cx: 2.5, cy: 37.5, r: 2, class: 'plush-button-shine' }, head);
+        el('ellipse', { cx: 0, cy: 6, rx: 17, ry: 15, class: 'plush-snout' }, head);
+        el('ellipse', { cx: 0, cy: 7, rx: 9.5, ry: 8, class: 'plush-button' }, head);
+        el('circle', { cx: 3, cy: 4, r: 2.4, class: 'plush-button-shine' }, head);
+        el('path', { class: 'plush-thread', d: 'M0,15 L0,21' }, head);
       },
     });
 
     this.accessories = buildAccessories({
-      bow: { parent: this.head, transform: 'translate(-38 -56) rotate(-20) scale(0.9)' },
+      bow: { parent: this.ears[0], transform: 'translate(-2 -10) rotate(-15) scale(0.75)' },
       glasses: { parent: this.head, layout: LAYOUT },
-      flower: { parent: this.head, x: 34, y: -62 },
-      scarf: { parent: body, y: 60, halfWidth: 60 },
+      flower: { parent: this.head, x: 46, y: -66 },
+      scarf: { parent: this.head, y: 32, halfWidth: 46 },
     });
+
+    // Its paws, held in front of its tummy (drawn last, so they're over a scarf).
+    for (const x of [-22, 22]) {
+      el('ellipse', { cx: x, cy: 60, rx: 13, ry: 9, transform: `rotate(${x > 0 ? -18 : 18} ${x} 60)`, class: 'plush-paw plush-fuzzy' }, this.head);
+    }
 
     this.paw = buildPaw(root, 'paw');
     this.overlay = buildOverlay(root);
@@ -121,26 +150,21 @@ export class PlushHedgehogAvatar extends PlushCharacter {
 
   protected draw(pose: Pose): void {
     const { face } = pose;
+
+    // The whole ball rocks and bobs; squash makes it squidge.
     this.head.setAttribute('transform',
-      `translate(0 ${f(pose.dy)}) rotate(${f(pose.rotate)} 0 ${NECK_PIVOT_Y}) scale(${f(1 - pose.squash)} ${f(1 + pose.squash)})`);
+      `translate(0 ${f(pose.dy)}) rotate(${f(pose.rotate)} 0 ${PIVOT_Y}) translate(0 ${PIVOT_Y}) scale(${f(1 + pose.squash * 0.6)} ${f(1 - pose.squash * 0.6)}) translate(0 ${-PIVOT_Y})`);
 
-    // Prickles: lying flat (~16 out) when sad, bristling (~48) when startled or cross; any wiggle
-    // runs a ripple along them. Two layers, the back one darker and offset, so they read as a coat.
-    const length = 34 + face.earLift * 15 + pose.mood.angry * 8;
-    const ripple = Math.min(0.5, Math.abs(pose.earWiggle) / 20);
-    const step = (CROWN_TO - CROWN_FROM) / HEAD_SPINES;
-    this.spines[0].setAttribute('d', spinePath(0, 0, 50, CROWN_FROM + step / 2, CROWN_TO + step / 2, HEAD_SPINES, length * 1.12, ripple, pose.t + 0.3, 0.9));
-    this.spines[1].setAttribute('d', spinePath(0, 0, 54, CROWN_FROM, CROWN_TO, HEAD_SPINES, length, ripple, pose.t, 0.85));
-    const side = (from: number, to: number, r: number, len: number, offset: number) =>
-      spinePath(0, 170, r, from + offset, to + offset, 10, len, 0, pose.t, 0.85);
-    const bodyLength = length * 0.85;
-    this.bodySpines[0].setAttribute('d', side(Math.PI * 0.62, Math.PI * 1.3, 62, bodyLength * 1.1, 0.03) + side(Math.PI * 1.7, Math.PI * 2.38, 62, bodyLength * 1.1, 0.03));
-    this.bodySpines[1].setAttribute('d', side(Math.PI * 0.62, Math.PI * 1.3, 66, bodyLength, 0) + side(Math.PI * 1.7, Math.PI * 2.38, 66, bodyLength, 0));
+    // Tufts: ~6 out when flat and sad, ~22 bristling when startled or cross.
+    const length = 12 + face.earLift * 8 + pose.mood.angry * 6;
+    const ripple = Math.min(0.4, Math.abs(pose.earWiggle) / 25);
+    this.tufts[0].setAttribute('d', tuftPath(BALL.rx - 4, BALL.ry - 4, BALL.cx, BALL.cy, 34, length * 1.15, ripple, pose.t + 0.4));
+    this.tufts[1].setAttribute('d', tuftPath(BALL.rx, BALL.ry, BALL.cx, BALL.cy, 30, length, ripple, pose.t));
 
-    // The little ears tip forward with interest and back when it's down.
+    // The little ears tip up with interest and droop back when it's down.
     this.ears.forEach((e, i) => {
       const side = i === 0 ? -1 : 1;
-      e.setAttribute('transform', `translate(${side * 40} ${f(-40 - face.earLift * 3)}) rotate(${f(side * (10 - face.earLift * 12))})`);
+      e.setAttribute('transform', `translate(${side * 42} ${f(-50 - face.earLift * 3)}) rotate(${f(side * (8 - face.earLift * 14))})`);
     });
 
     drawFace(this.faceParts, face, pose);

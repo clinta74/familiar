@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { characters, fromOklch, lightness, mixVivid, toOklch } from './appearance';
-import { spinePath } from './PlushHedgehogAvatar';
+import { tuftPath } from './PlushHedgehogAvatar';
 import { blendShape, spotColour, spotCore, spotPath } from './SpotAvatar';
 import { emotions, type Emotion } from './types';
 
@@ -80,9 +80,9 @@ describe('the happy colour', () => {
 });
 
 describe('the hedgehog', () => {
-  it('has one spike per prickle, and longer prickles when bristling', () => {
-    const flat = spinePath(0, 0, 58, Math.PI, Math.PI * 2, 10, 10, 0, 0);
-    const bristling = spinePath(0, 0, 58, Math.PI, Math.PI * 2, 10, 34, 0, 0);
+  it('has one tuft per prickle, and longer prickles when bristling', () => {
+    const flat = tuftPath(58, 58, 0, 0, 10, 6, 0, 0);
+    const bristling = tuftPath(58, 58, 0, 0, 10, 26, 0, 0);
     expect(flat.match(/M/g)).toHaveLength(10);
     const reach = (d: string) => Math.max(...[...d.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => Math.hypot(Number(m[1]), Number(m[2]))));
     expect(reach(bristling)).toBeGreaterThan(reach(flat) + 15);

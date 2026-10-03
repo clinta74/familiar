@@ -88,7 +88,7 @@ export class PlushFoxAvatar extends PlushCharacter {
       bow: { parent: this.ears[0], transform: 'translate(2 -14) rotate(-10) scale(0.85)' },
       glasses: { parent: this.head, layout: LAYOUT },
       flower: { parent: this.head, x: 30, y: -50 },
-      scarf: { parent: neck, y: 70, halfWidth: 56 },
+      scarf: { parent: this.head, y: 50, halfWidth: 40 },
     });
 
     this.paw = buildPaw(root, 'paw');

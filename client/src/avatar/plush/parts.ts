@@ -267,7 +267,11 @@ export interface AccessoryAnchors {
   /** Glasses sit over the eyes. */
   glasses: { parent: SVGGElement; layout: FaceLayout };
   flower: { parent: SVGGElement; x: number; y: number };
-  /** The scarf wraps a neck that doesn't move with the head. */
+  /**
+   * The scarf wraps the neck just under the chin: `y` is the top of the wrap at its middle, and
+   * `halfWidth` how far it reaches each side. It belongs to the head (it moves with a nod), drawn
+   * over the bottom of the head, and must sit above the stage's bottom fade (y < ~80).
+   */
   scarf: { parent: SVGGElement; y: number; halfWidth: number };
 }
 
@@ -294,9 +298,22 @@ export function buildAccessories(a: AccessoryAnchors): AccessoryParts {
 
   const { y, halfWidth: w } = a.scarf;
   const scarf = el('g', { class: 'plush-accessory' }, a.scarf.parent);
-  el('path', { class: 'plush-accent', d: `M${-w},${y} C${-w / 2},${y + 14} ${w / 2},${y + 14} ${w},${y} L${w + 2},${y + 26} C${w / 2},${y + 40} ${-w / 2},${y + 40} ${-w - 2},${y + 26} Z` }, scarf);
-  el('path', { class: 'plush-accent', d: `M${w * 0.4},${y + 22} L${w * 0.7},${y + 22} L${w * 0.8},${y + 78} L${w * 0.45},${y + 80} Z` }, scarf);
-  el('path', { class: 'plush-accent-stripe', d: `M${-w + 2},${y + 13} C${-w / 2},${y + 26} ${w / 2},${y + 26} ${w - 2},${y + 13} M${w * 0.48},${y + 42} L${w * 0.76},${y + 41} M${w * 0.5},${y + 60} L${w * 0.78},${y + 59}` }, scarf);
+  // The wrap: a soft band sagging a little at the front, its ends rounding away out of sight.
+  el('path', {
+    class: 'plush-accent',
+    d: `M${-w},${y - 3} C${-w * 0.5},${y + 9} ${w * 0.5},${y + 9} ${w},${y - 3} C${w + 5},${y + 5} ${w + 3},${y + 14} ${w - 2},${y + 18} `
+      + `C${w * 0.5},${y + 29} ${-w * 0.5},${y + 29} ${-w + 2},${y + 18} C${-w - 3},${y + 14} ${-w - 5},${y + 5} ${-w},${y - 3} Z`,
+  }, scarf);
+  el('path', { class: 'plush-accent-stripe', d: `M${-w + 7},${y + 7} C${-w * 0.5},${y + 17} ${w * 0.5},${y + 17} ${w - 7},${y + 7}` }, scarf);
+
+  // A knot off to one side, with two tails: one hanging, one kicked out a little.
+  const kx = w * 0.38;
+  const ky = y + 14;
+  el('path', { class: 'plush-accent', d: `M${kx - 7},${ky + 3} C${kx - 9},${ky + 18} ${kx - 10},${ky + 30} ${kx - 12},${ky + 42} L${kx + 2},${ky + 44} C${kx + 3},${ky + 31} ${kx + 4},${ky + 18} ${kx + 5},${ky + 4} Z` }, scarf);
+  el('path', { class: 'plush-accent', d: `M${kx + 2},${ky + 3} C${kx + 9},${ky + 14} ${kx + 15},${ky + 25} ${kx + 21},${ky + 35} L${kx + 32},${ky + 29} C${kx + 23},${ky + 20} ${kx + 15},${ky + 10} ${kx + 9},${ky + 1} Z` }, scarf);
+  el('path', { class: 'plush-accent-stripe', d: `M${kx - 9},${ky + 26} L${kx + 3},${ky + 27} M${kx + 13},${ky + 22} L${kx + 22},${ky + 16}` }, scarf);
+  el('path', { class: 'plush-accent-fringe', d: `M${kx - 10},${ky + 43} l-1,5 M${kx - 5},${ky + 43} l0,5 M${kx},${ky + 44} l1,5 M${kx + 23},${ky + 34} l3,4 M${kx + 27},${ky + 32} l4,3 M${kx + 31},${ky + 30} l4,2` }, scarf);
+  el('ellipse', { class: 'plush-accent', cx: kx, cy: ky, rx: 9, ry: 8 }, scarf);
 
   const parts = { bow, glasses, flower, scarf };
   for (const g of Object.values(parts)) g.style.display = 'none';

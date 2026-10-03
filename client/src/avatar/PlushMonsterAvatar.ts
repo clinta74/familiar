@@ -83,7 +83,7 @@ export class PlushMonsterAvatar extends PlushCharacter {
       bow: { parent: this.horns[0], transform: 'translate(0 -6) rotate(-10) scale(0.8)' },
       glasses: { parent: this.head, layout: LAYOUT },
       flower: { parent: this.head, x: 46, y: -46 },
-      scarf: { parent: body, y: 74, halfWidth: 64 },
+      scarf: { parent: this.head, y: 64, halfWidth: 52 },
     });
 
     this.paw = buildPaw(root, 'claw');
