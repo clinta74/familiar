@@ -107,6 +107,9 @@ export class Spot3D extends Plush3D {
   };
   private readonly halo: THREE.Sprite;
   private readonly sparkles: THREE.Sprite[] = [];
+  /** Pieces that bud off for a gesture and are taken back in: it splits and reforms. */
+  private readonly pieces: THREE.Mesh[] = [];
+  private readonly pieceMaterial: THREE.MeshPhysicalMaterial;
   private base = '#7c5cff';
   private glowColour = '#c4b5ff';
   private phase = 0;
@@ -136,6 +139,14 @@ export class Spot3D extends Plush3D {
     this.blob.position.y = CENTRE_Y;
     this.head.add(this.blob);
 
+    this.pieceMaterial = new THREE.MeshPhysicalMaterial({ roughness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.08, sheen: 0.4 });
+    for (let i = 0; i < 3; i++) {
+      const piece = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), this.pieceMaterial);
+      piece.visible = false;
+      this.head.add(piece);
+      this.pieces.push(piece);
+    }
+
     this.halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), transparent: true, depthWrite: false }));
     this.halo.position.set(0, CENTRE_Y, -0.6);
     this.head.add(this.halo);
@@ -150,6 +161,49 @@ export class Spot3D extends Plush3D {
     }
 
     this.finish(look, { colours: characterInfo('spot').presets[0]!.colours, accessory: 'none' });
+  }
+
+  /**
+   * Splitting and reforming, for some gestures: a shake parts it into two halves that slide apart
+   * and back together; excitement throws three small blobs up out of it to fall back in; a laugh
+   * bobs two little ones out at its sides. Each piece starts inside the body and grows as it moves
+   * out (shrinking as it goes back), so it reads as budding off and being taken back in. `main` is
+   * how big the body stays meanwhile.
+   */
+  private split(pose: Pose): { main: number; pieces: { x: number; y: number; z: number; size: number }[] } {
+    const gesture = pose.gesture;
+    if (!gesture || pose.motion < 1) return { main: 1, pieces: [] };
+    const env = Math.sin(Math.PI * Math.min(1, gesture.u));
+    const grow = Math.sqrt(env);
+    switch (gesture.name) {
+      case 'shake': {
+        const apart = 0.42 * env;
+        return {
+          main: 1 - 0.62 * grow,
+          pieces: [-1, 1].map((side) => ({ x: side * apart + Math.sin(gesture.u * Math.PI * 6) * 0.04, y: 0, z: 0, size: RADIUS * 0.66 * grow })),
+        };
+      }
+      case 'excited':
+        return {
+          main: 1 - 0.12 * grow,
+          pieces: [-1, 0, 1].map((k, i) => {
+            const hop = Math.abs(Math.sin(gesture.u * Math.PI * 2 + i * 0.6));
+            return { x: k * 0.42 * env, y: (0.55 + 0.25 * hop) * env, z: 0.1, size: RADIUS * 0.3 * grow };
+          }),
+        };
+      case 'laugh':
+        return {
+          main: 1 - 0.08 * grow,
+          pieces: [-1, 1].map((side, i) => ({
+            x: side * 0.86 * env,
+            y: (0.05 + 0.12 * Math.abs(Math.sin(gesture.u * Math.PI * 7 + i))) * env,
+            z: 0.05,
+            size: RADIUS * 0.26 * grow,
+          })),
+        };
+      default:
+        return { main: 1, pieces: [] };
+    }
   }
 
   /** Its colour is the "wool" colour; the accessory colour is its glow. It wears nothing. */
@@ -172,7 +226,8 @@ export class Spot3D extends Plush3D {
     this.phase += dt * shape.speed;
 
     const u = this.uniforms;
-    u.uSize.value = shape.size;
+    const split = this.split(pose);
+    u.uSize.value = shape.size * split.main;
     u.uSx.value = shape.sx;
     u.uSy.value = shape.sy;
     u.uWobble.value = shape.wobble;
@@ -184,7 +239,8 @@ export class Spot3D extends Plush3D {
     u.uLobe.value = shape.lobe;
     // The flat spot's lobe angle is in its picture, y down; here it reaches out a little forward too.
     u.uLobeDir.value.set(Math.cos(shape.lobeAngle), -Math.sin(shape.lobeAngle), 0.35).normalize();
-    u.uJiggle.value = shape.jiggle;
+    // Gentler than the flat spot's: on a whole surface, the light shows every ripple as a crease.
+    u.uJiggle.value = shape.jiggle * 0.35;
     // Frayed only beyond a calm spot's roughness (cross, a little when thinking): in 3D the light
     // catches every dimple, so calm moods stay glassy-smooth.
     u.uRough.value = Math.max(0, shape.roughness - 1.2) * (pose.motion < 1 ? 0.5 : 1);
@@ -202,6 +258,21 @@ export class Spot3D extends Plush3D {
     this.halo.material.color.set(glow);
     this.halo.material.opacity = haloOpacity * 0.75;
     this.halo.scale.setScalar(RADIUS * 3.4 * shape.size);
+
+    // The pieces: the same surface as the body, moving out of it and back.
+    this.pieceMaterial.color.copy(this.material.color);
+    this.pieceMaterial.roughness = this.material.roughness;
+    this.pieceMaterial.clearcoat = this.material.clearcoat;
+    this.pieceMaterial.sheenColor.copy(this.material.sheenColor);
+    this.pieceMaterial.emissive.copy(this.material.emissive);
+    this.pieceMaterial.emissiveIntensity = this.material.emissiveIntensity;
+    this.pieces.forEach((piece, i) => {
+      const part = split.pieces[i];
+      piece.visible = !!part && part.size > 0.01;
+      if (!part) return;
+      piece.position.set(part.x, CENTRE_Y + part.y, part.z);
+      piece.scale.set(part.size, part.size * (1 - 0.12 * Math.sin(pose.t * 9 + i)), part.size);
+    });
 
     this.sparkles.forEach((s, i) => {
       s.material.color.set(mix(this.glowColour, '#ffffff', 0.5));

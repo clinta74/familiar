@@ -10,6 +10,8 @@ import math
 from blendkit import (ball, blob, capsule, ellipsoid, fur_mask, node, parent_to, place, ring, role,
                       shaped, tuft)
 
+from blendkit import foreleg, hind_foot  # noqa: E402
+
 FRAME = (-0.35, 1.95)
 
 FACE = (0, -0.04, 0.5, 0.48)
@@ -74,23 +76,7 @@ def build():
     belly = blob("belly", [ellipsoid((0, -1.48, 0.36), (0.42, 0.5, 0.2))], lumps=0.015, faces=1800)
     role(parent_to(belly, body), "fur", "face", 0.1)
 
-    # Arms bending at the elbow, ending in clawed paws.
+    # Front legs standing to the ground in front, with clawed paws; clawed hind feet at the sides.
     for side, suffix in ((-1, "L"), (1, "R")):
-        sx, sy, sz = side * 0.52, -1.0, 0.3
-        arm = node(f"arm_{suffix}", (sx, sy, sz), body)
-        upper = blob(f"arm_{suffix}_upper", [capsule((sx, sy, sz), (sx, sy - 0.43, sz), 0.12), ball((sx, sy - 0.04, sz - 0.02), 0.15)], lumps=0.015, faces=1000)
-        role(parent_to(upper, arm), "fur", "wool", 0.09)
-        forearm = node(f"forearm_{suffix}", (sx, sy - 0.44, sz), arm)
-        lower = blob(f"forearm_{suffix}_fur", [capsule((sx, sy - 0.44, sz), (sx, sy - 0.76, sz), 0.11)], lumps=0.015, faces=900)
-        role(parent_to(lower, forearm), "fur", "wool", 0.09)
-        paw = blob(f"forearm_{suffix}_paw", [ellipsoid((sx, sy - 0.86, sz + 0.02), (0.15, 0.12, 0.14))], faces=700)
-        role(parent_to(paw, forearm), "fur", "ear", 0.04)
-        claws(f"forearm_{suffix}_claw", (sx, sy - 0.94, sz + 0.1), 0.06, forearm, math.radians(150))
-
-    # Clawed feet in front.
-    for side, suffix in ((-1, "L"), (1, "R")):
-        fx, fy, fz = side * 0.56, -2.06, 0.3
-        foot = node(f"foot_{suffix}", (fx, fy, fz), body)
-        pad = blob(f"foot_{suffix}_paw", [ellipsoid((fx, fy, fz), (0.2, 0.15, 0.3))], lumps=0.01, faces=900)
-        role(parent_to(pad, foot), "fur", "ear", 0.05)
-        claws(f"foot_{suffix}_claw", (fx, fy - 0.02, fz + 0.3), 0.07, foot, math.radians(95))
+        foreleg(body, suffix, (side * 0.3, -1.02, 0.32), 0.12, "claw", "wool", 0.09, "ear", lumps=0.015)
+        hind_foot(body, suffix, (side * 0.64, -2.07, 0.12), (0.21, 0.14, 0.3), "ear", 0.05, "claw")

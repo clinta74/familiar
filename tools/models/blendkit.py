@@ -362,3 +362,59 @@ def previews(directory, name, frame):
         camera.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
         scene.render.filepath = os.path.join(directory, f"{name}-{view}.png")
         bpy.ops.render.render(write_still=True)
+
+
+GROUND = -2.22
+
+
+def foreleg(body, suffix, shoulder, radius, end, coat="wool", fur=0.07, paw_coat="ear", lumps=0.012):
+    """
+    A front leg standing from the shoulder down to the ground, as a sitting dog's do: an upper part
+    and a lower part (it bends at the elbow to wave), ending in a hoof, a paw or a clawed paw on
+    the floor. Nodes arm_<suffix> at the shoulder and forearm_<suffix> at the elbow.
+    """
+    sx, sy, sz = shoulder
+    bottom = GROUND + (0.035 if end == "hoof" else 0.07)
+    length = sy - bottom
+    half = length * 0.5
+    arm = node(f"arm_{suffix}", shoulder, body)
+    upper = blob(f"arm_{suffix}_upper", [
+        capsule((sx, sy, sz), (sx, sy - half, sz), radius * 1.05),
+        ball((sx, sy - 0.03, sz - 0.04), radius * 1.4),
+    ], lumps=lumps, faces=1100)
+    role(parent_to(upper, arm), "fur", coat, fur)
+    forearm = node(f"forearm_{suffix}", (sx, sy - half, sz), arm)
+    lower = blob(f"forearm_{suffix}_fur", [capsule((sx, sy - half, sz), (sx, bottom + radius * 0.5, sz), radius * 0.92)], lumps=lumps, faces=900)
+    role(parent_to(lower, forearm), "fur", coat, fur)
+    if end == "hoof":
+        hoof = shaped(f"forearm_{suffix}_hoof", (radius * 1.08, 0.06, radius * 1.15), lambda x, y, z: (x, max(y, -0.035), z), segments=(24, 14), faces=500)
+        place(hoof, (sx, GROUND + 0.04, sz + 0.02), forearm)
+        role(hoof, "hoof")
+    else:
+        paw = blob(f"forearm_{suffix}_paw", [ellipsoid((sx, GROUND + 0.07, sz + 0.07), (radius * 1.3, 0.075, radius * 1.7))], faces=700)
+        role(parent_to(paw, forearm), "fur", paw_coat, 0.03)
+        if end == "claw":
+            for i, k in enumerate((-1, 0, 1)):
+                claw = shaped(f"forearm_{suffix}_claw{i}", (0.02, 0.03, 0.02),
+                              tuft(0.06, 0.02, (sx + k * radius * 0.5, GROUND + 0.05, sz + 0.07 + radius * 1.6), 0.0, flat=1.0, curl=0.0, angle_x=math.radians(100)),
+                              segments=(12, 8), faces=120)
+                role(parent_to(claw, forearm), "claw")
+    return arm
+
+
+def hind_foot(body, suffix, at, radii, coat="wool", fur=0.05, end=None):
+    """A hind foot resting at the side, toes forward, on a pivot (it kicks up with a hop)."""
+    foot = node(f"foot_{suffix}", at, body)
+    pad = blob(f"foot_{suffix}_pad", [ellipsoid(at, radii)], lumps=0.01, faces=900)
+    role(parent_to(pad, foot), "fur", coat, fur)
+    if end == "hoof":
+        hoof = shaped(f"foot_{suffix}_hoof", (radii[0] * 0.6, radii[1] * 0.5, radii[2] * 0.3), lambda x, y, z: (x, y, z), segments=(24, 14), faces=500)
+        place(hoof, (at[0], at[1] - radii[1] * 0.2, at[2] + radii[2] * 0.9), foot)
+        role(hoof, "hoof")
+    elif end == "claw":
+        for i, k in enumerate((-1, 0, 1)):
+            claw = shaped(f"foot_{suffix}_claw{i}", (0.02, 0.03, 0.02),
+                          tuft(0.06, 0.02, (at[0] + k * radii[0] * 0.35, at[1] - 0.02, at[2] + radii[2]), 0.0, flat=1.0, curl=0.0, angle_x=math.radians(95)),
+                          segments=(12, 8), faces=120)
+            role(parent_to(claw, foot), "claw")
+    return foot

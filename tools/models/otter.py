@@ -10,6 +10,8 @@ import math
 from blendkit import (ball, blob, capsule, chain, ellipsoid, fur_mask, node, parent_to, place, role,
                       shaped, surface, tuft)
 
+from blendkit import foreleg, hind_foot  # noqa: E402
+
 FRAME = (-0.35, 1.95)
 FACE = (0, -0.08, 0.55, 0.52)
 
@@ -69,24 +71,10 @@ def build():
     chest = blob("chest", [ellipsoid((0, -1.22, 0.3), (0.36, 0.62, 0.18))], faces=2000)
     role(parent_to(chest, body), "fur", "face", 0.04)
 
-    # Arms bending at the elbow, ending in dark paws.
+    # Front legs standing to the ground in front, with dark paws; dark webbed hind feet at the sides.
     for side, suffix in ((-1, "L"), (1, "R")):
-        sx, sy, sz = side * 0.44, -0.96, 0.28
-        arm = node(f"arm_{suffix}", (sx, sy, sz), body)
-        upper = blob(f"arm_{suffix}_upper", [capsule((sx, sy, sz), (sx, sy - 0.42, sz), 0.11), ball((sx, sy - 0.04, sz - 0.02), 0.14)], faces=900)
-        role(parent_to(upper, arm), "fur", "wool", 0.04)
-        forearm = node(f"forearm_{suffix}", (sx, sy - 0.43, sz), arm)
-        lower = blob(f"forearm_{suffix}_fur", [capsule((sx, sy - 0.43, sz), (sx, sy - 0.74, sz), 0.1)], faces=800)
-        role(parent_to(lower, forearm), "fur", "wool", 0.04)
-        paw = blob(f"forearm_{suffix}_paw", [ellipsoid((sx, sy - 0.84, sz + 0.02), (0.125, 0.1, 0.12))], faces=600)
-        role(parent_to(paw, forearm), "fur", "ear", 0.025)
-
-    # Dark webbed feet in front.
-    for side, suffix in ((-1, "L"), (1, "R")):
-        fx, fy, fz = side * 0.54, -2.08, 0.3
-        foot = node(f"foot_{suffix}", (fx, fy, fz), body)
-        pad = blob(f"foot_{suffix}_paw", [ellipsoid((fx, fy, fz), (0.22, 0.12, 0.31))], faces=800)
-        role(parent_to(pad, foot), "fur", "ear", 0.025)
+        foreleg(body, suffix, (side * 0.27, -0.98, 0.3), 0.1, "paw", "wool", 0.04, "ear", lumps=0.004)
+        hind_foot(body, suffix, (side * 0.62, -2.09, 0.1), (0.22, 0.11, 0.31), "ear", 0.025)
 
     # The thick tail, tapering, curled round on the ground to the right.
     hip = (0.4, -1.98, -0.28)

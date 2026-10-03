@@ -9,6 +9,8 @@ import math
 from blendkit import (ball, blob, capsule, chain, ellipsoid, fur_mask, node, parent_to, place, role,
                       shaped, surface, tuft, P)
 
+from blendkit import foreleg, hind_foot  # noqa: E402
+
 FRAME = (-0.35, 2.0)
 
 
@@ -84,24 +86,10 @@ def build():
     ], lumps=0.015, faces=2500)
     role(parent_to(bib, body), "fur", "face", 0.09)
 
-    # Arms bending at the elbow, ending in dark paws.
+    # Front legs standing to the ground in front, as a sitting dog's, in dark socks; hind feet at the sides.
     for side, suffix in ((-1, "L"), (1, "R")):
-        sx, sy, sz = side * 0.44, -0.94, 0.26
-        arm = node(f"arm_{suffix}", (sx, sy, sz), body)
-        upper = blob(f"arm_{suffix}_upper", [capsule((sx, sy, sz), (sx, sy - 0.47, sz), 0.095), ball((sx, sy - 0.04, sz - 0.02), 0.13)], lumps=0.01, faces=1000)
-        role(parent_to(upper, arm), "fur", "wool", 0.07)
-        forearm = node(f"forearm_{suffix}", (sx, sy - 0.48, sz), arm)
-        lower = blob(f"forearm_{suffix}_fur", [capsule((sx, sy - 0.48, sz), (sx, sy - 0.84, sz), 0.085)], lumps=0.01, faces=800)
-        role(parent_to(lower, forearm), "fur", "wool", 0.07)
-        paw = blob(f"forearm_{suffix}_paw", [ellipsoid((sx, sy - 0.94, sz + 0.02), (0.12, 0.1, 0.12))], faces=600)
-        role(parent_to(paw, forearm), "fur", "ear", 0.04)
-
-    # Dark feet in front.
-    for side, suffix in ((-1, "L"), (1, "R")):
-        fx, fy, fz = side * 0.56, -2.06, 0.3
-        foot = node(f"foot_{suffix}", (fx, fy, fz), body)
-        pad = blob(f"foot_{suffix}_paw", [ellipsoid((fx, fy, fz), (0.2, 0.14, 0.3))], lumps=0.01, faces=900)
-        role(parent_to(pad, foot), "fur", "ear", 0.05)
+        foreleg(body, suffix, (side * 0.27, -0.96, 0.3), 0.095, "paw", "wool", 0.07, "ear")
+        hind_foot(body, suffix, (side * 0.62, -2.08, 0.1), (0.2, 0.13, 0.3), "ear", 0.05)
 
     # The tail: a bushy brush from the hip curling up on its right, white at the tip.
     hip = (0.34, -1.98, -0.32)

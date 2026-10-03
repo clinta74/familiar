@@ -41,7 +41,7 @@ export const hedgehogModel: ModelSpec = {
       p.ctx.ellipse(p.x(0), p.y(12), 18 * p.unit, 16 * p.unit, 0, 0, Math.PI * 2);
       p.ctx.fill();
     },
-    fur: 0.015,
+    fur: 0.008,
   },
   defaults: { colours: characterInfo('hedgehog').presets[0]!.colours, accessory: 'none' },
   splay: 14,

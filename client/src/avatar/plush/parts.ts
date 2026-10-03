@@ -340,10 +340,13 @@ export function drawBody(body: BodyParts, pose: Pose) {
   const sad = pose.mood.sad;
   const sx = 1 - pose.breath * 0.006 + sad * 0.03;
   const sy = 1 + pose.breath * 0.008 - sad * 0.05;
+  // The body moves only with its breathing, a sad slump and hops; nods, shakes and tilts are the
+  // head's alone.
+  const bodyDy = pose.breath * 1.5 - pose.hop * (pose.gesture?.name === 'excited' ? 16 : 5);
   body.group.setAttribute('transform',
-    `translate(0 ${f(pose.dy * 0.6)}) rotate(${f(pose.rotate * 0.25)} 0 ${GROUND_Y}) translate(0 ${GROUND_Y}) scale(${f(sx)} ${f(sy)}) translate(0 ${-GROUND_Y})`);
+    `translate(0 ${f(bodyDy)}) translate(0 ${GROUND_Y}) scale(${f(sx)} ${f(sy)}) translate(0 ${-GROUND_Y})`);
   body.head.setAttribute('transform',
-    `translate(0 ${f(pose.dy * 0.4)}) rotate(${f(pose.rotate * 0.75)} 0 ${spec.neckPivotY}) scale(${f(1 - pose.squash)} ${f(1 + pose.squash)})`);
+    `translate(0 ${f(pose.dy - bodyDy)}) rotate(${f(pose.rotate)} 0 ${spec.neckPivotY}) scale(${f(1 - pose.squash)} ${f(1 + pose.squash)})`);
 
   const shrug = pose.gesture?.name === 'shrug' ? Math.sin(Math.PI * pose.gesture.u) * 30 : 0;
   const lift = pose.pawLift ?? 0;

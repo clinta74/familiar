@@ -36,6 +36,14 @@ export type Coat = 'wool' | 'face' | 'ear';
  */
 type FurColour = Coat | 'painted' | 'pattern';
 
+/**
+ * How much of a pose's bob is the whole body's: its breathing and its hops. Nods, sighs and the
+ * rest of the head's movement are the head's alone (the head gets pose.dy less this).
+ */
+export function bodyBob(pose: Pose): number {
+  return pose.breath * 1.5 - pose.hop * (pose.gesture?.name === 'excited' ? 16 : 5);
+}
+
 // --- geometry ----------------------------------------------------------------------------------
 
 /** A unit sphere whose UVs are a projection from the front, so a texture on it reads like a picture of its face. */
@@ -410,6 +418,13 @@ export abstract class Plush3D extends PlushCharacter {
   private eyes: Eye[] = [];
   private brows: THREE.Mesh[] = [];
   private tear?: THREE.Mesh;
+  /**
+   * How the arms rest: leaning forward from the shoulder (radians), bent forward at the elbow
+   * (radians), and out from the body (degrees). Paws on the tummy by default; standing front legs
+   * (ModelSpec.arms) rest nearly straight.
+   */
+  protected armRest = { lean: 0.3, bend: 0.55, out: -6 };
+
   /** Each arm: the shoulder (the upper arm swings from it) and the elbow (the forearm bends at it). */
   private arms: { shoulder: THREE.Group; elbow: THREE.Group }[] = [];
   private feet: THREE.Group[] = [];
@@ -627,15 +642,17 @@ export abstract class Plush3D extends PlushCharacter {
     // As the flat characters' bodies (drawBody): the toy breathes - the chest filling as the head
     // rises - slumps when sad and leans a little into a tilt, with its seat on the floor; the head
     // does the rest of the bob and tilt on the neck, and turns to look where the eyes would.
+    // The body moves only with its breathing, a sad slump and hops; nods, shakes and tilts are the
+    // head's alone.
     const sad = pose.mood.sad;
     const sx = 1 - pose.breath * 0.006 + sad * 0.03;
     const sy = 1 + pose.breath * 0.008 - sad * 0.05;
-    this.toy.position.y = GROUND - pose.dy * 0.6 * S;
-    this.toy.rotation.z = -pose.rotate * 0.25 * deg;
+    const bodyDy = bodyBob(pose);
+    this.toy.position.y = GROUND - bodyDy * S;
     this.toy.scale.set(sx, sy, sx);
     this.floorShadow.scale.setScalar(1 - pose.hop * 0.15);
-    this.bob.position.y = -pose.dy * 0.4 * S;
-    this.pivot.rotation.set(face.gazeY * 0.16, face.gazeX * 0.32, -pose.rotate * 0.75 * deg, 'YXZ');
+    this.bob.position.y = -(pose.dy - bodyDy) * S;
+    this.pivot.rotation.set(face.gazeY * 0.16, face.gazeX * 0.32, -pose.rotate * deg, 'YXZ');
     this.head.scale.set(1 - pose.squash, 1 + pose.squash, 1 - pose.squash * 0.5);
 
     // Arms, bent at the elbow: resting with the paws forward on the tummy; out with the forearms
@@ -643,13 +660,14 @@ export abstract class Plush3D extends PlushCharacter {
     // the elbow, to wave from there. Feet kick up with each hop of joy.
     const shrug = pose.gesture?.name === 'shrug' ? Math.sin(Math.PI * pose.gesture.u) : 0;
     const paw = pose.pawLift ?? 0;
+    const rest = this.armRest;
     this.arms.forEach(({ shoulder, elbow }, i) => {
       const side = i === 0 ? -1 : 1;
       const lift = side === 1 ? paw : 0;
       // Out from the body (degrees), mirrored: positive takes the paw away from the tummy.
-      const out = -6 + shrug * 32 + lift * 78 + pose.breath;
-      shoulder.rotation.set(-0.3 * (1 - lift) - shrug * 0.2, 0, side * out * deg);
-      const bend = 0.55 + shrug * 0.6;
+      const out = rest.out + shrug * 32 + lift * 78 + pose.breath;
+      shoulder.rotation.set(-rest.lean * (1 - lift) - shrug * 0.2, 0, side * out * deg);
+      const bend = rest.bend + shrug * 0.6;
       elbow.rotation.set(-bend * (1 - lift), 0, side * (lift * (102 - pose.pawAngle)) * deg);
     });
     this.feet.forEach((foot, i) => {

@@ -9,6 +9,8 @@ from blendkit import (ball, blob, capsule, ellipsoid, fur_mask, node, parent_to,
                       surface, P)
 
 # What the preview camera looks at: centre height and half height, web units.
+from blendkit import foreleg, hind_foot  # noqa: E402
+
 FRAME = (-0.35, 1.95)
 
 
@@ -82,30 +84,7 @@ def build():
     ], lumps=0.03, faces=5000)
     role(parent_to(torso, body), "fur", "wool", 0.12)
 
-    # Arms in two parts, bending at the elbow, with hooves on the end.
+    # Front legs standing to the ground in front, as a sitting dog's; hind feet at the sides.
     for side, suffix in ((-1, "L"), (1, "R")):
-        sx, sy, sz = side * 0.46, -1.02, 0.22
-        arm = node(f"arm_{suffix}", (sx, sy, sz), body)
-        # Full at the shoulder, narrowing to the wrist.
-        upper = blob(f"arm_{suffix}_upper", [
-            capsule((sx, sy, sz), (sx, sy - 0.46, sz), 0.105),
-            ball((sx, sy - 0.04, sz - 0.02), 0.14),
-        ], lumps=0.012, faces=1000)
-        role(parent_to(upper, arm), "fur", "wool", 0.07)
-        forearm = node(f"forearm_{suffix}", (sx, sy - 0.47, sz), arm)
-        lower = blob(f"forearm_{suffix}_fleece", [capsule((sx, sy - 0.47, sz), (sx, sy - 0.84, sz), 0.095)], lumps=0.012, faces=900)
-        role(parent_to(lower, forearm), "fur", "wool", 0.07)
-        # The hoof stands out below the fleece, so the fur doesn't grow over it.
-        hoof = shaped(f"forearm_{suffix}_hoof", (0.112, 0.07, 0.112), lambda x, y, z: (x, max(y, -0.045), z), segments=(24, 14), faces=500)
-        place(hoof, (sx, sy - 0.99, sz), forearm)
-        role(hoof, "hoof")
-
-    # Feet resting in front, fleecy, with a hoof at the toe.
-    for side, suffix in ((-1, "L"), (1, "R")):
-        fx, fy, fz = side * 0.54, -2.06, 0.3
-        foot = node(f"foot_{suffix}", (fx, fy, fz), body)
-        pad = blob(f"foot_{suffix}_fleece", [ellipsoid((fx, fy, fz), (0.2, 0.15, 0.3))], lumps=0.012, faces=900)
-        role(parent_to(pad, foot), "fur", "wool", 0.05)
-        hoof = shaped(f"foot_{suffix}_hoof", (0.12, 0.075, 0.09), lambda x, y, z: (x, y, z), segments=(24, 14), faces=500)
-        place(hoof, (fx, fy - 0.03, fz + 0.27), foot)
-        role(hoof, "hoof")
+        foreleg(body, suffix, (side * 0.28, -1.0, 0.3), 0.11, "hoof", "wool", 0.07)
+        hind_foot(body, suffix, (side * 0.6, -2.08, 0.12), (0.2, 0.14, 0.3), "wool", 0.05, "hoof")

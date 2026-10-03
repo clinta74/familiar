@@ -41,15 +41,17 @@ export const giraffeModel: ModelSpec = {
         ctx.fill();
       }
     },
-    fur: 0.02,
+    fur: 0.01,
   },
   defaults: { colours: characterInfo('giraffe').presets[0]!.colours, accessory: 'none' },
   // Ears rest out to the sides: up a little with interest, down when sad.
   ears: { rest: 78, droop: 30, turn: 0.1 },
+  // Front legs standing to the ground, nearly straight, a little forward.
+  arms: { lean: 0.1, bend: 0.04, out: 1 },
   splay: 10,
   // The coat's patches, on the neck, body, head and limbs.
   fur: Object.fromEntries(
-    ['torso', 'head_fur', 'arm_L_upper', 'arm_R_upper', 'forearm_L_fur', 'forearm_R_fur', 'foot_L_fur', 'foot_R_fur'].map((name) => [name, { pattern: true }]),
+    ['torso', 'head_fur', 'arm_L_upper', 'arm_R_upper', 'forearm_L_fur', 'forearm_R_fur', 'foot_L_pad', 'foot_R_pad'].map((name) => [name, { pattern: true }]),
   ),
   anchors: (node) => ({
     bow: { parent: node('ear_L'), at: new THREE.Vector3(0, 0.1, 0.06), tilt: 0.3 },

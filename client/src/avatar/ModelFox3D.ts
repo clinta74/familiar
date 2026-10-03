@@ -46,10 +46,12 @@ export const foxModel: ModelSpec = {
     dome: { centre: new THREE.Vector3(0, -0.02, 0.1), radii: new THREE.Vector3(0.48, 0.48, 0.3), svg: [0, 2, 48, 48] },
     philtrum: [31, 38],
     paintDome: paintFace,
-    fur: 0.04,
+    fur: 0.015,
   },
   defaults: { colours: characterInfo('fox').presets[0]!.colours, accessory: 'none' },
   ears: { rest: 12, droop: 70, turn: 0.2 },
+  // Front legs standing to the ground, nearly straight, a little forward.
+  arms: { lean: 0.1, bend: 0.04, out: 1 },
   splay: 12,
   anchors: (node) => ({
     bow: { parent: node('ear_L'), at: new THREE.Vector3(0.02, 0.14, 0.1), tilt: 0.17 },

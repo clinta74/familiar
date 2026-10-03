@@ -11,6 +11,8 @@ import math
 from blendkit import (ball, blob, capsule, chain, ellipsoid, fur_mask, node, parent_to, place, role,
                       shaped, surface)
 
+from blendkit import foreleg, hind_foot  # noqa: E402
+
 FRAME = (-0.3, 2.05)
 FACE = (0, 0.74, 0.36, 0.46)
 
@@ -80,27 +82,10 @@ def build():
     belly = blob("belly", [ellipsoid((0, -1.66, 0.36), (0.36, 0.36, 0.16))], faces=1200)
     role(parent_to(belly, body), "fur", "face", 0.04)
 
-    # Arms bending at the elbow, with hooves.
+    # Long front legs standing to the ground in front, with hooves; hind feet at the sides.
     for side, suffix in ((-1, "L"), (1, "R")):
-        sx, sy, sz = side * 0.4, -1.04, 0.24
-        arm = node(f"arm_{suffix}", (sx, sy, sz), body)
-        upper = blob(f"arm_{suffix}_upper", [capsule((sx, sy, sz), (sx, sy - 0.44, sz), 0.095), ball((sx, sy - 0.04, sz - 0.02), 0.12)], faces=900)
-        role(parent_to(upper, arm), "fur", "wool", 0.035)
-        forearm = node(f"forearm_{suffix}", (sx, sy - 0.45, sz), arm)
-        lower = blob(f"forearm_{suffix}_fur", [capsule((sx, sy - 0.45, sz), (sx, sy - 0.8, sz), 0.085)], faces=800)
-        role(parent_to(lower, forearm), "fur", "wool", 0.035)
-        hoof = shaped(f"forearm_{suffix}_hoof", (0.095, 0.065, 0.095), lambda x, y, z: (x, max(y, -0.04), z), segments=(24, 14), faces=500)
-        place(hoof, (sx, sy - 0.9, sz), forearm)
-        role(hoof, "hoof")
-
-    for side, suffix in ((-1, "L"), (1, "R")):
-        fx, fy, fz = side * 0.52, -2.06, 0.3
-        foot = node(f"foot_{suffix}", (fx, fy, fz), body)
-        pad = blob(f"foot_{suffix}_fur", [ellipsoid((fx, fy, fz), (0.19, 0.14, 0.27))], faces=800)
-        role(parent_to(pad, foot), "fur", "wool", 0.035)
-        hoof = shaped(f"foot_{suffix}_hoof", (0.11, 0.075, 0.08), lambda x, y, z: (x, y, z), segments=(24, 14), faces=500)
-        place(hoof, (fx, fy - 0.03, fz + 0.24), foot)
-        role(hoof, "hoof")
+        foreleg(body, suffix, (side * 0.25, -1.05, 0.28), 0.085, "hoof", "wool", 0.035, lumps=0.004)
+        hind_foot(body, suffix, (side * 0.58, -2.08, 0.1), (0.18, 0.13, 0.27), "wool", 0.035, "hoof")
 
     # The tail: a rope with a dark tuft.
     hip = (0.5, -1.95, -0.3)

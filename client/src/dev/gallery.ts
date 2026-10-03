@@ -51,6 +51,8 @@ const MOMENTS: Moment[] = [
   { label: 'shrug', gesture: 'shrug', at: 0.5 },
   { label: 'laugh', emotion: 'joy', gesture: 'laugh', at: 0.4 },
   { label: 'aside', gaze: [1.1, 0.1] },
+  { label: 'shake', gesture: 'shake', at: 0.5 },
+  { label: 'excited', emotion: 'joy', gesture: 'excited', at: 0.5 },
 ];
 
 const params = new URLSearchParams(location.search);
