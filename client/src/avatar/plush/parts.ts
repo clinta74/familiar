@@ -216,9 +216,10 @@ export interface Overlay {
 }
 
 export function buildOverlay(root: SVGSVGElement): Overlay {
-  const thinking = el('g', { class: 'plush-thinking' }, root);
+  // Hidden until the first frame says otherwise.
+  const thinking = el('g', { class: 'plush-thinking', opacity: 0 }, root);
   [[72, -128, 5], [88, -146, 7], [106, -166, 9]].forEach(([cx, cy, r]) => el('circle', { cx: cx!, cy: cy!, r: r! }, thinking));
-  const sleep = el('text', { x: 68, y: -112, class: 'plush-sleep', 'aria-hidden': 'true' }, root);
+  const sleep = el('text', { x: 68, y: -112, class: 'plush-sleep', opacity: 0, 'aria-hidden': 'true' }, root);
   sleep.textContent = 'z';
   return { thinking, sleep };
 }

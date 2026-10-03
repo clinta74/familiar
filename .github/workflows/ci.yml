@@ -52,6 +52,14 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+      # The app bundles the avatar page, built from client/ (docs/MOBILE.md §1.1).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+        working-directory: client
       - uses: gradle/actions/setup-gradle@v4
       # Compose 1.12 compiles against API 37; the runner image may not have it yet.
       - run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" > /dev/null

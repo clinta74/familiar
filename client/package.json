@@ -8,6 +8,7 @@
     "dev": "vite",
     "prebuild": "node scripts/copy-vad-assets.mjs",
     "build": "tsc -b && vite build",
+    "build:embed": "vite build --config vite.embed.config.ts",
     "lint": "oxlint",
     "typecheck": "tsc -b --noEmit",
     "preview": "vite preview",

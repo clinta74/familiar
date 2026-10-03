@@ -110,6 +110,12 @@ class FamiliarApi(
         call<Unit> { http.post("api/conversation/new") }
     }
 
+    /** The familiar's profile; the app uses its `appearance` (how the avatar looks). */
+    suspend fun familiar(): kotlinx.serialization.json.JsonObject = call { http.get("api/familiar") }
+
+    /** An uploaded VRM model, for the avatar page, which can't fetch it itself. */
+    suspend fun avatarModel(id: String): ByteArray = call { http.get("api/avatars/$id/model") }
+
     /** The phone's calendars for the next while, replacing what it uploaded last time. */
     suspend fun uploadDeviceCalendar(events: List<DeviceEventView>) {
         call<Unit> {

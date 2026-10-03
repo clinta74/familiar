@@ -4,6 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,12 +46,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import app.familiar.shared.api.FamiliarApi
+import app.familiar.shared.avatar.AvatarController
+import app.familiar.shared.avatar.AvatarView
 import app.familiar.shared.auth.SignedIn
 import app.familiar.shared.conversation.ChatMessage
 import app.familiar.shared.conversation.Connection
 import app.familiar.shared.conversation.ConversationController
 import app.familiar.shared.conversation.ToolChip
 import app.familiar.shared.platform.DeviceCalendar
+import app.familiar.shared.protocol.ServerEvent
+import kotlinx.serialization.json.JsonObject
 import kotlinx.coroutines.launch
 
 private val emotionLabels = mapOf(
@@ -70,8 +78,12 @@ private val toolDoing = mapOf(
     "forget" to "Forgetting",
 )
 
+/** States the avatar page knows; anything newer from the server reads as busy. */
+private val avatarStates = setOf("idle", "listening", "thinking", "speaking", "resting")
+
 /**
- * The conversation, typed for now: the avatar, voice and hands-free arrive in phases M1 and M2
+ * The familiar and the conversation: the avatar above the chat on a phone, beside it on a wide
+ * screen (an unfolded Fold, a tablet). Typed for now; voice is the rest of phase M1
  * (docs/MOBILE.md §7).
  */
 @Composable
@@ -81,6 +93,20 @@ fun ChatScreen(signedIn: SignedIn, calendar: DeviceCalendar?, onSignedOut: () ->
     val controller = remember(signedIn) { ConversationController(api, scope, onSignedOut, calendar) }
     val state by controller.state.collectAsState()
     val calendarOn by controller.calendarOn.collectAsState()
+    val avatar = remember(signedIn) { AvatarController() }
+
+    // How it looks is the studio's business (on the web); here it's read, and again on each
+    // reconnect so a change made there shows up.
+    suspend fun refreshLook() {
+        runCatching { (api.familiar()["appearance"] as? JsonObject)?.let(avatar::look) }
+    }
+    LaunchedEffect(controller) {
+        controller.onEvent = { event ->
+            avatar.handle(event)
+            if (event is ServerEvent.Ready) scope.launch { refreshLook() }
+        }
+        refreshLook()
+    }
 
     DisposableEffect(controller) {
         controller.start()
@@ -107,12 +133,62 @@ fun ChatScreen(signedIn: SignedIn, calendar: DeviceCalendar?, onSignedOut: () ->
         else -> null
     }
 
+    // Typing reads as the familiar listening.
+    val avatarState = when {
+        state.state == "idle" && draft.isNotBlank() -> "listening"
+        state.state in avatarStates -> state.state
+        else -> "thinking"
+    }
+    LaunchedEffect(avatarState) { avatar.state(avatarState) }
+
     fun send() {
         val text = draft.trim()
         if (text.isEmpty()) return
         controller.send(text)
         draft = ""
     }
+
+    // The messages and the box to type in, wherever the layout puts them.
+    val conversation: @Composable ColumnScope.() -> Unit = {
+        LazyColumn(
+            state = list,
+            modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (state.messages.isEmpty()) {
+                item {
+                    Text(
+                        "Say hello to ${state.familiarName}.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                    )
+                }
+            }
+            items(state.messages, key = { it.id }) { Bubble(it) }
+        }
+
+        state.error?.let {
+            Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+        }
+
+        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = draft,
+                onValueChange = { draft = it },
+                placeholder = { Text("Message ${state.familiarName}…") },
+                maxLines = 5,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { send() }),
+                modifier = Modifier.weight(1f),
+            )
+            if (busy) {
+                OutlinedButton(onClick = { controller.interrupt() }, modifier = Modifier.padding(start = 8.dp)) { Text("Stop") }
+            } else {
+                Button(onClick = { send() }, enabled = draft.isNotBlank(), modifier = Modifier.padding(start = 8.dp)) { Text("Send") }
+            }
+        }
+    }
+    val loadModel: suspend (String) -> ByteArray? = { id -> runCatching { api.avatarModel(id) }.getOrNull() }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
@@ -148,41 +224,18 @@ fun ChatScreen(signedIn: SignedIn, calendar: DeviceCalendar?, onSignedOut: () ->
                 }
             }
 
-            LazyColumn(
-                state = list,
-                modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (state.messages.isEmpty()) {
-                    item {
-                        Text(
-                            "Say hello to ${state.familiarName}.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.fillMaxWidth().padding(32.dp),
-                        )
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                if (maxWidth >= 600.dp) {
+                    Row(Modifier.fillMaxSize()) {
+                        AvatarView(avatar, loadModel, Modifier.weight(1f).fillMaxHeight())
+                        Column(Modifier.weight(1f).fillMaxHeight(), content = conversation)
                     }
-                }
-                items(state.messages, key = { it.id }) { Bubble(it) }
-            }
-
-            state.error?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
-            }
-
-            Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = draft,
-                    onValueChange = { draft = it },
-                    placeholder = { Text("Message ${state.familiarName}…") },
-                    maxLines = 5,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(onSend = { send() }),
-                    modifier = Modifier.weight(1f),
-                )
-                if (busy) {
-                    OutlinedButton(onClick = { controller.interrupt() }, modifier = Modifier.padding(start = 8.dp)) { Text("Stop") }
                 } else {
-                    Button(onClick = { send() }, enabled = draft.isNotBlank(), modifier = Modifier.padding(start = 8.dp)) { Text("Send") }
+                    val stage = maxHeight * 0.4f
+                    Column(Modifier.fillMaxSize()) {
+                        AvatarView(avatar, loadModel, Modifier.fillMaxWidth().height(stage))
+                        conversation()
+                    }
                 }
             }
         }

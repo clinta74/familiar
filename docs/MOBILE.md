@@ -41,6 +41,17 @@ The avatar package is loaded from the app bundle, not the server, so it renders 
 can't be swapped by a compromised server. The WebView gets no network access and no bridge
 beyond the driver calls.
 
+*Built (M1, 2026-10-03):* `client/avatar.html` + `src/embed/avatarEmbed.ts` is the page: the web
+client's avatar code (and `src/avatar/avatar.css`, now shared) with `window.familiarAvatar` —
+`look`, `state`, `expression`, `gesture`, `text`, `clip(words, elapsedMs)`, `level`, `silence`.
+`npm run build:embed` writes `client/dist-embed/`; the Android build runs it and bundles the
+result as `assets/avatar/`. The WebView serves it at `https://appassets.androidplatform.net/avatar/`
+from assets and answers every request itself: the page's own files, an uploaded VRM model (fetched
+natively with the device token, the only server request the page can cause), and 403 for anything
+else. No JavaScript interface: the app calls in with `evaluateJavascript`, and replays the look and
+state when the page (re)loads. Debug builds forward the page's console to logcat (`FamiliarAvatar`)
+and allow Chrome DevTools.
+
 ---
 
 ## 2. Android integrations
@@ -152,6 +163,14 @@ greeting, a timer set by tool and announced two minutes later, the session survi
 (stored values encrypted), sign-out revoking the token. CI runs the shared tests and keeps a debug
 APK. **Not yet:** the iOS CI build and TestFlight (needs the Apple Developer account), and the
 schema-generated protocol (§6).
+
+**M1 started (2026-10-03): the avatar.** The chat screen shows the familiar above the conversation
+on a phone and beside it on a wide screen (≥ 600 dp: an unfolded Fold, a tablet), in the look from
+the profile (re-read on every reconnect, so a change in the web studio shows up). State, expressions,
+gestures and the text-driven mouth come from the stream, as on the web; typing reads as listening.
+Verified on an emulator: a hedgehog with a flower from the profile, thinking bubbles while the model
+works, joy and a wave on "wave hello", the side-by-side layout at Fold size. **Next in M1:** native
+audio (the `audio` clips, with `clip` + `level` for lip-sync), then push-to-talk.
 
 **Device calendar (2026-10-03), the first of M3.** "Use this phone's calendar" in the chat menu asks
 for READ/WRITE_CALENDAR. Once allowed, the app reads `CalendarContract.Instances` (visible
