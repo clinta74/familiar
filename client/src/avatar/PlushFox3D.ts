@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { characterInfo } from './appearance';
 import type { PlushLook, Pose } from './plush/engine';
 import type { FaceLayout } from './plush/parts';
-import { Plush3D, earShape, ellipsoid, lumpy, sweep, type Painter } from './plush3d/Plush3D';
+import { Plush3D, earShape, ellipsoid, lumpy, sweep, tuftShape, type Painter } from './plush3d/Plush3D';
 
 /** As PlushFoxAvatar's. */
 const LAYOUT: FaceLayout = {
@@ -17,19 +17,23 @@ const LAYOUT: FaceLayout = {
 /** Where the tail joins the body; it swishes from here. */
 const HIP = new THREE.Vector3(0.34, -1.98, -0.32);
 
-/** The fox's mask: the coat above, the cream cheeks and muzzle below, as the flat fox's. */
-function paintMask(p: Painter, palette: Record<string, string>) {
+/**
+ * The fox's face: the coat, with the cream of its cheeks and chin coming up softly from below -
+ * fur shading into fur, not a mask with an edge.
+ */
+function paintFace(p: Painter, palette: Record<string, string>) {
   const { ctx } = p;
   ctx.fillStyle = palette['--plush-wool']!;
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  ctx.fillStyle = palette['--plush-skin']!;
-  ctx.beginPath();
-  ctx.moveTo(p.x(-62), p.y(10));
-  ctx.bezierCurveTo(p.x(-44), p.y(2), p.x(-20), p.y(8), p.x(0), p.y(14));
-  ctx.bezierCurveTo(p.x(20), p.y(8), p.x(44), p.y(2), p.x(62), p.y(10));
-  ctx.bezierCurveTo(p.x(50), p.y(32), p.x(30), p.y(54), p.x(0), p.y(62));
-  ctx.bezierCurveTo(p.x(-30), p.y(54), p.x(-50), p.y(32), p.x(-62), p.y(10));
-  ctx.fill();
+  const cream = palette['--plush-skin']!;
+  for (const [x, y, r] of [[-36, 34, 30], [36, 34, 30], [0, 52, 30]] as const) {
+    const g = ctx.createRadialGradient(p.x(x), p.y(y), 0, p.x(x), p.y(y), r * p.unit);
+    g.addColorStop(0, cream);
+    g.addColorStop(0.55, cream);
+    g.addColorStop(1, `${cream}00`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  }
 }
 
 /**
@@ -72,13 +76,23 @@ export class PlushFox3D extends Plush3D {
     this.tail.add(this.furry(lumpy(sweep(path.slice(2), [0.2, 0.23, 0.14], 10), 0.015, 39), 0.15, 'face'));
     this.body.add(this.tail);
 
-    // The head: wide at the cheeks, with fluffy tufts sticking out at the sides.
-    const head = mergeGeometries([
-      ellipsoid(0.56, 0.52, 0.46, new THREE.Vector3(0, -0.02, -0.14)),
-      ellipsoid(0.2, 0.085, 0.12, new THREE.Vector3(-0.58, -0.2, -0.02), new THREE.Euler(0, 0, 0.22)),
-      ellipsoid(0.2, 0.085, 0.12, new THREE.Vector3(0.58, -0.2, -0.02), new THREE.Euler(0, 0, -0.22)),
-    ])!;
-    this.head.add(this.furry(lumpy(head, 0.025, 33), 0.11));
+    // The head: round behind, wide at the cheeks, where pointed tufts of cream fur fan out from the
+    // face.
+    this.head.add(this.furry(lumpy(ellipsoid(0.56, 0.52, 0.46, new THREE.Vector3(0, -0.02, -0.14)), 0.025, 33), 0.11));
+    const tufts: THREE.BufferGeometry[] = [];
+    for (const side of [-1, 1] as const) {
+      // Roots tucked into the head's fur, so they grow out of it rather than sit on it.
+      // Wide, overlapping, so they merge into one ruff at the root and part into points at the tips.
+      for (const [y, angle, length] of [[-0.1, 74, 0.17], [-0.2, 96, 0.21], [-0.3, 118, 0.16]] as const) {
+        const tuft = tuftShape(length + 0.14, 0.12, 0.03);
+        tuft.scale(1, 1, 0.55);
+        tuft.rotateZ(-side * angle * (Math.PI / 180));
+        tuft.rotateY(side * -0.3);
+        tuft.translate(side * 0.34, y, 0.1);
+        tufts.push(tuft);
+      }
+    }
+    this.head.add(this.furry(lumpy(mergeGeometries(tufts)!, 0.01, 41), 0.06, 'face'));
 
     this.ears = ([-1, 1] as const).map((side) =>
       this.ear(new THREE.Vector3(side * 0.36, 0.42, -0.1), earShape(0.24, 0.34, 0.09, 0.85, 0.06), earShape(0.13, 0.24, 0.04, 0.85, 0.05), 0.3),
@@ -86,12 +100,14 @@ export class PlushFox3D extends Plush3D {
 
     this.buildFace({
       layout: LAYOUT,
-      dome: { centre: new THREE.Vector3(0, -0.04, 0.16), radii: new THREE.Vector3(0.5, 0.52, 0.34), svg: [0, 4, 50, 52] },
-      snout: { centre: new THREE.Vector3(0, -0.32, 0.4), radii: new THREE.Vector3(0.2, 0.16, 0.24), svg: [0, 30, 20, 16] },
-      nose: { at: new THREE.Vector3(0, -0.24, 0.615), radii: new THREE.Vector3(0.085, 0.05, 0.05), tilt: -0.3 },
+      // The face sits back in the head's fur; the muzzle comes forward to a point, the nose on its tip.
+      dome: { centre: new THREE.Vector3(0, -0.02, 0.1), radii: new THREE.Vector3(0.48, 0.48, 0.3), svg: [0, 2, 48, 48] },
+      snout: { centre: new THREE.Vector3(0, -0.24, 0.42), radii: new THREE.Vector3(0.22, 0.17, 0.36), svg: [0, 30, 20, 16], taper: 0.62 },
+      nose: { at: new THREE.Vector3(0, -0.2, 0.78), radii: new THREE.Vector3(0.06, 0.045, 0.045), tilt: -0.25 },
+      buttonNose: true,
       philtrum: [31, 38],
-      paintDome: paintMask,
-      fur: 0.035,
+      paintDome: paintFace,
+      fur: 0.05,
     });
 
     this.dress({

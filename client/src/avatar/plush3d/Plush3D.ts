@@ -190,6 +190,18 @@ export interface Shape {
   centre: THREE.Vector3;
   radii: THREE.Vector3;
   svg: [cx: number, cy: number, rx: number, ry: number];
+  /** Narrowing towards the front, 0 not at all to 1 to a point: a fox's muzzle. */
+  taper?: number;
+}
+
+/**
+ * A pointed tuft of fur, `length` long from a base `radius` wide at the origin, pointing along +y
+ * and curving a little at the tip.
+ */
+export function tuftShape(length: number, radius: number, curl = 0.02): THREE.BufferGeometry {
+  const geometry = earShape(radius, length / 2, radius * 0.6, 0.92, curl);
+  geometry.translate(0, length / 2, 0);
+  return geometry;
 }
 
 class Paint {
@@ -241,6 +253,8 @@ export interface FaceSpec {
   lids?: Coat;
   /** Short fur over the face, coloured by its paint (a fox's mask), this long; none by default. */
   fur?: number;
+  /** A big shiny black button for a nose, rather than a stitched felt one. */
+  buttonNose?: boolean;
 }
 
 /** The sitting body, from the 2D character's BodySpec numbers (its units), plus shapes in 3D. */
@@ -274,8 +288,11 @@ export interface Anchors {
   /** The bow, on an ear (usually), at this point on it. */
   bow: { parent: THREE.Object3D; at: THREE.Vector3; tilt?: number };
   flower: THREE.Vector3;
-  /** The scarf: the wrap's height and radius under the chin, and where its tail hangs. */
-  scarf: { y: number; radius: number; tail: THREE.Vector3 };
+  /**
+   * The scarf: the wrap's height and radius under the chin, and where its tail hangs. Round a body
+   * too big to wrap (the hedgehog), only `arc` of it shows, centred at `z`, `depth` as deep as wide.
+   */
+  scarf: { y: number; radius: number; tail: THREE.Vector3; arc?: number; z?: number; depth?: number };
 }
 
 interface Eye {
@@ -296,6 +313,9 @@ interface Shell {
   coat: FurColour;
   material: THREE.MeshStandardMaterial;
 }
+
+/** A live multiplier on a furry shape's fur length: prickles that bristle and lie flat. */
+export type Bristle = { value: number };
 
 export abstract class Plush3D extends PlushCharacter {
   protected readonly root: HTMLCanvasElement;
@@ -326,7 +346,8 @@ export abstract class Plush3D extends PlushCharacter {
   /** The body's parts that don't move on their own. */
   protected readonly body = new THREE.Group();
   private readonly bob = new THREE.Group();
-  private readonly pivot = new THREE.Group();
+  /** Where the head pivots on the neck (the hedgehog's ball, on its bottom). */
+  protected readonly pivot = new THREE.Group();
   /** The head: moves on the neck. */
   protected readonly head = new THREE.Group();
   private readonly floorShadow: THREE.Mesh;
@@ -425,9 +446,9 @@ export abstract class Plush3D extends PlushCharacter {
     // Fur is darker at the roots and lighter at the tips, which is most of what makes it look deep.
     const shades = {} as Record<Coat, { root: THREE.Color; tip: THREE.Color }>;
     for (const [coat, colour] of [['wool', look.colours.wool], ['face', look.colours.face], ['ear', look.colours.ear]] as const) {
-      const root = new THREE.Color(mix(colour, '#3a2a22', 0.36));
-      shades[coat] = { root, tip: new THREE.Color(colour).lerp(white, 0.14) };
-      this.furBase[coat].color.copy(root);
+      const shade = this.furShade(coat, colour);
+      shades[coat] = shade;
+      this.furBase[coat].color.copy(shade.root);
       this.furBase[coat].sheenColor.set(colour).lerp(white, 0.4);
     }
     for (const shell of this.shells.values()) {
@@ -458,6 +479,14 @@ export abstract class Plush3D extends PlushCharacter {
 
     // Repaint the face in the new colours.
     this.painted = { blush: -1, mouth: '' };
+  }
+
+  /**
+   * A coat's fur colour at its roots and its tips: darker at the roots and lighter at the tips,
+   * which is most of what makes fur look deep. A character can change it (dark-tipped prickles).
+   */
+  protected furShade(_coat: Coat, colour: string): { root: THREE.Color; tip: THREE.Color } {
+    return { root: new THREE.Color(mix(colour, '#3a2a22', 0.36)), tip: new THREE.Color(colour).lerp(new THREE.Color('#ffffff'), 0.14) };
   }
 
   override dispose(): void {
@@ -534,8 +563,8 @@ export abstract class Plush3D extends PlushCharacter {
    * One layer of fur `length` long at `f` (0 at the skin, 1 at the tips): the shape pushed out along
    * its normals, drooping a little, with fewer strands the further out it is so they taper.
    */
-  private shell(coat: FurColour, f: number, length: number): Shell {
-    const key = `${coat}:${f}:${length}`;
+  private shell(coat: FurColour, f: number, length: number, bristle?: Bristle): Shell {
+    const key = `${coat}:${f}:${length}${bristle ? ':b' : ''}`;
     const existing = this.shells.get(key);
     if (existing) return existing;
 
@@ -544,28 +573,33 @@ export abstract class Plush3D extends PlushCharacter {
     const out = (length * f).toFixed(4);
     const droop = (length * f * f * 0.45).toFixed(4);
     material.onBeforeCompile = (shader) => {
+      const scale = bristle ? ' * furScale' : '';
+      if (bristle) {
+        shader.uniforms.furScale = bristle;
+        shader.vertexShader = `uniform float furScale;\n${shader.vertexShader}`;
+      }
       shader.vertexShader = shader.vertexShader.replace(
         '#include <begin_vertex>',
-        `#include <begin_vertex>\n  transformed += objectNormal * ${out};\n  transformed.y -= ${droop};`,
+        `#include <begin_vertex>\n  transformed += objectNormal * ${out}${scale};\n  transformed.y -= ${droop}${scale};`,
       );
     };
-    material.customProgramCacheKey = () => `fur-${f}-${length}`;
+    material.customProgramCacheKey = () => `fur-${f}-${length}${bristle ? '-b' : ''}`;
     const shell = { f, coat, material };
     this.shells.set(key, shell);
     return shell;
   }
 
   /** A furry shape: the base in the coat's root colour and layers of fur over it. */
-  protected furry(geometry: THREE.BufferGeometry, length: number, coat: Coat = 'wool'): THREE.Group {
+  protected furry(geometry: THREE.BufferGeometry, length: number, coat: Coat = 'wool', bristle?: Bristle): THREE.Group {
     const group = new THREE.Group();
     group.add(new THREE.Mesh(geometry, this.furBase[coat]));
-    this.shellsOver(group, geometry, length, coat);
+    this.shellsOver(group, geometry, length, coat, bristle);
     return group;
   }
 
   /** The layers of fur over a shape. */
-  private shellsOver(group: THREE.Object3D, geometry: THREE.BufferGeometry, length: number, coat: FurColour) {
-    for (let i = 1; i <= SHELLS; i++) group.add(new THREE.Mesh(geometry, this.shell(coat, i / SHELLS, length).material));
+  private shellsOver(group: THREE.Object3D, geometry: THREE.BufferGeometry, length: number, coat: FurColour, bristle?: Bristle) {
+    for (let i = 1; i <= SHELLS; i++) group.add(new THREE.Mesh(geometry, this.shell(coat, i / SHELLS, length, bristle).material));
   }
 
   // --- building ------------------------------------------------------------------------------
@@ -719,7 +753,17 @@ export abstract class Plush3D extends PlushCharacter {
     if (spec.snout) {
       this.mouthPaint = new Paint(spec.snout);
       this.snoutMaterial.map = this.mouthPaint.texture;
-      const snout = new THREE.Mesh(frontSphere(), this.snoutMaterial);
+      const shape = frontSphere();
+      if (spec.snout.taper) {
+        // Narrowing towards the front; the paint stays where it was seen from the front.
+        const position = shape.getAttribute('position');
+        for (let i = 0; i < position.count; i++) {
+          const k = 1 - spec.snout.taper * ((position.getZ(i) + 1) / 2) ** 1.5;
+          position.setXY(i, position.getX(i) * k, position.getY(i) * k);
+        }
+        shape.computeVertexNormals();
+      }
+      const snout = new THREE.Mesh(shape, this.snoutMaterial);
       snout.position.copy(spec.snout.centre);
       snout.scale.copy(spec.snout.radii);
       this.head.add(snout);
@@ -727,7 +771,8 @@ export abstract class Plush3D extends PlushCharacter {
       this.mouthPaint = this.domePaint;
     }
     if (spec.nose) {
-      const nose = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), this.nose);
+      const button = new THREE.MeshPhysicalMaterial({ color: '#181210', roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.05 });
+      const nose = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), spec.buttonNose ? button : this.nose);
       nose.scale.copy(spec.nose.radii);
       nose.position.copy(spec.nose.at);
       nose.rotation.x = spec.nose.tilt;
@@ -996,10 +1041,12 @@ export abstract class Plush3D extends PlushCharacter {
 
     // A scarf wrapped under the chin, with a tail hanging down the chest.
     const scarf = new THREE.Group();
-    const wrap = new THREE.Mesh(new THREE.TorusGeometry(anchors.scarf.radius, 0.095, 16, 48), this.accent);
-    wrap.rotation.x = Math.PI / 2;
-    wrap.scale.set(1, 0.88, 1);
-    wrap.position.set(0, anchors.scarf.y, -0.06);
+    const arc = anchors.scarf.arc ?? Math.PI * 2;
+    const wrap = new THREE.Mesh(new THREE.TorusGeometry(anchors.scarf.radius, 0.095, 16, 48, arc), this.accent);
+    // Lying flat, the arc centred at the front.
+    wrap.rotation.set(Math.PI / 2, 0, Math.PI / 2 - arc / 2);
+    wrap.scale.set(1, anchors.scarf.depth ?? 0.88, 1);
+    wrap.position.set(0, anchors.scarf.y, anchors.scarf.z ?? -0.06);
     const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.34, 6, 12), this.accent);
     tail.position.copy(anchors.scarf.tail);
     tail.rotation.set(0.35, 0, 0.15);
