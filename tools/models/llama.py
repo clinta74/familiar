@@ -9,7 +9,7 @@ from blendkit import (ball, blob, capsule, ellipsoid, fur_mask, node, parent_to,
                       surface, P)
 
 # What the preview camera looks at: centre height and half height, web units.
-from blendkit import foreleg, hind_foot  # noqa: E402
+from blendkit import foreleg, hind_foot, limb_masses  # noqa: E402
 
 FRAME = (-0.35, 1.95)
 
@@ -81,6 +81,7 @@ def build():
         capsule((0, -0.4, -0.12), (0, -0.95, -0.06), 0.3),
         ellipsoid((0, -1.18, -0.02), (0.5, 0.48, 0.42)),
         ellipsoid((0, -1.66, -0.12), (0.62, 0.5, 0.56)),
+        *limb_masses((0.28, -1.0, 0.3), 0.11, (0.6, -2.08, 0.12), (0.2, 0.14, 0.3)),
     ], lumps=0.03, faces=5000)
     role(parent_to(torso, body), "fur", "wool", 0.12)
 

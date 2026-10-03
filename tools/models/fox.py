@@ -9,7 +9,7 @@ import math
 from blendkit import (ball, blob, capsule, chain, ellipsoid, fur_mask, node, parent_to, place, role,
                       shaped, surface, tuft, P)
 
-from blendkit import foreleg, hind_foot  # noqa: E402
+from blendkit import foreleg, hind_foot, limb_masses  # noqa: E402
 
 FRAME = (-0.35, 2.0)
 
@@ -75,6 +75,7 @@ def build():
         capsule((0, -0.45, -0.12), (0, -0.85, -0.08), 0.28),
         ellipsoid((0, -1.08, -0.04), (0.52, 0.5, 0.44)),
         ellipsoid((0, -1.66, -0.14), (0.74, 0.54, 0.6)),
+        *limb_masses((0.27, -0.96, 0.3), 0.095, (0.62, -2.08, 0.1), (0.2, 0.13, 0.3)),
     ], lumps=0.02, faces=5000)
     role(parent_to(torso, body), "fur", "wool", 0.11)
 

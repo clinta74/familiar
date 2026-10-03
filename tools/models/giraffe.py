@@ -11,7 +11,7 @@ import math
 from blendkit import (ball, blob, capsule, chain, ellipsoid, fur_mask, node, parent_to, place, role,
                       shaped, surface)
 
-from blendkit import foreleg, hind_foot  # noqa: E402
+from blendkit import foreleg, hind_foot, limb_masses  # noqa: E402
 
 FRAME = (-0.3, 2.05)
 FACE = (0, 0.74, 0.36, 0.46)
@@ -74,6 +74,7 @@ def build():
         *chain([(0, 0.42, -0.14), (0, -0.1, -0.12), (0, -0.55, -0.08), (0, -0.85, -0.04)], [0.17, 0.2, 0.25, 0.32], 12),
         ellipsoid((0, -1.12, -0.02), (0.5, 0.46, 0.42)),
         ellipsoid((0, -1.66, -0.12), (0.72, 0.54, 0.58)),
+        *limb_masses((0.25, -1.05, 0.34), 0.085, (0.58, -2.08, 0.1), (0.18, 0.13, 0.27)),
     ], lumps=0.008, faces=5500)
     role(parent_to(torso, body), "fur", "wool", 0.045)
     # A short mane down the back of the neck.

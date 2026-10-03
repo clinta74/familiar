@@ -385,10 +385,13 @@ def foreleg(body, suffix, shoulder, radius, end, coat="wool", fur=0.07, paw_coat
     fx, fy, fz = along(1.0 - radius * 0.5 / length)
     gz = sz + reach
     arm = node(f"arm_{suffix}", shoulder, body)
+    # Thick at the shoulder (it grows out of the torso's shoulder, see limb_masses), tapering to the
+    # elbow, which shows a little at the back.
     upper = blob(f"arm_{suffix}_upper", [
-        capsule((sx, sy, sz), (ex, ey, ez), radius * 1.05),
-        ball((sx, sy - 0.03, sz - 0.04), radius * 1.4),
-    ], lumps=lumps, faces=1100)
+        *chain([(sx, sy, sz), (ex, ey, ez)], [radius * 1.35, radius * 1.0], 6),
+        ball((sx, sy - 0.03, sz - 0.04), radius * 1.45),
+        ball((ex, ey + radius * 0.3, ez - radius * 0.35), radius * 0.95),
+    ], lumps=lumps, faces=1300)
     role(parent_to(upper, arm), "fur", coat, fur)
     forearm = node(f"forearm_{suffix}", (ex, ey, ez), arm)
     lower = blob(f"forearm_{suffix}_fur", [capsule((ex, ey, ez), (fx, fy, fz), radius * 0.92)], lumps=lumps, faces=900)
@@ -408,6 +411,23 @@ def foreleg(body, suffix, shoulder, radius, end, coat="wool", fur=0.07, paw_coat
                               segments=(12, 8), faces=120)
                 role(parent_to(claw, forearm), "claw")
     return arm
+
+
+def limb_masses(shoulder, radius, foot, foot_radii):
+    """
+    Metaball elements for the torso, both sides, so the legs grow out of it rather than being
+    stuck on: a shoulder where each front leg starts (the leg's top sinks into it), and a haunch -
+    a sitting animal's folded thigh - over and behind each hind foot, which tucks out from under it.
+    Arguments as for foreleg and hind_foot (either side's).
+    """
+    sx, sy, sz = shoulder
+    fx, fy, fz = foot
+    rx, ry, rz = foot_radii
+    elements = []
+    for side in (-1, 1):
+        elements.append(ellipsoid((side * abs(sx) * 0.95, sy + 0.04, sz - 0.14), (radius * 1.75, radius * 2.7, radius * 1.6)))
+        elements.append(ellipsoid((side * abs(fx) * 0.92, fy + ry + 0.14, fz - rz * 0.6), (rx * 1.35, 0.3, rz * 1.45)))
+    return elements
 
 
 def hind_foot(body, suffix, at, radii, coat="wool", fur=0.05, end=None):
