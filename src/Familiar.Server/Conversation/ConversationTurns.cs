@@ -89,7 +89,18 @@ public sealed class ConversationTurns(
         string text;
         await using (var scope = scopes.CreateAsyncScope())
         {
-            text = await scope.ServiceProvider.GetRequiredService<ISpeechToText>().TranscribeAsync(audio, contentType, ct);
+            try
+            {
+                text = await scope.ServiceProvider.GetRequiredService<ISpeechToText>().TranscribeAsync(audio, contentType, ct);
+            }
+            catch (SpeechUnavailableException exception)
+            {
+                // The user is told only "I can't hear right now"; why (unreachable, timed out, no
+                // model installed) is for the log. And it's no longer thinking about anything.
+                logger.SpeechUnavailable(exception.Message);
+                channel.Publish(EventTypes.State, new StateEvent(FamiliarState.Idle));
+                throw;
+            }
         }
 
         var transcribeMs = (long)clock.GetElapsedTime(receivedAt).TotalMilliseconds;

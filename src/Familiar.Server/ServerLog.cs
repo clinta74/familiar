@@ -67,6 +67,9 @@ internal static partial class ServerLog
     [LoggerMessage(51, LogLevel.Warning, "Speech unavailable: {Reason}")]
     public static partial void SpeechUnavailable(this ILogger logger, string reason);
 
+    [LoggerMessage(56, LogLevel.Information, "Speech not ready yet ({Reason}); trying again in {Seconds} s")]
+    public static partial void SpeechNotReady(this ILogger logger, string reason, int seconds);
+
     [LoggerMessage(55, LogLevel.Information, "Ignored a transcript that was the familiar's own voice: {Transcript}")]
     public static partial void EchoIgnored(this ILogger logger, string transcript);
 
