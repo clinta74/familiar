@@ -69,23 +69,22 @@ holds it, and re-send only when it changes.
 
 ## Avatars
 
-### 6. The 3D model pipeline: decide, then build (see "Blender, or AI-generated models?" below)
+### 6. ~~The 3D model pipeline~~ — done (2026-10-03)
 
-### 7. Two new characters: an otter and a giraffe
+Option A below: the characters are scripted in Blender (`tools/models/`), the runtime loads the
+GLBs. Still open:
 
-Each needs both styles: a 2D SVG character (`PlushOtterAvatar`, `PlushGiraffeAvatar`, sitting, on
-the shared body) and a 3D one, plus a studio entry with presets and colour labels, a server-side
-model name (`Appearance.Models`) and a persona look line (`AppearanceView.Look`).
+- **2D spot splitting:** the 3D spot splits and reforms for a shake, a laugh or excitement; the flat
+  one doesn't yet.
+- **Giraffe patches** come out small on the legs (the pattern is in each part's UV space, so a small
+  part gets small patches); a per-part pattern scale would fix it.
+- **Flat characters' arms** still hang with paws on the tummy; the 3D ones now stand to the ground
+  like a sitting dog's. Decide whether the flat ones should follow.
+- A local image-to-3D model (TRELLIS / Hunyuan3D) as a reference for harder shapes: not needed so far.
 
-- **Otter:** sleek short fur (not fluffy), a broad flat head, small round ears, a big pale muzzle
-  with whiskers and a big nose, a long thick tapering tail; holds its paws together on its chest.
-  Expressive bits: whiskers (twitch, droop), the tail.
-- **Giraffe:** a long neck (the frame needs to fit it — sitting, with the neck curved, or the head
-  lower), ossicones (horn-knobs), big ears, a patterned coat (patches painted onto the fur texture,
-  so the fur shell colours need per-texel colour from a map, as the fox's face has), a long face,
-  lashes. Expressive bits: ears, the neck's lean.
+### 7. ~~An otter and a giraffe~~ — done (2026-10-03)
 
-Best built after item 6 is decided, so they're made the new way.
+Both, flat and 3D, in the studio with presets, accepted by the server, with a persona line.
 
 ### 8. Check 3D on a real phone
 

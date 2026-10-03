@@ -242,33 +242,31 @@ shake, tilt, shrug (arms out), and a wave with its right arm.
 
 **In 3D (2026-10-03).** `style: "3d"` in the appearance (the studio's Style switch) draws any of
 the built-in characters with three.js instead, as soft toys sitting on the stage floor with a
-contact shadow. `client/src/avatar/plush3d/Plush3D.ts` is what they share, built from each 2D
-character's own numbers (face layout, body spec, accessory anchors), so the two styles stay the
-same character:
+contact shadow. Their **shapes are modelled in Blender** by scripts (`tools/models/`, run headless,
+exporting small GLBs into the client): metaballs melted into continuous organic surfaces, as named
+parts on pivots with properties saying what each part is. The runtime
+(`client/src/avatar/plush3d/`) does everything else, the same for every character:
 
-- **Fur:** shell fur, 12 offset layers per furry shape with strands cut from a tufted noise
-  texture, darker at the roots and drooping slightly, over lumpy base shapes so outlines are
-  fleece. It can be coloured by a painted texture (the fox's face), vary in length over a shape
-  (none over the hedgehog's face), grow finer on big shapes, and bristle live (a shader uniform).
-- **Faces:** button or googly eyes with hemispherical lids (the upper closes for blinks and winks; a
-  big smile swaps the eyes for stitched arches), thread brows, and the mouth (fangs for the
-  monster) and cheeks painted onto front-projected textures from the 2D drawing.
-- **Bodies:** a torso, arms bent at the elbow with paws forward on the tummy (a shrug turns the
-  forearms up; a wave lifts the upper arm and waves from the elbow), and hind feet. The toy
-  breathes, slumps when sad and leans into a tilt; the head turns to look where its eyes would.
+- **Fur:** shell fur, 12 offset layers per furry part, strands cut from a tufted noise texture,
+  darker at the roots, drooping slightly; masked where something sits on a part (a face in a fur
+  ball, an ear's cup), patterned for a giraffe's coat, bristling live for prickles and shaggy fur.
+- **Faces:** painted onto the model's face surface through a front projection of the 2D drawing's
+  face (mouth, cheeks, muzzle colours, a fox's cream cheeks); button or googly eyes with lids (a big
+  smile turns them into stitched arches), thread brows and tears placed by raycasting that surface.
+- **Bodies:** front legs standing to the ground in front, as a sitting dog's, bending at the elbow to
+  wave; hind feet at the sides. The body breathes, slumps when sad and hops; nods, shakes and tilts
+  are the head's alone, which also turns to look where its eyes would.
+- **Each character's spec** (`Model<Name>3D.ts`): its face layout (the 2D one), how its ears swing,
+  tails, whiskers, horns, bristling, colour quirks.
 
-The characters:
-- `PlushLlama3D`: fleece, a topknot, and hooves.
-- `PlushFox3D`: a tapered muzzle with a black nose, pointed cream cheek tufts, and a swishing,
-  white-tipped tail.
-- `PlushHedgehog3D`: the ball is the toy, in dark-tipped prickles that bristle and lie flat, with a
-  cream ruff and a button nose.
-- `PlushMonster3D`: shaggy fur that stands on end, googly eyes, and ridged horns.
-- `Spot3D`: a glossy blob shaped in the vertex shader by the same model as the flat spot
-  (`spotFrame`, shared), lit warm from within, with a halo and sparkles.
-
-A character is about 100-120 draw calls and 300k triangles. three.js loads only for 3D or VRM, and
-without WebGL a character falls back to its flat self.
+Characters: llama, fox (pointed muzzle, cream cheek tufts, white-tipped tail), hedgehog (a ball of
+prickles that rocks on its bottom), monster (shaggy fur, googly eyes, ridged horns), otter (sleek,
+whisker pads, curled tail), giraffe (long neck, patchwork coat, ossicones) and the spot (a glossy
+blob shaped in the vertex shader by the flat spot's own model, `spotFrame`, that splits and
+reforms for a shake, a laugh or excitement). `client/gallery.html` (development only) shows them
+all across moods, gestures, colours and accessories. A character is ~150 draw calls and
+~300k triangles; three.js loads only for 3D or VRM; without WebGL a character falls back to its
+flat self.
 
 ### 5.1 3D: VRM
 

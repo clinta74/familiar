@@ -41,6 +41,8 @@ export default defineConfig({
   server: {
     port: 5273,
     strictPort: true,
+    // The phone apps' avatar page builds into dist-embed/; it isn't the dev server's to reload for.
+    watch: { ignored: ['**/dist-embed/**'] },
     proxy: {
       '/api': server,
       '/health': server,
