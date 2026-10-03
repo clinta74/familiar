@@ -87,7 +87,8 @@ public sealed class CreateReminderTool(Scheduler scheduler) : ITool
             ["text"],
             ("text", ToolSchema.String("What to remind them of, e.g. \"call Mum\".")),
             ("time", ToolSchema.String("When, in the user's local time: a day and time like \"tomorrow 09:00\" or \"Tuesday 15:00\", \"HH:MM\" for the next time it's that time, or \"YYYY-MM-DDTHH:MM\".")),
-            ("in_minutes", ToolSchema.Integer("Or: how many minutes from now."))),
+            ("in_minutes", ToolSchema.Integer("Or: how many minutes from now.")),
+            ("alarm", ToolSchema.Boolean("True when it should ring until dismissed, like an alarm clock: waking up (\"wake me at 7\") or anything they say must not be missed."))),
         ToolRisk.WriteOwn);
 
     public async Task<ToolResult> InvokeAsync(ToolContext context, JsonObject arguments, CancellationToken ct)
@@ -127,6 +128,7 @@ public sealed class CreateReminderTool(Scheduler scheduler) : ITool
             Kind = JobKind.Reminder,
             Label = text,
             DueAt = due,
+            Ring = arguments["alarm"] is JsonValue alarm && alarm.TryGetValue<bool>(out var ring) && ring,
             TimeZone = context.Zone.Id,
             CreatedAt = context.Now,
         }, ct);

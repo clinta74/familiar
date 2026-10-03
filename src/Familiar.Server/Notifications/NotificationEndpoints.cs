@@ -71,15 +71,24 @@ public static class NotificationEndpoints
     }
 
     private static async Task<IResult> SubscribeAsync(
-        SubscribeRequest request, HttpContext http, IDbContextFactory<FamiliarDbContext> db, TimeProvider clock, CancellationToken ct)
+        SubscribeRequest request, HttpContext http, IDbContextFactory<FamiliarDbContext> db, PushOptions options, TimeProvider clock, CancellationToken ct)
     {
-        if (request.Endpoint is not { } endpoint || !PushSender.IsAcceptableEndpoint(endpoint))
+        if (request.Endpoint is not { } endpoint || !options.Accepts(endpoint))
         {
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["endpoint"] = ["Not a push service URL."] });
         }
 
         var accountId = http.User.AccountId()!.Value;
+
+        // A phone signs in with a device token: its endpoint is tied to that device.
+        var deviceId = http.User.DeviceId();
         await using var context = await db.CreateDbContextAsync(ct);
+
+        // A phone's new endpoint replaces its old one.
+        if (deviceId is { } device)
+        {
+            await context.PushSubscriptions.Where(s => s.DeviceId == device && s.Endpoint != endpoint).ExecuteDeleteAsync(ct);
+        }
 
         // One row per browser: re-subscribing (or a different account signing in on it) takes it over.
         var existing = await context.PushSubscriptions.FirstOrDefaultAsync(s => s.Endpoint == endpoint, ct);
@@ -97,6 +106,7 @@ public static class NotificationEndpoints
                 Endpoint = endpoint,
                 P256dh = Truncate(request.Keys?.P256dh, 256),
                 Auth = Truncate(request.Keys?.Auth, 64),
+                DeviceId = deviceId,
                 CreatedAt = clock.GetUtcNow(),
             });
         }

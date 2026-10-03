@@ -73,6 +73,9 @@ services:
       Llm__Model: familiar-chat
       Speech__SttBaseUrl: http://stt:8000
       Speech__TtsBaseUrl: http://tts:8880
+      # Phones' push (UnifiedPush): their endpoints are on this ntfy, the same address they reach it
+      # at. The only local-network address the server will push to.
+      Push__UnifiedPushServer: ${NTFY_BASE_URL:-}
     volumes:
       - ${FAMILIAR_DATA_DIR:-./data}/logs:/app/logs
     # The .NET GC sizes its heap from the cgroup limit; without one it sizes against the whole NAS.
@@ -145,6 +148,28 @@ services:
     restart: always
     networks: [familiar]
     mem_limit: 4g
+    logging: *logging
+
+  # Push for the phone app (docs/MOBILE.md §8, decided: ntfy). Phones register through the ntfy
+  # Android app (a UnifiedPush distributor), which keeps one connection to this; the server posts a
+  # content-free "something changed" to each phone's topic and the app fetches the rest itself. Its
+  # port is published (on all interfaces) because phones connect to it directly.
+  ntfy:
+    image: binwiederhier/ntfy:${NTFY_TAG:-latest}
+    container_name: familiar-ntfy
+    restart: always
+    command: serve
+    networks: [familiar]
+    environment:
+      NTFY_BASE_URL: ${NTFY_BASE_URL:-}
+      NTFY_CACHE_FILE: /var/cache/ntfy/cache.db
+      NTFY_CACHE_DURATION: 12h
+      NTFY_BEHIND_PROXY: 'false'
+    ports:
+      - ${NTFY_PORT:-2586}:80
+    volumes:
+      - ${FAMILIAR_DATA_DIR:-./data}/ntfy:/var/cache/ntfy
+    mem_limit: 128m
     logging: *logging
 
   # Nightly pg_dump that proves itself by restoring into a scratch database; a dump that won't

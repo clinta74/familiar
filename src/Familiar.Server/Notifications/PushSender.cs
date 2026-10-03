@@ -17,6 +17,26 @@ public sealed class PushOptions
     /// mailto: or https: URL.
     /// </summary>
     public string Subject { get; init; } = "https://github.com/clinta74/familiar";
+
+    /// <summary>
+    /// The ntfy server phones push through (UnifiedPush), e.g. https://ntfy.example.lan. Endpoints on
+    /// it are accepted even though it's on the local network; nothing else local is.
+    /// </summary>
+    public string? UnifiedPushServer { get; init; }
+
+    /// <summary>Whether <paramref name="endpoint"/> may be pushed to.</summary>
+    public bool Accepts(string endpoint) =>
+        PushSender.IsAcceptableEndpoint(endpoint) || IsUnifiedPushEndpoint(endpoint);
+
+    private bool IsUnifiedPushEndpoint(string endpoint) =>
+        endpoint.Length <= 1024
+        && UnifiedPushServer is { Length: > 0 } server
+        && Uri.TryCreate(server, UriKind.Absolute, out var origin)
+        && Uri.TryCreate(endpoint, UriKind.Absolute, out var uri)
+        && uri.Scheme == origin.Scheme
+        && string.Equals(uri.Host, origin.Host, StringComparison.OrdinalIgnoreCase)
+        && uri.Port == origin.Port
+        && uri.AbsolutePath.Length > 1;
 }
 
 /// <summary>
@@ -121,10 +141,20 @@ public sealed class PushSender(
     TimeProvider clock,
     ILogger<PushSender> logger)
 {
-    public async Task NotifyAsync(Guid accountId, CancellationToken ct)
+    /// <summary>Something happened: every browser and phone the account has subscribed hears of it.</summary>
+    /// <param name="accountId">Whose browsers and phones.</param>
+    /// <param name="ct">Cancels sending.</param>
+    /// <param name="devicesOnly">Just the phones: their timers changed, which browsers don't need waking for.</param>
+    public async Task NotifyAsync(Guid accountId, CancellationToken ct, bool devicesOnly = false)
     {
         await using var context = await db.CreateDbContextAsync(ct);
-        var subscriptions = await context.PushSubscriptions.Where(s => s.AccountId == accountId).ToListAsync(ct);
+        var now = clock.GetUtcNow();
+
+        // A phone's only while it's still signed in (signed out some other way than here, or expired).
+        var subscriptions = await context.PushSubscriptions
+            .Where(s => s.AccountId == accountId && (!devicesOnly || s.DeviceId != null))
+            .Where(s => s.DeviceId == null || context.AccessTokens.Any(t => t.Id == s.DeviceId && t.RevokedAt == null && t.ExpiresAt > now))
+            .ToListAsync(ct);
 
         if (subscriptions.Count == 0)
         {

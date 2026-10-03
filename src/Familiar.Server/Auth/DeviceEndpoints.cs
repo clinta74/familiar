@@ -135,6 +135,9 @@ public static class DeviceEndpoints
             device.RevokedAt = clock.GetUtcNow();
             await db.SaveChangesAsync(ct);
             await calendars.RemoveDeviceAsync(id, ct);
+
+            // Nothing more is pushed to a phone that's signed out.
+            await db.PushSubscriptions.Where(s => s.DeviceId == id).ExecuteDeleteAsync(ct);
             loggers.CreateLogger(typeof(DeviceEndpoints)).DeviceSignedOut(id, device.Account!.Username);
         }
 

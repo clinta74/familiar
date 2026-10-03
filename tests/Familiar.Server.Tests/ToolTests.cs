@@ -264,6 +264,64 @@ public sealed class ToolTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_phone_pushes_through_the_households_ntfy_and_its_endpoint_goes_with_the_device()
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        (await app.CreateClient().RegisterAsync("pocket")).EnsureSuccessStatusCode();
+        var login = await app.CreateClient().DeviceLoginAsync("pocket");
+        var phone = app.DeviceClient(login.Token);
+
+        // ntfy is on the local network: accepted because it's the one configured, on its own origin only.
+        foreach (var bad in new[] { "http://192.168.1.20:2587/up1", "https://192.168.1.20:2586/up1", "http://192.168.1.20:2586/", "http://192.168.1.21:2586/up1", "https://printer.local/up1" })
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, (await phone.PostAsJsonAsync("/api/push/subscriptions", new SubscribeRequest(bad, null))).StatusCode);
+        }
+
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await phone.PostAsJsonAsync("/api/push/subscriptions", new SubscribeRequest("http://192.168.1.20:2586/upAAA?up=1", null))).StatusCode);
+        // A new endpoint from the same phone replaces its old one.
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await phone.PostAsJsonAsync("/api/push/subscriptions", new SubscribeRequest("http://192.168.1.20:2586/upBBB?up=1", null))).StatusCode);
+
+        await using (var db = await Db(app))
+        {
+            var subscription = await db.PushSubscriptions.SingleAsync();
+            Assert.Equal(("http://192.168.1.20:2586/upBBB?up=1", login.Device.Id), (subscription.Endpoint, subscription.DeviceId));
+        }
+
+        // Signing the phone out takes its push endpoint with it.
+        Assert.Equal(HttpStatusCode.NoContent, (await phone.DeleteAsync($"/api/auth/devices/{login.Device.Id}")).StatusCode);
+        await using (var db = await Db(app))
+        {
+            Assert.Empty(await db.PushSubscriptions.ToListAsync());
+        }
+    }
+
+    [Fact]
+    public async Task A_reminder_to_wake_up_rings_and_timers_always_do()
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        app.Llm
+            .ThenCall("create_reminder", """{"text": "wake up", "in_minutes": 600, "alarm": true}""").ThenSay("[joy:0.5] I'll wake you.")
+            .ThenCall("create_reminder", """{"text": "call Mum", "in_minutes": 60}""").ThenSay("[joy:0.5] Will do.")
+            .ThenCall("set_timer", """{"minutes": 5}""").ThenSay("[joy:0.5] Five minutes.");
+        var client = await SignedInAsync(app);
+        await using var stream = await SseClient.ConnectAsync(client);
+        await stream.ReadUntilAsync(EventTypes.Jobs);
+
+        foreach (var ask in new[] { "Wake me at 7", "Remind me to call Mum in an hour", "5 minute timer" })
+        {
+            await SayAsync(client, ask);
+            await stream.ReadUntilStateAsync(FamiliarState.Idle);
+        }
+
+        var jobs = await (await client.GetAsync("/api/jobs")).ReadAsync<List<JobView>>();
+        Assert.Equal(
+            [("wake up", true), ("call Mum", false), ("", true)],
+            jobs.OrderByDescending(j => j.DueAt).Select(j => (j.Label, j.Ring)).ToList());
+    }
+
+    [Fact]
     public async Task The_vapid_token_verifies_against_the_published_key()
     {
         await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());

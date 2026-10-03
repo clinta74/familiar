@@ -36,6 +36,12 @@ public sealed class ScheduledJob
     /// <summary>For timers: how long it was set for, so it can be announced as "your 10-minute timer".</summary>
     public int? DurationSeconds { get; init; }
 
+    /// <summary>
+    /// A reminder that rings like an alarm until it's dismissed ("wake me at 7"), rather than a
+    /// notification. Timers always ring.
+    /// </summary>
+    public bool Ring { get; init; }
+
     /// <summary>The user's time zone when it was set, for speaking times back in their terms.</summary>
     public string? TimeZone { get; init; }
 

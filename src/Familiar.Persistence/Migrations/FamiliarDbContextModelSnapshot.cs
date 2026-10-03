@@ -711,6 +711,10 @@ namespace Familiar.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<Guid?>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
                     b.Property<string>("Endpoint")
                         .IsRequired()
                         .HasMaxLength(1024)
@@ -731,6 +735,9 @@ namespace Familiar.Persistence.Migrations
 
                     b.HasIndex("AccountId")
                         .HasDatabaseName("ix_push_subscriptions_account_id");
+
+                    b.HasIndex("DeviceId")
+                        .HasDatabaseName("ix_push_subscriptions_device_id");
 
                     b.HasIndex("Endpoint")
                         .IsUnique()
@@ -778,6 +785,10 @@ namespace Familiar.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("label");
+
+                    b.Property<bool>("Ring")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ring");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1038,6 +1049,12 @@ namespace Familiar.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_push_subscriptions_accounts_account_id");
+
+                    b.HasOne("Familiar.Domain.Accounts.AccessToken", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_push_subscriptions_access_tokens_device_id");
                 });
 
             modelBuilder.Entity("Familiar.Domain.Scheduling.ScheduledJob", b =>

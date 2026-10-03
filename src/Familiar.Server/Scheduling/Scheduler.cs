@@ -5,10 +5,17 @@ using Familiar.Server.Notifications;
 namespace Familiar.Server.Scheduling;
 
 /// <summary>A pending timer or reminder, as the client shows it.</summary>
-public sealed record JobView(Guid Id, JobKind Kind, string Label, DateTimeOffset DueAt, int? DurationSeconds, DateTimeOffset CreatedAt)
+/// <param name="Id">The job.</param>
+/// <param name="Kind">Timer or reminder.</param>
+/// <param name="Label">What it's for.</param>
+/// <param name="DueAt">When it goes off.</param>
+/// <param name="DurationSeconds">For a timer, how long it was set for.</param>
+/// <param name="CreatedAt">When it was set.</param>
+/// <param name="Ring">It rings until dismissed (timers, and alarm reminders) rather than notifying.</param>
+public sealed record JobView(Guid Id, JobKind Kind, string Label, DateTimeOffset DueAt, int? DurationSeconds, DateTimeOffset CreatedAt, bool Ring)
 {
     public static JobView From(ScheduledJob job) =>
-        new(job.Id, job.Kind, job.Label, job.DueAt, job.DurationSeconds, job.CreatedAt);
+        new(job.Id, job.Kind, job.Label, job.DueAt, job.DurationSeconds, job.CreatedAt, job.Kind == JobKind.Timer || job.Ring);
 }
 
 /// <summary>The account's pending jobs, sent whenever they change, so every device's timer list stays current.</summary>
@@ -18,7 +25,7 @@ public sealed record JobsEvent(IReadOnlyList<JobView> Jobs);
 /// Timers and reminders: what the tools and the jobs endpoints use. Every change wakes the scheduler
 /// and tells the account's devices.
 /// </summary>
-public sealed class Scheduler(SchedulerStore store, SchedulerSignal signal, ConversationHub hub)
+public sealed class Scheduler(SchedulerStore store, SchedulerSignal signal, ConversationHub hub, PushSender push)
 {
     /// <summary>A sanity limit, not a feature: no one needs more running at once.</summary>
     public const int MaxPending = 50;
@@ -54,6 +61,10 @@ public sealed class Scheduler(SchedulerStore store, SchedulerSignal signal, Conv
     {
         var pending = await store.PendingAsync(accountId, null, ct);
         hub.For(accountId).Publish(EventTypes.Jobs, new JobsEvent([.. pending.Select(JobView.From)]));
+
+        // Phones that aren't connected keep their own alarms for these (so they ring offline): tell
+        // them to catch up. In the background - a slow push service mustn't hold up the tool.
+        _ = Task.Run(() => push.NotifyAsync(accountId, CancellationToken.None, devicesOnly: true), CancellationToken.None);
     }
 }
 

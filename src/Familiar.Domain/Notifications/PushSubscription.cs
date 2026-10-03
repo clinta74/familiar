@@ -19,6 +19,12 @@ public sealed class PushSubscription
 
     public string? Auth { get; set; }
 
+    /// <summary>
+    /// For a phone (UnifiedPush through ntfy): the signed-in device it belongs to. Signing the device
+    /// out removes it. Phones are also nudged whenever timers change, so their local alarms keep up.
+    /// </summary>
+    public Guid? DeviceId { get; set; }
+
     public DateTimeOffset CreatedAt { get; init; }
 
     public DateTimeOffset? LastPushedAt { get; set; }

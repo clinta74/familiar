@@ -56,6 +56,7 @@ internal sealed class PushSubscriptionConfiguration : IEntityTypeConfiguration<P
         builder.HasIndex(p => p.Endpoint).IsUnique();
         builder.Property(p => p.P256dh).HasMaxLength(256);
         builder.Property(p => p.Auth).HasMaxLength(64);
+        builder.HasOne<AccessToken>().WithMany().HasForeignKey(p => p.DeviceId).OnDelete(DeleteBehavior.Cascade);
     }
 }
 
