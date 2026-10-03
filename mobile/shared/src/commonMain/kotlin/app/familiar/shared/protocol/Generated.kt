@@ -20,6 +20,64 @@ object AccountRole {
     const val ADMIN = "admin"
 }
 
+@Serializable
+data class AddFeedRequest(
+    /** What to call it. */
+    val name: String? = null,
+    /** Its secret iCal address (https:// or webcal://). */
+    val url: String? = null,
+)
+
+@Serializable
+data class AdminUserView(
+    /** The account. */
+    val id: String,
+    /** Its username. */
+    val username: String,
+    /** Its email. */
+    val email: String,
+    /** user or admin. */
+    val role: String,
+    /** When it was made. */
+    val createdAt: String,
+    /** When it last signed in, if ever. */
+    val lastLoginAt: String? = null,
+    /** It can't sign in, and its sessions and devices have stopped working. */
+    val isDisabled: Boolean,
+    /** How many phones it has signed in. */
+    val devices: Int,
+    /** The admin looking at the list. */
+    val isYou: Boolean,
+)
+
+@Serializable
+data class AnnounceRequest(
+    /** What to say. */
+    val message: String? = null,
+    /** "say" (word for word, the default) or "tell" (the familiar puts it in its own words). */
+    val style: String? = null,
+    /** For "tell": the user's IANA time zone, if the caller knows it. */
+    val timeZone: String? = null,
+)
+
+/**
+ * How a familiar looks (PLAN.md §5.5). Either the built-in plush llama, coloured and dressed, or an
+ * uploaded VRM model.
+ */
+@Serializable
+data class AppearanceView(
+    /** A built-in character (llama, fox, hedgehog, monster, otter, giraffe, spot) or "vrm". */
+    val model: String,
+    /** For "vrm", which uploaded model. */
+    val vrmId: String? = null,
+    /** The character's colours (what each paints depends on the character). */
+    val colours: LlamaColours,
+    /** What it wears: none, bow, scarf, glasses, flower. The spot wears nothing. */
+    val accessory: String,
+    /** How a built-in character is drawn: "2d" (flat, the default) or "3d" (modelled and lit). */
+    val style: String = "2d",
+)
+
 /** The reply has no more clips coming: Clips were announced in total. */
 @Serializable
 data class AudioEndEvent(
@@ -43,11 +101,54 @@ data class AudioEvent(
 )
 
 @Serializable
+data class AvatarView(
+    val id: String,
+    val name: String,
+    val sizeBytes: Int,
+    val meta: VrmInfo,
+    val createdAt: String,
+)
+
+object CalendarKind {
+    const val LOCAL = "local"
+    const val ICS = "ics"
+    const val DEVICE = "device"
+}
+
+/** A calendar as Settings shows it. Never the feed's address: that's a secret. */
+@Serializable
+data class CalendarView(
+    val id: String,
+    val kind: String,
+    val name: String,
+    val lastSyncedAt: String? = null,
+    val lastError: String? = null,
+)
+
+@Serializable
+data class ChangePasswordRequest(
+    val currentPassword: String? = null,
+    val newPassword: String? = null,
+)
+
+@Serializable
 data class ConfirmRequest(
     /** The tool call being answered, from the tool.confirm event. */
     val callId: String? = null,
     /** Whether the user allows it. */
     val approve: Boolean,
+)
+
+@Serializable
+data class CreateUserRequest(
+    /** 3-24 letters, digits or underscores. */
+    val username: String? = null,
+    /** Their email. */
+    val email: String? = null,
+    /** A first password, for them to change. */
+    val password: String? = null,
+    /** user (the default) or admin. */
+    val role: String? = null,
 )
 
 @Serializable
@@ -121,6 +222,22 @@ data class ErrorEvent(
 )
 
 @Serializable
+data class ErrorResponse(
+    val error: String,
+)
+
+@Serializable
+data class EventView(
+    val id: String,
+    val calendarId: String,
+    val title: String,
+    val location: String? = null,
+    val startsAt: String,
+    val endsAt: String,
+    val allDay: Boolean,
+)
+
+@Serializable
 data class ExpressionEvent(
     val emotion: String,
     val intensity: Double,
@@ -137,6 +254,21 @@ object FamiliarState {
 data class FamiliarSummary(
     val name: String,
     val expressiveness: Double,
+)
+
+@Serializable
+data class FamiliarView(
+    val name: String,
+    val userNickname: String? = null,
+    val warmth: Double,
+    val playfulness: Double,
+    val verbosity: Double,
+    val formality: Double,
+    val expressiveness: Double,
+    val voice: String? = null,
+    val voiceSpeed: Double = 1.0,
+    val proactive: Boolean? = null,
+    val appearance: AppearanceView? = null,
 )
 
 /** A one-off body movement the familiar makes mid-sentence. */
@@ -156,6 +288,14 @@ object Gesture {
 @Serializable
 data class GestureEvent(
     val gesture: String,
+)
+
+@Serializable
+data class HookTokenView(
+    val id: String,
+    val name: String,
+    val createdAt: String,
+    val lastUsedAt: String? = null,
 )
 
 @Serializable
@@ -199,6 +339,83 @@ data class JobsEvent(
     val jobs: List<JobView>,
 )
 
+/** The plush llama's colours, as #rrggbb. Shading is derived from these by the client. */
+@Serializable
+data class LlamaColours(
+    /** The fleece. */
+    val wool: String,
+    /** The bare face and snout. */
+    val face: String,
+    /** Inside the ears, and the hooves. */
+    val ear: String,
+    /** The cheeks. */
+    val blush: String,
+    /** The accessory. */
+    val accent: String,
+)
+
+@Serializable
+data class LoginRequest(
+    val username: String? = null,
+    val password: String? = null,
+)
+
+@Serializable
+data class McpServerRequest(
+    /** Short and lower-case: it prefixes the tool names the model sees. */
+    val name: String? = null,
+    /** The server's streamable-HTTP endpoint. */
+    val url: String? = null,
+    /** A bearer token, if the server needs one. */
+    val token: String? = null,
+)
+
+@Serializable
+data class McpServerView(
+    val id: String,
+    val name: String,
+    val urlHost: String,
+    val tools: List<McpToolView>,
+    val refreshedAt: String? = null,
+    val lastError: String? = null,
+)
+
+@Serializable
+data class McpToolView(
+    val name: String,
+    val modelName: String,
+    val description: String? = null,
+    val readOnly: Boolean,
+    val enabled: Boolean,
+)
+
+@Serializable
+data class McpToolsRequest(
+    /** The tool names (as the server calls them) to switch on. */
+    val enabled: List<String>? = null,
+)
+
+@Serializable
+data class MemoryRequest(
+    /** The memory, one short sentence. */
+    val text: String? = null,
+)
+
+object MemorySource {
+    const val CONVERSATION = "conversation"
+    const val TOLD = "told"
+    const val SETTINGS = "settings"
+}
+
+@Serializable
+data class MemoryView(
+    val id: String,
+    val text: String,
+    val source: String,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
 object MessageRole {
     const val USER = "user"
     const val ASSISTANT = "assistant"
@@ -214,6 +431,29 @@ data class MessageView(
     val intensity: Double? = null,
     val interrupted: Boolean,
     val createdAt: String,
+)
+
+@Serializable
+data class NameRequest(
+    val name: String? = null,
+)
+
+@Serializable
+data class NewHookTokenView(
+    /** The token's id. */
+    val id: String,
+    /** What uses it. */
+    val name: String,
+    /** Shown once, at creation. */
+    val token: String,
+)
+
+@Serializable
+data class NewWebhookView(
+    /** The webhook. */
+    val webhook: WebhookView,
+    /** The signing secret, shown once, at creation. */
+    val secret: String,
 )
 
 /** Something that just happened, for the service worker to show as a notification. */
@@ -260,6 +500,13 @@ data class ReadyEvent(
 )
 
 @Serializable
+data class RegisterRequest(
+    val username: String? = null,
+    val email: String? = null,
+    val password: String? = null,
+)
+
+@Serializable
 data class ReplyDeltaEvent(
     val id: String,
     val text: String,
@@ -287,6 +534,12 @@ data class ReplyStartEvent(
 data class ReplyTruncatedEvent(
     val id: String,
     val text: String,
+)
+
+@Serializable
+data class ResetPasswordRequest(
+    /** The new password. */
+    val password: String? = null,
 )
 
 @Serializable
@@ -390,6 +643,73 @@ data class ToolStartedEvent(
     val replyId: String,
     val callId: String,
     val tool: String,
+)
+
+@Serializable
+data class UnsubscribeRequest(
+    /** The subscription to remove. */
+    val endpoint: String? = null,
+)
+
+@Serializable
+data class UpdateUserRequest(
+    /** A new email, or null to leave it. */
+    val email: String? = null,
+    /** A new role, or null to leave it. */
+    val role: String? = null,
+    /** Disable or re-enable, or null to leave it. */
+    val isDisabled: Boolean? = null,
+)
+
+@Serializable
+data class VoicesView(
+    /** What the TTS service offers; empty if it isn't reachable. */
+    val voices: List<String>,
+    /** The voice used when a familiar hasn't chosen one. */
+    val default: String,
+)
+
+/** What a VRM model says about itself. */
+@Serializable
+data class VrmInfo(
+    /** "0.x" or "1.0". */
+    val version: String,
+    /** Its title, if it has one. */
+    val name: String? = null,
+    /** Who made it. */
+    val authors: List<String>,
+    /** Its licence, as the model states it (a name or a URL). */
+    val licence: String? = null,
+    /** What it says about commercial use, if anything. */
+    val commercialUse: String? = null,
+)
+
+@Serializable
+data class WebhookRequest(
+    val name: String? = null,
+    val url: String? = null,
+    val events: List<String>? = null,
+    val enabled: Boolean? = null,
+)
+
+/** How a test delivery went. */
+@Serializable
+data class WebhookTestResult(
+    /** The receiver answered with a success. */
+    val ok: Boolean,
+    /** What happened: the status it answered with, or why it couldn't be reached. */
+    val result: String,
+)
+
+@Serializable
+data class WebhookView(
+    val id: String,
+    val name: String,
+    val urlHost: String,
+    val events: List<String>,
+    val enabled: Boolean,
+    val lastDeliveredAt: String? = null,
+    val lastResult: String? = null,
 )
 
 /** The stream's event names, as the server calls them (EventTypes). */

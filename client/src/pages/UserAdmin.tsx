@@ -1,25 +1,15 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api/client';
 
-interface AdminUser {
-  id: string;
-  username: string;
-  email: string;
-  role: 'user' | 'admin';
-  createdAt: string;
-  lastLoginAt: string | null;
-  isDisabled: boolean;
-  devices: number;
-  isYou: boolean;
-}
+import type { AdminUserView as AdminUser, CreateUserRequest, ResetPasswordRequest, UpdateUserRequest } from '../protocol/generated';
 
 const usersApi = {
   list: () => api<AdminUser[]>('/api/admin/users'),
   create: (username: string, email: string, password: string, role: AdminUser['role']) =>
-    api<AdminUser>('/api/admin/users', { body: { username, email, password, role } }),
-  update: (id: string, patch: { email?: string; role?: AdminUser['role']; isDisabled?: boolean }) =>
+    api<AdminUser>('/api/admin/users', { body: { username, email, password, role } satisfies CreateUserRequest }),
+  update: (id: string, patch: Partial<UpdateUserRequest>) =>
     api<AdminUser>(`/api/admin/users/${id}`, { method: 'PUT', body: patch }),
-  resetPassword: (id: string, password: string) => api<void>(`/api/admin/users/${id}/password`, { body: { password } }),
+  resetPassword: (id: string, password: string) => api<void>(`/api/admin/users/${id}/password`, { body: { password } satisfies ResetPasswordRequest }),
   remove: (id: string) => api<void>(`/api/admin/users/${id}`, { method: 'DELETE' }),
 };
 

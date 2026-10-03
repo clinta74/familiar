@@ -7,6 +7,9 @@ using Familiar.Server.Auth;
 using Familiar.Server.Calendars;
 using Familiar.Server.Conversation;
 using Familiar.Server.Devices;
+using Familiar.Server.Familiars;
+using Familiar.Server.Hooks;
+using Familiar.Server.Memories;
 using Familiar.Server.Notifications;
 using Familiar.Server.Scheduling;
 using Familiar.Server.Tools;
@@ -48,20 +51,65 @@ public static class ProtocolCatalog
         (EventTypes.Resync, null),
     ];
 
-    /// <summary>Request and response bodies both clients use.</summary>
+    /// <summary>The REST API's request and response bodies, for the web client and the phone apps.</summary>
     public static readonly IReadOnlyList<Type> Bodies =
     [
+        // Accounts, sessions and devices.
+        typeof(RegisterRequest),
+        typeof(LoginRequest),
+        typeof(ChangePasswordRequest),
+        typeof(AccountResponse),
         typeof(DeviceLoginRequest),
         typeof(DeviceLoginResponse),
+        typeof(DeviceSummary),
+        typeof(ErrorResponse),
+
+        // User administration.
+        typeof(AdminUserView),
+        typeof(CreateUserRequest),
+        typeof(UpdateUserRequest),
+        typeof(ResetPasswordRequest),
+
+        // The conversation.
         typeof(SendMessageRequest),
         typeof(InterruptRequest),
         typeof(ConfirmRequest),
         typeof(ToolResultRequest),
+
+        // The familiar: who it is, how it sounds and looks.
+        typeof(FamiliarView),
+        typeof(VoicesView),
+        typeof(AvatarView),
+
+        // Calendars.
+        typeof(CalendarView),
+        typeof(EventView),
+        typeof(AddFeedRequest),
         typeof(DeviceCalendarUpload),
-        typeof(SubscribeRequest),
-        typeof(PushKeyResponse),
-        typeof(NotificationView),
+
+        // Memories.
+        typeof(MemoryView),
+        typeof(MemoryRequest),
+
+        // Timers, reminders and notifications.
         typeof(JobView),
+        typeof(NotificationView),
+        typeof(SubscribeRequest),
+        typeof(UnsubscribeRequest),
+        typeof(PushKeyResponse),
+
+        // Connections: hook tokens, webhooks, MCP servers.
+        typeof(HookTokenView),
+        typeof(NewHookTokenView),
+        typeof(NameRequest),
+        typeof(AnnounceRequest),
+        typeof(WebhookView),
+        typeof(NewWebhookView),
+        typeof(WebhookRequest),
+        typeof(WebhookTestResult),
+        typeof(McpServerView),
+        typeof(McpServerRequest),
+        typeof(McpToolsRequest),
     ];
 }
 
@@ -154,6 +202,9 @@ public static class ProtocolSchema
             var info = options.GetTypeInfo(type);
             var properties = new JsonObject();
             var required = new JsonArray();
+
+            // A record's parameters with defaults may be left out of a request: those are optional.
+            var parameters = type.GetConstructors().MaxBy(c => c.GetParameters().Length)?.GetParameters() ?? [];
             foreach (var property in info.Properties)
             {
                 var member = property.AttributeProvider as PropertyInfo;
@@ -161,13 +212,36 @@ public static class ProtocolSchema
                     || (member is not null && !property.PropertyType.IsValueType
                         && _nullability.Create(member).ReadState == NullabilityState.Nullable);
                 var schema = Schema(Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType, member);
+
+                // A string with fixed values (the model a familiar is drawn as): those values.
+                if (member?.GetCustomAttribute<System.ComponentModel.DataAnnotations.AllowedValuesAttribute>() is { } allowed)
+                {
+                    schema["enum"] = new JsonArray([.. allowed.Values.Select(v => (JsonNode?)v?.ToString())]);
+                }
                 if (nullable)
                 {
                     schema = OrNull(schema);
                 }
 
+                var parameter = parameters.FirstOrDefault(p => string.Equals(p.Name, member?.Name, StringComparison.OrdinalIgnoreCase));
+                if (parameter is { HasDefaultValue: true })
+                {
+                    schema["default"] = parameter.DefaultValue switch
+                    {
+                        null => null,
+                        bool b => b,
+                        string s => s,
+                        int i => i,
+                        double d => d,
+                        var other => other.ToString(),
+                    };
+                }
+                else
+                {
+                    required.Add((JsonNode)property.Name);
+                }
+
                 properties[property.Name] = Describe(schema, _docs.Property(type, member?.Name ?? property.Name));
-                required.Add((JsonNode)property.Name);
             }
 
             _definitions[name] = Describe(new JsonObject

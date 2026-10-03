@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Familiar.Domain.Conversations;
 using Familiar.Domain.Expression;
 
@@ -92,7 +93,11 @@ public sealed record EmptyEvent;
 /// <param name="Kind">One of <see cref="NotifyKinds"/>.</param>
 /// <param name="Label">What it was for, or who sent it.</param>
 /// <param name="Text">What the familiar says about it.</param>
-public sealed record NotifyEvent(Guid Id, string Kind, string Label, string Text);
+public sealed record NotifyEvent(
+    Guid Id,
+    [property: AllowedValues(NotifyKinds.Timer, NotifyKinds.Reminder, NotifyKinds.Announcement)] string Kind,
+    string Label,
+    string Text);
 
 public static class NotifyKinds
 {

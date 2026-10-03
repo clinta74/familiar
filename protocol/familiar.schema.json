@@ -121,6 +121,176 @@
         "admin"
       ]
     },
+    "AddFeedRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "What to call it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "description": "Its secret iCal address (https:// or webcal://).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "url"
+      ]
+    },
+    "AdminUserView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "The account.",
+          "type": "string",
+          "format": "uuid"
+        },
+        "username": {
+          "description": "Its username.",
+          "type": "string"
+        },
+        "email": {
+          "description": "Its email.",
+          "type": "string"
+        },
+        "role": {
+          "description": "user or admin.",
+          "$ref": "#/$defs/AccountRole"
+        },
+        "createdAt": {
+          "description": "When it was made.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "lastLoginAt": {
+          "description": "When it last signed in, if ever.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "isDisabled": {
+          "description": "It can't sign in, and its sessions and devices have stopped working.",
+          "type": "boolean"
+        },
+        "devices": {
+          "description": "How many phones it has signed in.",
+          "type": "integer"
+        },
+        "isYou": {
+          "description": "The admin looking at the list.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "email",
+        "role",
+        "createdAt",
+        "lastLoginAt",
+        "isDisabled",
+        "devices",
+        "isYou"
+      ]
+    },
+    "AnnounceRequest": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "description": "What to say.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "style": {
+          "description": "\"say\" (word for word, the default) or \"tell\" (the familiar puts it in its own words).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "timeZone": {
+          "description": "For \"tell\": the user's IANA time zone, if the caller knows it.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "message"
+      ]
+    },
+    "AppearanceView": {
+      "description": "How a familiar looks (PLAN.md §5.5). Either the built-in plush llama, coloured and dressed, or an uploaded VRM model.",
+      "type": "object",
+      "properties": {
+        "model": {
+          "description": "A built-in character (llama, fox, hedgehog, monster, otter, giraffe, spot) or \"vrm\".",
+          "type": "string",
+          "enum": [
+            "llama",
+            "fox",
+            "hedgehog",
+            "monster",
+            "otter",
+            "giraffe",
+            "spot",
+            "vrm"
+          ]
+        },
+        "vrmId": {
+          "description": "For \"vrm\", which uploaded model.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "colours": {
+          "description": "The character's colours (what each paints depends on the character).",
+          "$ref": "#/$defs/LlamaColours"
+        },
+        "accessory": {
+          "description": "What it wears: none, bow, scarf, glasses, flower. The spot wears nothing.",
+          "type": "string",
+          "enum": [
+            "none",
+            "bow",
+            "scarf",
+            "glasses",
+            "flower"
+          ]
+        },
+        "style": {
+          "description": "How a built-in character is drawn: \"2d\" (flat, the default) or \"3d\" (modelled and lit).",
+          "type": "string",
+          "enum": [
+            "2d",
+            "3d"
+          ],
+          "default": "2d"
+        }
+      },
+      "required": [
+        "model",
+        "vrmId",
+        "colours",
+        "accessory"
+      ]
+    },
     "AudioEndEvent": {
       "description": "The reply has no more clips coming: Clips were announced in total.",
       "type": "object",
@@ -167,15 +337,109 @@
           ],
           "items": {
             "$ref": "#/$defs/SpokenWord"
-          }
+          },
+          "default": null
         }
       },
       "required": [
         "replyId",
         "seq",
         "url",
-        "text",
-        "words"
+        "text"
+      ]
+    },
+    "AvatarView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "sizeBytes": {
+          "type": "integer"
+        },
+        "meta": {
+          "$ref": "#/$defs/VrmInfo"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "sizeBytes",
+        "meta",
+        "createdAt"
+      ]
+    },
+    "CalendarKind": {
+      "type": "string",
+      "enum": [
+        "local",
+        "ics",
+        "device"
+      ]
+    },
+    "CalendarView": {
+      "description": "A calendar as Settings shows it. Never the feed's address: that's a secret.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "$ref": "#/$defs/CalendarKind"
+        },
+        "name": {
+          "type": "string"
+        },
+        "lastSyncedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "lastError": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "lastSyncedAt",
+        "lastError"
+      ]
+    },
+    "ChangePasswordRequest": {
+      "type": "object",
+      "properties": {
+        "currentPassword": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "newPassword": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "currentPassword",
+        "newPassword"
       ]
     },
     "ConfirmRequest": {
@@ -196,6 +460,49 @@
       "required": [
         "callId",
         "approve"
+      ]
+    },
+    "CreateUserRequest": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "description": "3-24 letters, digits or underscores.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "email": {
+          "description": "Their email.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "password": {
+          "description": "A first password, for them to change.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role": {
+          "description": "user (the default) or admin.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AccountRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "username",
+        "email",
+        "password"
       ]
     },
     "DeviceCalendarUpload": {
@@ -260,7 +567,8 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "default": null
         }
       },
       "required": [
@@ -269,8 +577,7 @@
         "location",
         "startsAt",
         "endsAt",
-        "allDay",
-        "calendar"
+        "allDay"
       ]
     },
     "DeviceLoginRequest": {
@@ -387,6 +694,59 @@
         "message"
       ]
     },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "error"
+      ]
+    },
+    "EventView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "calendarId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "title": {
+          "type": "string"
+        },
+        "location": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "startsAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endsAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "allDay": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "calendarId",
+        "title",
+        "location",
+        "startsAt",
+        "endsAt",
+        "allDay"
+      ]
+    },
     "ExpressionEvent": {
       "type": "object",
       "properties": {
@@ -426,6 +786,73 @@
         "expressiveness"
       ]
     },
+    "FamiliarView": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "userNickname": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "warmth": {
+          "type": "number"
+        },
+        "playfulness": {
+          "type": "number"
+        },
+        "verbosity": {
+          "type": "number"
+        },
+        "formality": {
+          "type": "number"
+        },
+        "expressiveness": {
+          "type": "number"
+        },
+        "voice": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "voiceSpeed": {
+          "type": "number",
+          "default": 1
+        },
+        "proactive": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "appearance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AppearanceView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name",
+        "userNickname",
+        "warmth",
+        "playfulness",
+        "verbosity",
+        "formality",
+        "expressiveness"
+      ]
+    },
     "Gesture": {
       "description": "A one-off body movement the familiar makes mid-sentence.",
       "type": "string",
@@ -451,6 +878,35 @@
       },
       "required": [
         "gesture"
+      ]
+    },
+    "HookTokenView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lastUsedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "createdAt",
+        "lastUsedAt"
       ]
     },
     "InterruptRequest": {
@@ -548,6 +1004,234 @@
         "jobs"
       ]
     },
+    "LlamaColours": {
+      "description": "The plush llama's colours, as #rrggbb. Shading is derived from these by the client.",
+      "type": "object",
+      "properties": {
+        "wool": {
+          "description": "The fleece.",
+          "type": "string"
+        },
+        "face": {
+          "description": "The bare face and snout.",
+          "type": "string"
+        },
+        "ear": {
+          "description": "Inside the ears, and the hooves.",
+          "type": "string"
+        },
+        "blush": {
+          "description": "The cheeks.",
+          "type": "string"
+        },
+        "accent": {
+          "description": "The accessory.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "wool",
+        "face",
+        "ear",
+        "blush",
+        "accent"
+      ]
+    },
+    "LoginRequest": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "password": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "username",
+        "password"
+      ]
+    },
+    "McpServerRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Short and lower-case: it prefixes the tool names the model sees.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "description": "The server's streamable-HTTP endpoint.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "token": {
+          "description": "A bearer token, if the server needs one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "url",
+        "token"
+      ]
+    },
+    "McpServerView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "urlHost": {
+          "type": "string"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/McpToolView"
+          }
+        },
+        "refreshedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "lastError": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "urlHost",
+        "tools",
+        "refreshedAt",
+        "lastError"
+      ]
+    },
+    "McpToolView": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "modelName": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "readOnly": {
+          "type": "boolean"
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "modelName",
+        "description",
+        "readOnly",
+        "enabled"
+      ]
+    },
+    "McpToolsRequest": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "The tool names (as the server calls them) to switch on.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "enabled"
+      ]
+    },
+    "MemoryRequest": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "description": "The memory, one short sentence.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "text"
+      ]
+    },
+    "MemorySource": {
+      "type": "string",
+      "enum": [
+        "conversation",
+        "told",
+        "settings"
+      ]
+    },
+    "MemoryView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "text": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/MemorySource"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "source",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
     "MessageRole": {
       "type": "string",
       "enum": [
@@ -603,6 +1287,60 @@
         "createdAt"
       ]
     },
+    "NameRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "NewHookTokenView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "The token's id.",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "description": "What uses it.",
+          "type": "string"
+        },
+        "token": {
+          "description": "Shown once, at creation.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "token"
+      ]
+    },
+    "NewWebhookView": {
+      "type": "object",
+      "properties": {
+        "webhook": {
+          "description": "The webhook.",
+          "$ref": "#/$defs/WebhookView"
+        },
+        "secret": {
+          "description": "The signing secret, shown once, at creation.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "webhook",
+        "secret"
+      ]
+    },
     "NotificationView": {
       "description": "Something that just happened, for the service worker to show as a notification.",
       "type": "object",
@@ -612,7 +1350,12 @@
           "format": "uuid"
         },
         "kind": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "timer",
+            "reminder",
+            "announcement"
+          ]
         },
         "title": {
           "type": "string"
@@ -644,7 +1387,12 @@
         },
         "kind": {
           "description": "One of NotifyKinds.",
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "timer",
+            "reminder",
+            "announcement"
+          ]
         },
         "label": {
           "description": "What it was for, or who sent it.",
@@ -693,14 +1441,42 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "default": null
         }
       },
       "required": [
         "familiar",
         "modelAvailable",
-        "speechAvailable",
-        "connectionId"
+        "speechAvailable"
+      ]
+    },
+    "RegisterRequest": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "password": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "username",
+        "email",
+        "password"
       ]
     },
     "ReplyDeltaEvent": {
@@ -776,6 +1552,21 @@
         "text"
       ]
     },
+    "ResetPasswordRequest": {
+      "type": "object",
+      "properties": {
+        "password": {
+          "description": "The new password.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "password"
+      ]
+    },
     "SendMessageRequest": {
       "type": "object",
       "properties": {
@@ -798,13 +1589,13 @@
           "type": [
             "boolean",
             "null"
-          ]
+          ],
+          "default": null
         }
       },
       "required": [
         "text",
-        "timeZone",
-        "speak"
+        "timeZone"
       ]
     },
     "SpokenWord": {
@@ -1022,21 +1813,21 @@
           "type": [
             "object",
             "null"
-          ]
+          ],
+          "default": null
         },
         "error": {
           "description": "Why not, when it didn't.",
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "default": null
         }
       },
       "required": [
         "callId",
-        "ok",
-        "result",
-        "error"
+        "ok"
       ]
     },
     "ToolStartedEvent": {
@@ -1057,6 +1848,222 @@
         "replyId",
         "callId",
         "tool"
+      ]
+    },
+    "UnsubscribeRequest": {
+      "type": "object",
+      "properties": {
+        "endpoint": {
+          "description": "The subscription to remove.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "endpoint"
+      ]
+    },
+    "UpdateUserRequest": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "description": "A new email, or null to leave it.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "role": {
+          "description": "A new role, or null to leave it.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AccountRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "isDisabled": {
+          "description": "Disable or re-enable, or null to leave it.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": []
+    },
+    "VoicesView": {
+      "type": "object",
+      "properties": {
+        "voices": {
+          "description": "What the TTS service offers; empty if it isn't reachable.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "default": {
+          "description": "The voice used when a familiar hasn't chosen one.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "voices",
+        "default"
+      ]
+    },
+    "VrmInfo": {
+      "description": "What a VRM model says about itself.",
+      "type": "object",
+      "properties": {
+        "version": {
+          "description": "\"0.x\" or \"1.0\".",
+          "type": "string"
+        },
+        "name": {
+          "description": "Its title, if it has one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "authors": {
+          "description": "Who made it.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "licence": {
+          "description": "Its licence, as the model states it (a name or a URL).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "commercialUse": {
+          "description": "What it says about commercial use, if anything.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "version",
+        "name",
+        "authors",
+        "licence",
+        "commercialUse"
+      ]
+    },
+    "WebhookRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "events": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "enabled": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name",
+        "url",
+        "events"
+      ]
+    },
+    "WebhookTestResult": {
+      "description": "How a test delivery went.",
+      "type": "object",
+      "properties": {
+        "ok": {
+          "description": "The receiver answered with a success.",
+          "type": "boolean"
+        },
+        "result": {
+          "description": "What happened: the status it answered with, or why it couldn't be reached.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ok",
+        "result"
+      ]
+    },
+    "WebhookView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "urlHost": {
+          "type": "string"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "lastDeliveredAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "lastResult": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "urlHost",
+        "events",
+        "enabled",
+        "lastDeliveredAt",
+        "lastResult"
       ]
     }
   }

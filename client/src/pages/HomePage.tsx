@@ -59,8 +59,10 @@ export function HomePage() {
     familiarApi
       .get()
       .then((p) => {
-        setAppearance(p.appearance);
-        rememberLook(username, p.appearance);
+        // Always there when read; null only means "unchanged" when saving.
+        const look = p.appearance ?? defaultAppearance;
+        setAppearance(look);
+        rememberLook(username, look);
       })
       .catch(() => setAppearance((a) => a ?? defaultAppearance));
   }, [username]);

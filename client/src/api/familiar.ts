@@ -1,26 +1,10 @@
-import type { Appearance } from '../avatar/appearance';
+import type { FamiliarView, VoicesView } from '../protocol/generated';
 import { api } from './client';
 
-export interface FamiliarProfile {
-  name: string;
-  userNickname: string | null;
-  warmth: number;
-  playfulness: number;
-  verbosity: number;
-  formality: number;
-  expressiveness: number;
-  voice: string | null;
-  voiceSpeed: number;
-  /** May speak first: a hello when you come back, mentioning what's coming up. */
-  proactive: boolean;
-  /** How it looks (the studio). */
-  appearance: Appearance;
-}
+/** Who the familiar is, how it sounds and how it looks (the server's FamiliarView). */
+export type FamiliarProfile = FamiliarView;
 
-export interface Voices {
-  voices: string[];
-  default: string;
-}
+export type Voices = VoicesView;
 
 export const familiarApi = {
   get: () => api<FamiliarProfile>('/api/familiar'),

@@ -1,33 +1,23 @@
-// How a familiar looks (PLAN.md §5.5). Mirrors AppearanceView in
-// src/Familiar.Server/Familiars/Appearance.cs, which validates it: colours are #rrggbb and the
-// accessory is one of the known ones before anything here puts them into CSS.
+// How a familiar looks (PLAN.md §5.5): the server's AppearanceView (the generated protocol,
+// MOBILE.md §6), which it validates - colours are #rrggbb and the accessory is one of the known ones
+// before anything here puts them into CSS.
+import type { AppearanceView, LlamaColours } from '../protocol/generated';
 
-export type Accessory = 'none' | 'bow' | 'scarf' | 'glasses' | 'flower';
+export type { LlamaColours };
+
+/** How a familiar looks: a built-in character, coloured and dressed, or an uploaded VRM model. */
+export type Appearance = AppearanceView;
+
+export type Accessory = Appearance['accessory'];
 
 export const accessories: readonly Accessory[] = ['none', 'bow', 'scarf', 'glasses', 'flower'];
 
-export interface LlamaColours {
-  wool: string;
-  face: string;
-  ear: string;
-  blush: string;
-  accent: string;
-}
-
 /** The built-in characters. Each is drawn in code: no assets, works offline, no licence to track. */
-export type CharacterModel = 'llama' | 'fox' | 'hedgehog' | 'monster' | 'otter' | 'giraffe' | 'spot';
+export type CharacterModel = Exclude<Appearance['model'], 'vrm'>;
 
 /** How a built-in character is drawn: flat (SVG), or modelled and lit (three.js). */
-export type AvatarStyle = '2d' | '3d';
+export type AvatarStyle = Appearance['style'];
 
-export interface Appearance {
-  model: CharacterModel | 'vrm';
-  vrmId: string | null;
-  colours: LlamaColours;
-  accessory: Accessory;
-  /** Missing from looks saved before there was a choice: those are 2D. */
-  style?: AvatarStyle;
-}
 
 /** The look the llama was drawn with; matches the server's default. */
 export const classicColours: LlamaColours = { wool: '#fdfaf5', face: '#e4d6cc', ear: '#b3a093', blush: '#f4aab5', accent: '#7c5cff' };

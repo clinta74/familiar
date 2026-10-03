@@ -1,4 +1,5 @@
 import { api, errorFrom } from '../api/client';
+import type { ConfirmRequest, InterruptRequest, SendMessageRequest } from '../protocol/generated';
 import type { MessageView } from './events';
 
 const timeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -8,7 +9,7 @@ export const conversationApi = {
 
   /** A typed message. `speak` asks for the reply to be spoken as well. */
   send: (text: string, speak: boolean) =>
-    api<MessageView>('/api/conversation/messages', { body: { text, timeZone: timeZone(), speak } }),
+    api<MessageView>('/api/conversation/messages', { body: { text, timeZone: timeZone(), speak } satisfies SendMessageRequest }),
 
   /**
    * A spoken message: the recording itself is the body. Resolves to the transcribed message, or
@@ -28,12 +29,12 @@ export const conversationApi = {
   /** Stop. `heard` cuts the stored reply to what the user heard of it before talking over it. */
   interrupt: (heard?: { replyId: string; text: string }) =>
     api<void>('/api/conversation/interrupt', heard
-      ? { body: { replyId: heard.replyId, heard: heard.text } }
+      ? { body: { replyId: heard.replyId, heard: heard.text } satisfies InterruptRequest }
       : { method: 'POST' }),
   startOver: () => api<void>('/api/conversation/new', { method: 'POST' }),
 
   cancelJob: (id: string) => api<void>(`/api/jobs/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
   /** Allow, or don't, a tool the familiar asked about. */
-  confirm: (callId: string, approve: boolean) => api<void>('/api/conversation/confirm', { body: { callId, approve } }),
+  confirm: (callId: string, approve: boolean) => api<void>('/api/conversation/confirm', { body: { callId, approve } satisfies ConfirmRequest }),
 };

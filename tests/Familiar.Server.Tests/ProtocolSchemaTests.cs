@@ -57,7 +57,10 @@ public sealed class ProtocolSchemaTests
 
         // camelCase names, every property present, nullability as written.
         var audio = defs["AudioEvent"]!;
-        Assert.Equal(["replyId", "seq", "url", "text", "words"], audio["required"]!.AsArray().Select(n => n!.GetValue<string>()));
+        Assert.Equal(["replyId", "seq", "url", "text"], audio["required"]!.AsArray().Select(n => n!.GetValue<string>()));
+        // A parameter with a default may be left out; the default goes with it.
+        Assert.True(audio["properties"]!["words"]!.AsObject().ContainsKey("default"));
+        Assert.Equal("2d", JsonNode.Parse(ProtocolSchema.Generate())!["$defs"]!["AppearanceView"]!["properties"]!["style"]!["default"]!.GetValue<string>());
         Assert.Equal("#/$defs/SpokenWord", audio["properties"]!["words"]!["items"]!["$ref"]!.GetValue<string>());
         Assert.Equal("null", audio["properties"]!["words"]!["type"]![1]!.GetValue<string>());
         Assert.Equal("uuid", audio["properties"]!["replyId"]!["format"]!.GetValue<string>());
@@ -73,6 +76,19 @@ public sealed class ProtocolSchemaTests
 
         // Descriptions from the XML documentation.
         Assert.StartsWith("Its position in the reply", audio["properties"]!["seq"]!["description"]!.GetValue<string>(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Fixed_values_are_the_ones_the_server_checks()
+    {
+        var defs = JsonNode.Parse(ProtocolSchema.Generate())!["$defs"]!;
+        string[] Values(string type, string property) =>
+            [.. defs[type]!["properties"]![property]!["enum"]!.AsArray().Select(n => n!.GetValue<string>())];
+
+        Assert.Equal(Familiars.AppearanceView.Models, Values("AppearanceView", "model"));
+        Assert.Equal(Familiars.AppearanceView.Accessories, Values("AppearanceView", "accessory"));
+        Assert.Equal(Familiars.AppearanceView.Styles, Values("AppearanceView", "style"));
+        Assert.Equal(["timer", "reminder", "announcement"], Values("NotifyEvent", "kind"));
     }
 
     [Fact]

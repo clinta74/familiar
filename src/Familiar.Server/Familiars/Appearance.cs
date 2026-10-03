@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -23,7 +24,12 @@ public sealed record LlamaColours(string Wool, string Face, string Ear, string B
 /// <param name="Colours">The character's colours (what each paints depends on the character).</param>
 /// <param name="Accessory">What it wears: none, bow, scarf, glasses, flower. The spot wears nothing.</param>
 /// <param name="Style">How a built-in character is drawn: "2d" (flat, the default) or "3d" (modelled and lit).</param>
-public sealed partial record AppearanceView(string Model, Guid? VrmId, LlamaColours Colours, string Accessory, string Style = "2d")
+public sealed partial record AppearanceView(
+    [property: AllowedValues("llama", "fox", "hedgehog", "monster", "otter", "giraffe", "spot", "vrm")] string Model,
+    Guid? VrmId,
+    LlamaColours Colours,
+    [property: AllowedValues("none", "bow", "scarf", "glasses", "flower")] string Accessory,
+    [property: AllowedValues("2d", "3d")] string Style = "2d")
 {
     public static readonly AppearanceView Default = new("llama", null, LlamaColours.Classic, "none");
 

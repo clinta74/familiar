@@ -1,27 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api/client';
 
-interface Calendar {
-  id: string;
-  kind: 'local' | 'ics' | 'device';
-  name: string;
-  lastSyncedAt: string | null;
-  lastError: string | null;
-}
-
-interface CalendarEvent {
-  id: string;
-  calendarId: string;
-  title: string;
-  location: string | null;
-  startsAt: string;
-  endsAt: string;
-  allDay: boolean;
-}
+import type { AddFeedRequest, CalendarView as Calendar, EventView as CalendarEvent } from '../protocol/generated';
 
 const calendarsApi = {
   list: () => api<Calendar[]>('/api/calendars'),
-  add: (name: string, url: string) => api<Calendar>('/api/calendars', { body: { name, url } }),
+  add: (name: string, url: string) => api<Calendar>('/api/calendars', { body: { name, url } satisfies AddFeedRequest }),
   sync: (id: string) => api<Calendar>(`/api/calendars/${id}/sync`, { method: 'POST' }),
   remove: (id: string) => api<void>(`/api/calendars/${id}`, { method: 'DELETE' }),
   events: (days = 7) => api<CalendarEvent[]>(`/api/calendars/events?days=${days}`),

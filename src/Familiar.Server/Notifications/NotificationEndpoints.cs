@@ -21,7 +21,12 @@ public sealed record UnsubscribeRequest(string? Endpoint);
 public sealed record PushKeyResponse(string PublicKey);
 
 /// <summary>Something that just happened, for the service worker to show as a notification.</summary>
-public sealed record NotificationView(Guid Id, string Kind, string Title, string Body, DateTimeOffset At);
+public sealed record NotificationView(
+    Guid Id,
+    [property: System.ComponentModel.DataAnnotations.AllowedValues(Conversation.NotifyKinds.Timer, Conversation.NotifyKinds.Reminder, Conversation.NotifyKinds.Announcement)] string Kind,
+    string Title,
+    string Body,
+    DateTimeOffset At);
 
 /// <summary>
 /// Announcements from hooks in the last few minutes, for the service worker. In memory: unlike a

@@ -1,4 +1,5 @@
 import { api } from '../api/client';
+import type { PushKeyResponse, SubscribeRequest, UnsubscribeRequest } from '../protocol/generated';
 
 // Web Push for timers and reminders with the tab closed (PLAN.md §6.2). The pushes carry nothing:
 // public/sw.js asks the server what happened when one arrives.
@@ -47,7 +48,7 @@ export async function enablePush(): Promise<PushStatus> {
 
   const registration = await navigator.serviceWorker.register('/sw.js');
   await navigator.serviceWorker.ready;
-  const { publicKey } = await api<{ publicKey: string }>('/api/push/key');
+  const { publicKey } = await api<PushKeyResponse>('/api/push/key');
   const wanted = keyBytes(publicKey);
 
   let subscription = await registration.pushManager.getSubscription();
@@ -60,7 +61,8 @@ export async function enablePush(): Promise<PushStatus> {
 
   subscription ??= await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: wanted });
   const json = subscription.toJSON();
-  await api<void>('/api/push/subscriptions', { body: { endpoint: json.endpoint, keys: json.keys } });
+  const keys = json.keys ? { p256dh: json.keys.p256dh ?? null, auth: json.keys.auth ?? null } : null;
+  await api<void>('/api/push/subscriptions', { body: { endpoint: json.endpoint ?? null, keys } satisfies SubscribeRequest });
   return 'on';
 }
 
@@ -68,7 +70,7 @@ export async function disablePush(): Promise<PushStatus> {
   const registration = await navigator.serviceWorker.getRegistration();
   const subscription = await registration?.pushManager.getSubscription();
   if (subscription) {
-    await api<void>('/api/push/subscriptions', { method: 'DELETE', body: { endpoint: subscription.endpoint } })
+    await api<void>('/api/push/subscriptions', { method: 'DELETE', body: { endpoint: subscription.endpoint } satisfies UnsubscribeRequest })
       .catch(() => undefined);
     await subscription.unsubscribe();
   }

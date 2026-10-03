@@ -4,10 +4,18 @@ import { api } from '../api/client';
 // Hooks (PLAN.md §6.5): other systems making the familiar speak (hook tokens), the familiar telling
 // other systems what happened (webhooks), and other servers' tools for it to use (MCP).
 
-interface HookToken { id: string; name: string; createdAt: string; lastUsedAt: string | null }
-interface Webhook { id: string; name: string; urlHost: string; events: string[]; enabled: boolean; lastDeliveredAt: string | null; lastResult: string | null }
-interface McpTool { name: string; modelName: string; description: string | null; readOnly: boolean; enabled: boolean }
-interface McpServer { id: string; name: string; urlHost: string; tools: McpTool[]; refreshedAt: string | null; lastError: string | null }
+import type {
+  HookTokenView as HookToken,
+  McpServerRequest,
+  McpServerView as McpServer,
+  McpToolsRequest,
+  NameRequest,
+  NewHookTokenView,
+  NewWebhookView,
+  WebhookRequest,
+  WebhookTestResult,
+  WebhookView as Webhook,
+} from '../protocol/generated';
 
 const webhookEvents: { id: string; label: string }[] = [
   { id: 'timer.done', label: 'A timer finishes' },
@@ -53,7 +61,7 @@ function HookTokens() {
     event.preventDefault();
     setError(null);
     try {
-      const result = await api<{ id: string; name: string; token: string }>('/api/hooks/tokens', { body: { name } });
+      const result = await api<NewHookTokenView>('/api/hooks/tokens', { body: { name } satisfies NameRequest });
       setCreated(result);
       load();
     } catch (e) {
@@ -124,7 +132,7 @@ function Webhooks() {
     event.preventDefault();
     setError(null);
     try {
-      const result = await api<{ webhook: Webhook; secret: string }>('/api/webhooks', { body: { name, url, events } });
+      const result = await api<NewWebhookView>('/api/webhooks', { body: { name, url, events } satisfies WebhookRequest });
       setSecret(result.secret);
       setName('');
       setUrl('');
@@ -137,7 +145,7 @@ function Webhooks() {
   async function test(id: string) {
     setBusy(true);
     try {
-      await api<{ ok: boolean; result: string }>(`/api/webhooks/${id}/test`, { method: 'POST' });
+      await api<WebhookTestResult>(`/api/webhooks/${id}/test`, { method: 'POST' });
     } finally {
       setBusy(false);
       load();
@@ -214,7 +222,7 @@ function McpServers() {
     setBusy(true);
     setError(null);
     try {
-      const server = await api<McpServer>('/api/mcp', { body: { name, url, token: token || null } });
+      const server = await api<McpServer>('/api/mcp', { body: { name, url, token: token || null } satisfies McpServerRequest });
       if (server.lastError) setError(server.lastError);
       setName('');
       setUrl('');
@@ -229,7 +237,7 @@ function McpServers() {
 
   async function setTool(server: McpServer, tool: string, on: boolean) {
     const enabled = server.tools.filter((t) => (t.name === tool ? on : t.enabled)).map((t) => t.name);
-    const updated = await api<McpServer>(`/api/mcp/${server.id}/tools`, { method: 'PUT', body: { enabled } });
+    const updated = await api<McpServer>(`/api/mcp/${server.id}/tools`, { method: 'PUT', body: { enabled } satisfies McpToolsRequest });
     setServers((list) => list.map((s) => (s.id === updated.id ? updated : s)));
   }
 

@@ -11,6 +11,60 @@ export interface AccountResponse {
 /** What an account may do on this server. */
 export type AccountRole = 'user' | 'admin';
 
+export interface AddFeedRequest {
+  /** What to call it. */
+  name: string | null;
+  /** Its secret iCal address (https:// or webcal://). */
+  url: string | null;
+}
+
+export interface AdminUserView {
+  /** The account. */
+  id: string;
+  /** Its username. */
+  username: string;
+  /** Its email. */
+  email: string;
+  /** user or admin. */
+  role: AccountRole;
+  /** When it was made. */
+  createdAt: string;
+  /** When it last signed in, if ever. */
+  lastLoginAt: string | null;
+  /** It can't sign in, and its sessions and devices have stopped working. */
+  isDisabled: boolean;
+  /** How many phones it has signed in. */
+  devices: number;
+  /** The admin looking at the list. */
+  isYou: boolean;
+}
+
+export interface AnnounceRequest {
+  /** What to say. */
+  message: string | null;
+  /** "say" (word for word, the default) or "tell" (the familiar puts it in its own words). */
+  style?: string | null;
+  /** For "tell": the user's IANA time zone, if the caller knows it. */
+  timeZone?: string | null;
+}
+
+/**
+ * How a familiar looks (PLAN.md §5.5). Either the built-in plush llama, coloured and dressed, or an
+ * uploaded VRM model.
+ */
+export interface AppearanceView {
+  /** A built-in character (llama, fox, hedgehog, monster, otter, giraffe, spot) or "vrm". */
+  model: 'llama' | 'fox' | 'hedgehog' | 'monster' | 'otter' | 'giraffe' | 'spot' | 'vrm';
+  /** For "vrm", which uploaded model. */
+  vrmId: string | null;
+  /** The character's colours (what each paints depends on the character). */
+  colours: LlamaColours;
+  /** What it wears: none, bow, scarf, glasses, flower. The spot wears nothing. */
+  accessory: 'none' | 'bow' | 'scarf' | 'glasses' | 'flower';
+  /** How a built-in character is drawn: "2d" (flat, the default) or "3d" (modelled and lit). */
+  style?: '2d' | '3d';
+}
+
 /** The reply has no more clips coming: Clips were announced in total. */
 export interface AudioEndEvent {
   replyId: string;
@@ -28,7 +82,31 @@ export interface AudioEvent {
   /** What it says. */
   text: string;
   /** When each word is spoken, if the TTS service says - for mouth shapes. */
-  words: SpokenWord[] | null;
+  words?: SpokenWord[] | null;
+}
+
+export interface AvatarView {
+  id: string;
+  name: string;
+  sizeBytes: number;
+  meta: VrmInfo;
+  createdAt: string;
+}
+
+export type CalendarKind = 'local' | 'ics' | 'device';
+
+/** A calendar as Settings shows it. Never the feed's address: that's a secret. */
+export interface CalendarView {
+  id: string;
+  kind: CalendarKind;
+  name: string;
+  lastSyncedAt: string | null;
+  lastError: string | null;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string | null;
+  newPassword: string | null;
 }
 
 export interface ConfirmRequest {
@@ -36,6 +114,17 @@ export interface ConfirmRequest {
   callId: string | null;
   /** Whether the user allows it. */
   approve: boolean;
+}
+
+export interface CreateUserRequest {
+  /** 3-24 letters, digits or underscores. */
+  username: string | null;
+  /** Their email. */
+  email: string | null;
+  /** A first password, for them to change. */
+  password: string | null;
+  /** user (the default) or admin. */
+  role?: AccountRole | null;
 }
 
 export interface DeviceCalendarUpload {
@@ -58,7 +147,7 @@ export interface DeviceEventView {
   /** A whole-day event. */
   allDay: boolean;
   /** Which of the phone's calendars ("Work", "sam@gmail.com"). */
-  calendar: string | null;
+  calendar?: string | null;
 }
 
 export interface DeviceLoginRequest {
@@ -94,6 +183,20 @@ export interface ErrorEvent {
   message: string;
 }
 
+export interface ErrorResponse {
+  error: string;
+}
+
+export interface EventView {
+  id: string;
+  calendarId: string;
+  title: string;
+  location: string | null;
+  startsAt: string;
+  endsAt: string;
+  allDay: boolean;
+}
+
 export interface ExpressionEvent {
   emotion: Emotion;
   intensity: number;
@@ -106,11 +209,32 @@ export interface FamiliarSummary {
   expressiveness: number;
 }
 
+export interface FamiliarView {
+  name: string;
+  userNickname: string | null;
+  warmth: number;
+  playfulness: number;
+  verbosity: number;
+  formality: number;
+  expressiveness: number;
+  voice?: string | null;
+  voiceSpeed?: number;
+  proactive?: boolean | null;
+  appearance?: AppearanceView | null;
+}
+
 /** A one-off body movement the familiar makes mid-sentence. */
 export type Gesture = 'nod' | 'shake' | 'tilt' | 'wave' | 'shrug' | 'laugh' | 'wink' | 'sigh' | 'yawn' | 'excited';
 
 export interface GestureEvent {
   gesture: Gesture;
+}
+
+export interface HookTokenView {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
 }
 
 export interface InterruptRequest {
@@ -148,6 +272,71 @@ export interface JobsEvent {
   jobs: JobView[];
 }
 
+/** The plush llama's colours, as #rrggbb. Shading is derived from these by the client. */
+export interface LlamaColours {
+  /** The fleece. */
+  wool: string;
+  /** The bare face and snout. */
+  face: string;
+  /** Inside the ears, and the hooves. */
+  ear: string;
+  /** The cheeks. */
+  blush: string;
+  /** The accessory. */
+  accent: string;
+}
+
+export interface LoginRequest {
+  username: string | null;
+  password: string | null;
+}
+
+export interface McpServerRequest {
+  /** Short and lower-case: it prefixes the tool names the model sees. */
+  name: string | null;
+  /** The server's streamable-HTTP endpoint. */
+  url: string | null;
+  /** A bearer token, if the server needs one. */
+  token: string | null;
+}
+
+export interface McpServerView {
+  id: string;
+  name: string;
+  urlHost: string;
+  tools: McpToolView[];
+  refreshedAt: string | null;
+  lastError: string | null;
+}
+
+export interface McpToolView {
+  name: string;
+  modelName: string;
+  description: string | null;
+  readOnly: boolean;
+  enabled: boolean;
+}
+
+export interface McpToolsRequest {
+  /** The tool names (as the server calls them) to switch on. */
+  enabled: string[] | null;
+}
+
+export interface MemoryRequest {
+  /** The memory, one short sentence. */
+  text: string | null;
+}
+
+export type MemorySource = 'conversation' | 'told' | 'settings';
+
+export interface MemoryView {
+  id: string;
+  text: string;
+  source: MemorySource;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type MessageRole = 'user' | 'assistant';
 
 /** A stored message, as both the history endpoint and the message event show it. */
@@ -161,10 +350,30 @@ export interface MessageView {
   createdAt: string;
 }
 
+export interface NameRequest {
+  name: string | null;
+}
+
+export interface NewHookTokenView {
+  /** The token's id. */
+  id: string;
+  /** What uses it. */
+  name: string;
+  /** Shown once, at creation. */
+  token: string;
+}
+
+export interface NewWebhookView {
+  /** The webhook. */
+  webhook: WebhookView;
+  /** The signing secret, shown once, at creation. */
+  secret: string;
+}
+
 /** Something that just happened, for the service worker to show as a notification. */
 export interface NotificationView {
   id: string;
-  kind: string;
+  kind: 'timer' | 'reminder' | 'announcement';
   title: string;
   body: string;
   at: string;
@@ -178,7 +387,7 @@ export interface NotifyEvent {
   /** The job or announcement. */
   id: string;
   /** One of NotifyKinds. */
-  kind: string;
+  kind: 'timer' | 'reminder' | 'announcement';
   /** What it was for, or who sent it. */
   label: string;
   /** What the familiar says about it. */
@@ -197,7 +406,13 @@ export interface ReadyEvent {
   /** Speech-to-text and text-to-speech both answer. */
   speechAvailable: boolean;
   /** For a phone that listed capabilities: its connection, which tool.invoke events address. */
-  connectionId: string | null;
+  connectionId?: string | null;
+}
+
+export interface RegisterRequest {
+  username: string | null;
+  email: string | null;
+  password: string | null;
 }
 
 export interface ReplyDeltaEvent {
@@ -226,13 +441,18 @@ export interface ReplyTruncatedEvent {
   text: string;
 }
 
+export interface ResetPasswordRequest {
+  /** The new password. */
+  password: string | null;
+}
+
 export interface SendMessageRequest {
   /** What the user typed. */
   text: string | null;
   /** The user's IANA time zone, for the situation in the prompt. */
   timeZone: string | null;
   /** Speak the reply as well as showing it. Spoken messages are always answered aloud. */
-  speak: boolean | null;
+  speak?: boolean | null;
 }
 
 export interface SpokenWord {
@@ -307,15 +527,75 @@ export interface ToolResultRequest {
   /** Whether it worked. */
   ok: boolean;
   /** What happened, for the model (and the summary). */
-  result: Record<string, unknown> | null;
+  result?: Record<string, unknown> | null;
   /** Why not, when it didn't. */
-  error: string | null;
+  error?: string | null;
 }
 
 export interface ToolStartedEvent {
   replyId: string;
   callId: string;
   tool: string;
+}
+
+export interface UnsubscribeRequest {
+  /** The subscription to remove. */
+  endpoint: string | null;
+}
+
+export interface UpdateUserRequest {
+  /** A new email, or null to leave it. */
+  email?: string | null;
+  /** A new role, or null to leave it. */
+  role?: AccountRole | null;
+  /** Disable or re-enable, or null to leave it. */
+  isDisabled?: boolean | null;
+}
+
+export interface VoicesView {
+  /** What the TTS service offers; empty if it isn't reachable. */
+  voices: string[];
+  /** The voice used when a familiar hasn't chosen one. */
+  default: string;
+}
+
+/** What a VRM model says about itself. */
+export interface VrmInfo {
+  /** "0.x" or "1.0". */
+  version: string;
+  /** Its title, if it has one. */
+  name: string | null;
+  /** Who made it. */
+  authors: string[];
+  /** Its licence, as the model states it (a name or a URL). */
+  licence: string | null;
+  /** What it says about commercial use, if anything. */
+  commercialUse: string | null;
+}
+
+export interface WebhookRequest {
+  name: string | null;
+  url: string | null;
+  events: string[] | null;
+  enabled?: boolean | null;
+}
+
+/** How a test delivery went. */
+export interface WebhookTestResult {
+  /** The receiver answered with a success. */
+  ok: boolean;
+  /** What happened: the status it answered with, or why it couldn't be reached. */
+  result: string;
+}
+
+export interface WebhookView {
+  id: string;
+  name: string;
+  urlHost: string;
+  events: string[];
+  enabled: boolean;
+  lastDeliveredAt: string | null;
+  lastResult: string | null;
 }
 
 /** Each event on the conversation stream and its payload, by its SSE event name (null: none). */

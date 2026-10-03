@@ -12,17 +12,13 @@ import {
 } from '../avatar/appearance';
 import { emotions, gestures, type Emotion, type Gesture } from '../avatar/types';
 import { AvatarStage, type AvatarHandle } from '../components/AvatarStage';
+import type { AvatarView } from '../protocol/generated';
 import { Shell } from './Shell';
 import { cachedLook, rememberLook } from '../avatar/lookCache';
 import { useAuth } from '../auth/AuthContext';
 
-interface UploadedModel {
-  id: string;
-  name: string;
-  sizeBytes: number;
-  meta: { version: string; name: string | null; authors: string[]; licence: string | null; commercialUse: string | null };
-  createdAt: string;
-}
+/** A VRM model the user uploaded. */
+type UploadedModel = AvatarView;
 
 const avatarsApi = {
   list: () => api<UploadedModel[]>('/api/avatars'),
@@ -81,10 +77,12 @@ export function StudioPage() {
 
   const load = useCallback(() => {
     familiarApi.get().then((p) => {
+      // Always there when read; null only means "unchanged" when saving.
+      const appearance = p.appearance ?? defaultAppearance;
       setProfile(p);
-      setLook(p.appearance);
-      setSaved(p.appearance);
-      rememberLook(username, p.appearance);
+      setLook(appearance);
+      setSaved(appearance);
+      rememberLook(username, appearance);
     }).catch(() => {
       setStatus({ ok: false, message: 'Couldn’t load your familiar.' });
       setEarly((e) => e ?? defaultAppearance);
@@ -101,9 +99,10 @@ export function StudioPage() {
     setStatus(null);
     try {
       const updated = await familiarApi.save({ ...profile, appearance: look });
+      const appearance = updated.appearance ?? look;
       setProfile(updated);
-      setSaved(updated.appearance);
-      rememberLook(username, updated.appearance);
+      setSaved(appearance);
+      rememberLook(username, appearance);
       setStatus({ ok: true, message: 'Saved. This is how it looks everywhere now.' });
     } catch (e) {
       setStatus({ ok: false, message: e instanceof Error ? e.message : 'Couldn’t save.' });

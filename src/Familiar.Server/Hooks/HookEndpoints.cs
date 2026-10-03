@@ -27,6 +27,11 @@ public sealed record NameRequest(string? Name);
 
 public sealed record WebhookView(Guid Id, string Name, string UrlHost, IReadOnlyList<string> Events, bool Enabled, DateTimeOffset? LastDeliveredAt, string? LastResult);
 
+/// <summary>How a test delivery went.</summary>
+/// <param name="Ok">The receiver answered with a success.</param>
+/// <param name="Result">What happened: the status it answered with, or why it couldn't be reached.</param>
+public sealed record WebhookTestResult(bool Ok, string Result);
+
 /// <param name="Webhook">The webhook.</param>
 /// <param name="Secret">The signing secret, shown once, at creation.</param>
 public sealed record NewWebhookView(WebhookView Webhook, string Secret);
@@ -290,6 +295,6 @@ public static class HookEndpoints
         }
 
         var (ok, result) = await dispatcher.DeliverAsync(hook, new WebhookPayload(WebhookEvents.Test, clock.GetUtcNow(), new { message = "Hello from Familiar." }), ct);
-        return Results.Ok(new { ok, result });
+        return Results.Ok(new WebhookTestResult(ok, result));
     }
 }

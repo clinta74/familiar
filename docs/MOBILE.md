@@ -157,7 +157,14 @@ schema. To change the protocol: change the record, run
 `FAMILIAR_WRITE_PROTOCOL=1 dotnet test --filter ProtocolSchemaTests`, then `npm run protocol` in
 client/. Generating them caught drift that had already happened: the web client was missing
 `audio.end`, `connectionId` and a job's `ring`; the app had invented defaults for fields the server
-always sends. Still hand-written: the web client's other REST types (auth, studio, settings).
+always sends. The whole REST API followed: accounts and devices, user administration, the
+familiar and its appearance, avatars, calendars, memories, timers, push, hook tokens, webhooks and
+MCP servers - the web client's pages import them (request bodies checked with `satisfies`).
+Record parameters with defaults are optional, with the default in the schema (TypeScript `?`,
+Kotlin the same default), and a string with fixed values - the model a familiar is drawn as, its
+accessory and style, a notification's kind - declares them (`[AllowedValues]`), so TypeScript gets
+the union (a test keeps them equal to what the server checks). Making it honest showed two things
+the client assumed: `appearance` and `proactive` may be absent (they're optional when saving).
 
 ---
 

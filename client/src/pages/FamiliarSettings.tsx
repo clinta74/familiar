@@ -82,7 +82,7 @@ export function FamiliarSettings() {
       <VoiceSettings profile={profile} voices={voices} onChange={update} />
 
       <label className="check">
-        <input type="checkbox" checked={profile.proactive} onChange={(e) => update({ proactive: e.target.checked })} />
+        <input type="checkbox" checked={profile.proactive ?? true} onChange={(e) => update({ proactive: e.target.checked })} />
         <span>
           Say hello first
           <span className="muted"> — when you come back after a few hours, {profile.name || 'it'} greets you and mentions anything coming up soon.</span>
@@ -126,12 +126,12 @@ function VoiceSettings({ profile, voices, onChange }: {
           min={0.7}
           max={1.4}
           step={0.05}
-          value={profile.voiceSpeed}
+          value={profile.voiceSpeed ?? 1}
           onChange={(e) => onChange({ voiceSpeed: Number(e.target.value) })}
         />
         <span className="slider-ends muted"><span>Slower</span><span>Faster</span></span>
       </label>
-      <button type="button" className="secondary" onClick={() => void new Audio(familiarApi.previewUrl(current, profile.voiceSpeed)).play()}>
+      <button type="button" className="secondary" onClick={() => void new Audio(familiarApi.previewUrl(current, profile.voiceSpeed ?? 1)).play()}>
         Preview
       </button>
     </div>

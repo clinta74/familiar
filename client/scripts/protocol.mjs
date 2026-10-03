@@ -36,6 +36,7 @@ function shape(property) {
     nullable: types.includes('null'),
     items: property.items,
     format: property.format,
+    values: property.enum,
   };
 }
 
@@ -67,10 +68,12 @@ function doc(text, indent) {
 // --- TypeScript ---------------------------------------------------------------------------------
 
 function tsType(property) {
-  const { ref, type, nullable, items } = shape(property);
+  const { ref, type, nullable, items, values } = shape(property);
   let t;
   if (ref) t = ref;
   else if (type === 'array') t = `${tsType(items)}[]`;
+  // A string with fixed values (the model a familiar is drawn as): just those.
+  else if (type === 'string' && values) t = values.map((v) => `'${v}'`).join(' | ');
   else if (type === 'string') t = 'string';
   else if (type === 'integer' || type === 'number') t = 'number';
   else if (type === 'boolean') t = 'boolean';
@@ -90,8 +93,10 @@ function typescript() {
     }
     out += `export interface ${name} {\n`;
     for (const [prop, property] of Object.entries(def.properties)) {
+      // Optional: a record parameter with a default, which a request may leave out.
+      const optional = !def.required.includes(prop);
       out += doc(property.description, '  ');
-      out += `  ${prop}: ${tsType(property)};\n`;
+      out += `  ${prop}${optional ? '?' : ''}: ${tsType(property)};\n`;
     }
     out += '}\n\n';
   }
@@ -124,6 +129,17 @@ function ktType(property) {
   return nullable ? `${t}?` : t;
 }
 
+/** The server's default for a parameter a request may leave out; null for anything nullable. */
+function ktDefault(property, type) {
+  const value = property.default;
+  if (value !== undefined && value !== null) {
+    if (typeof value === 'string') return ` = "${value}"`;
+    if (type.startsWith('Double')) return ` = ${Number.isInteger(value) ? `${value}.0` : value}`;
+    return ` = ${value}`;
+  }
+  return type.endsWith('?') ? ' = null' : '';
+}
+
 const constantName = (value) =>
   value.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/[^A-Za-z0-9]+/g, '_').toUpperCase();
 
@@ -146,7 +162,7 @@ function kotlin() {
     for (const [prop, property] of Object.entries(def.properties)) {
       const type = ktType(property);
       out += doc(property.description, '    ');
-      out += `    val ${prop}: ${type}${type.endsWith('?') ? ' = null' : ''},\n`;
+      out += `    val ${prop}: ${type}${ktDefault(property, type)},\n`;
     }
     out += ')\n\n';
   }

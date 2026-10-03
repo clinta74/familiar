@@ -1,18 +1,12 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api/client';
 
-interface Memory {
-  id: string;
-  text: string;
-  source: 'conversation' | 'told' | 'settings';
-  createdAt: string;
-  updatedAt: string;
-}
+import type { MemoryRequest, MemoryView as Memory } from '../protocol/generated';
 
 const memoriesApi = {
   list: () => api<Memory[]>('/api/memories'),
-  add: (text: string) => api<Memory>('/api/memories', { body: { text } }),
-  update: (id: string, text: string) => api<Memory>(`/api/memories/${id}`, { method: 'PUT', body: { text } }),
+  add: (text: string) => api<Memory>('/api/memories', { body: { text } satisfies MemoryRequest }),
+  update: (id: string, text: string) => api<Memory>(`/api/memories/${id}`, { method: 'PUT', body: { text } satisfies MemoryRequest }),
   remove: (id: string) => api<void>(`/api/memories/${id}`, { method: 'DELETE' }),
   clear: () => api<void>('/api/memories', { method: 'DELETE' }),
 };
