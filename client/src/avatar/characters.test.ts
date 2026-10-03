@@ -96,6 +96,6 @@ describe('the characters', () => {
       for (const p of c.presets) for (const v of Object.values(p.colours)) expect(v).toMatch(/^#[0-9a-f]{6}$/);
       expect(c.colourLabels.wool).toBeTruthy();
     }
-    expect(characters.map((c) => c.id)).toEqual(['llama', 'fox', 'hedgehog', 'monster', 'spot']);
+    expect(characters.map((c) => c.id)).toEqual(['llama', 'fox', 'hedgehog', 'monster', 'otter', 'giraffe', 'spot']);
   });
 });
