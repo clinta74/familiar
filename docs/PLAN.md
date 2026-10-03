@@ -239,6 +239,19 @@ back when cross, flicking now and then while idle — on top of the shared expre
 (eyes, lids, brows, mouth, blush, tear, gaze) every renderer blends between. Gestures: nod,
 shake, tilt, shrug, and a fleecy hoof that pops up to wave.
 
+**In 3D (2026-10-03, prototype).** `style: "3d"` in the appearance (the studio's Style switch)
+draws the llama with three.js instead (`client/src/avatar/PlushLlama3D.ts`): a whole plush toy
+sitting on the stage floor with a contact shadow - neck, chest, round bottom, folded hind legs,
+forelegs standing in front - in shell fur (12 offset layers per furry shape, strands cut from a
+tufted noise texture, darker at the roots, drooping slightly), over lumpy base shapes so the
+outline is fleece. The face is the 2D llama's in depth: button eyes with hemispherical lids (the
+upper closes for blinks and winks, a big smile swaps the buttons for stitched arches), thread
+brows, and the mouth and cheeks painted onto front-projected textures from the 2D drawing. It
+reuses `PlushCharacter`, so every expression, gesture and the lip-sync behave as in 2D; the head
+also turns to look where the eyes would, and the right foreleg waves. Same colours and
+accessories. About 120 draw calls and 310k triangles; three.js loads only for 3D or VRM. No WebGL
+falls back to the flat llama. The other characters get 3D versions next, in the same style.
+
 ### 5.1 3D: VRM
 
 **VRM** (glTF-based, open spec) via `@pixiv/three-vrm`. It standardises exactly what we need:

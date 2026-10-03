@@ -37,5 +37,15 @@ export async function createAvatar(container: HTMLElement, appearance: Appearanc
     }
   }
 
+  if (appearance.style === '3d' && appearance.model === 'llama') {
+    try {
+      const { PlushLlama3D } = await import('./PlushLlama3D');
+      return new PlushLlama3D(container, appearance);
+    } catch (error) {
+      // No WebGL (an old phone, a locked-down browser): the flat llama is still the llama.
+      console.warn('Could not start the 3D llama; drawing it flat.', error);
+    }
+  }
+
   return character(container, appearance);
 }

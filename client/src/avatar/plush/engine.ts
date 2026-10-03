@@ -82,8 +82,8 @@ export abstract class PlushCharacter implements AvatarDriver {
   private last = performance.now();
   private frame = 0;
 
-  /** The character's SVG, removed on dispose. */
-  protected abstract readonly root: SVGSVGElement;
+  /** The character's SVG (or the 3D characters' canvas), removed on dispose. */
+  protected abstract readonly root: Element;
 
   abstract setLook(look: PlushLook): void;
 
@@ -128,7 +128,8 @@ export abstract class PlushCharacter implements AvatarDriver {
   }
 
   private readonly tick = (now: number) => {
-    const dt = Math.min(0.1, (now - this.last) / 1000);
+    // Never backwards: a negative step would make the easing run away.
+    const dt = Math.min(0.1, Math.max(0, (now - this.last) / 1000));
     this.last = now;
     this.approachTarget(now, dt);
     this.draw(this.pose(now));

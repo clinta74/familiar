@@ -39,7 +39,7 @@ let clipStart = 0;
 let loudness = 0;
 let frame = 0;
 
-const modelOf = (a: Appearance) => (a.model === 'vrm' ? (a.vrmId ? `vrm:${a.vrmId}` : 'llama') : a.model);
+const modelOf = (a: Appearance) => (a.model === 'vrm' ? (a.vrmId ? `vrm:${a.vrmId}` : 'llama') : `${a.model}:${a.style ?? '2d'}`);
 
 /** Builds the renderer for the current look, replacing the last one; calls are serialised. */
 function rebuild() {

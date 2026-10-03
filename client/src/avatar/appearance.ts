@@ -17,17 +17,22 @@ export interface LlamaColours {
 /** The built-in characters. Each is drawn in code: no assets, works offline, no licence to track. */
 export type CharacterModel = 'llama' | 'fox' | 'hedgehog' | 'monster' | 'spot';
 
+/** How a built-in character is drawn: flat (SVG), or modelled and lit (three.js). */
+export type AvatarStyle = '2d' | '3d';
+
 export interface Appearance {
   model: CharacterModel | 'vrm';
   vrmId: string | null;
   colours: LlamaColours;
   accessory: Accessory;
+  /** Missing from looks saved before there was a choice: those are 2D. */
+  style?: AvatarStyle;
 }
 
 /** The look the llama was drawn with; matches the server's default. */
 export const classicColours: LlamaColours = { wool: '#fdfaf5', face: '#e4d6cc', ear: '#b3a093', blush: '#f4aab5', accent: '#7c5cff' };
 
-export const defaultAppearance: Appearance = { model: 'llama', vrmId: null, colours: classicColours, accessory: 'none' };
+export const defaultAppearance: Appearance = { model: 'llama', vrmId: null, colours: classicColours, accessory: 'none', style: '2d' };
 
 /** The llama's starting points in the studio. Every colour can still be changed after picking one. */
 export const presets: readonly { name: string; colours: LlamaColours }[] = [
@@ -47,6 +52,8 @@ export interface CharacterInfo {
   /** What each of the five colours paints on this character; a missing key isn't used by it. */
   colourLabels: Partial<Record<keyof LlamaColours, string>>;
   accessories: readonly Accessory[];
+  /** Has a 3D version yet. */
+  has3d?: boolean;
 }
 
 /** The built-in characters, as the studio offers them. The first preset is each one's default. */
@@ -58,6 +65,7 @@ export const characters: readonly CharacterInfo[] = [
     presets,
     colourLabels: { wool: 'Fleece', face: 'Face', ear: 'Ears & hooves', blush: 'Cheeks', accent: 'Accessory' },
     accessories,
+    has3d: true,
   },
   {
     id: 'fox',

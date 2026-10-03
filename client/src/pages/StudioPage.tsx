@@ -204,6 +204,26 @@ export function StudioPage() {
 
           {builtIn && (
             <>
+              {info.has3d && (
+                <fieldset>
+                  <legend>Style</legend>
+                  <div className="try-row">
+                    {(['2d', '3d'] as const).map((style) => (
+                      <button
+                        key={style}
+                        type="button"
+                        className={`chip${(look.style ?? '2d') === style ? ' selected' : ''}`}
+                        aria-pressed={(look.style ?? '2d') === style}
+                        onClick={() => setLook((l) => ({ ...l, style }))}
+                      >
+                        {style === '2d' ? 'Flat' : '3D'}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="muted small">3D is new, and the llama is the first to have it. It needs a little more from the device.</p>
+                </fieldset>
+              )}
+
               <fieldset>
                 <legend>Colours</legend>
                 <div className="swatches">

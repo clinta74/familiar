@@ -44,7 +44,7 @@ public sealed class StudioTests(PostgresFixture postgres)
         var familiar = await (await client.GetAsync("/api/familiar")).ReadAsync<FamiliarView>();
         Assert.Equal(AppearanceView.Default, familiar.Appearance);
 
-        var cocoa = new AppearanceView("llama", null, new LlamaColours("#7b5a44", "#e9d3bf", "#5b4030", "#f2a0a0", "#2e8b57"), "scarf");
+        var cocoa = new AppearanceView("llama", null, new LlamaColours("#7b5a44", "#e9d3bf", "#5b4030", "#f2a0a0", "#2e8b57"), "scarf", "3d");
         var saved = await (await client.PutAsJsonAsync("/api/familiar", familiar with { Appearance = cocoa })).ReadAsync<FamiliarView>();
         Assert.Equal(cocoa, saved.Appearance);
 
@@ -58,6 +58,7 @@ public sealed class StudioTests(PostgresFixture postgres)
             cocoa with { Colours = cocoa.Colours with { Wool = "red; background:url(x)" } },
             cocoa with { Model = "vrm", VrmId = Guid.NewGuid() },
             cocoa with { Model = "dragon" },
+            cocoa with { Style = "4d" },
         })
         {
             Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync("/api/familiar", renamed with { Appearance = bad })).StatusCode);

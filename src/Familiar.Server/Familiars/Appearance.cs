@@ -22,13 +22,16 @@ public sealed record LlamaColours(string Wool, string Face, string Ear, string B
 /// <param name="VrmId">For "vrm", which uploaded model.</param>
 /// <param name="Colours">The character's colours (what each paints depends on the character).</param>
 /// <param name="Accessory">What it wears: none, bow, scarf, glasses, flower. The spot wears nothing.</param>
-public sealed partial record AppearanceView(string Model, Guid? VrmId, LlamaColours Colours, string Accessory)
+/// <param name="Style">How a built-in character is drawn: "2d" (flat, the default) or "3d" (modelled and lit).</param>
+public sealed partial record AppearanceView(string Model, Guid? VrmId, LlamaColours Colours, string Accessory, string Style = "2d")
 {
     public static readonly AppearanceView Default = new("llama", null, LlamaColours.Classic, "none");
 
     public static readonly IReadOnlyList<string> Models = ["llama", "fox", "hedgehog", "monster", "spot", "vrm"];
 
     public static readonly IReadOnlyList<string> Accessories = ["none", "bow", "scarf", "glasses", "flower"];
+
+    public static readonly IReadOnlyList<string> Styles = ["2d", "3d"];
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -85,6 +88,11 @@ public sealed partial record AppearanceView(string Model, Guid? VrmId, LlamaColo
         if (!Accessories.Contains(Accessory))
         {
             return "Unknown accessory.";
+        }
+
+        if (!Styles.Contains(Style))
+        {
+            return "Style is 2d or 3d.";
         }
 
         return Colours is null || new[] { Colours.Wool, Colours.Face, Colours.Ear, Colours.Blush, Colours.Accent }.Any(c => c is null || !Hex().IsMatch(c))

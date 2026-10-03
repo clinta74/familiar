@@ -37,7 +37,8 @@
   fill: #fff;
 }
 
-.vrm-avatar {
+.vrm-avatar,
+.plush-3d {
   width: 100%;
   height: 100%;
 }
