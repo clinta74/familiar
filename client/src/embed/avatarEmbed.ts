@@ -41,13 +41,19 @@ let frame = 0;
 
 const modelOf = (a: Appearance) => (a.model === 'vrm' ? (a.vrmId ? `vrm:${a.vrmId}` : 'llama') : `${a.model}:${a.style ?? '2d'}`);
 
-/** Builds the renderer for the current look, replacing the last one; calls are serialised. */
+/**
+ * Builds the renderer for the current look, replacing the last one; calls are serialised. A glow
+ * holds the place while it's built (avatar.html), and the character fades in.
+ */
 function rebuild() {
   building = building.then(async () => {
-    const next = await createAvatar(stage, appearance);
+    stage.dataset.loading = '';
     driver?.dispose();
+    driver = null;
+    const next = await createAvatar(stage, appearance);
     driver = next;
     driver.setState(state);
+    delete stage.dataset.loading;
   });
 }
 
@@ -111,4 +117,6 @@ declare global {
 }
 
 window.familiarAvatar = embed;
-embed.look(defaultAppearance);
+// Nothing is drawn until the app says how it looks (it remembers the last look, so that's quick):
+// not a stand-in llama that then swaps.
+

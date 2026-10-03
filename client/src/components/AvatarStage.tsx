@@ -1,5 +1,5 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { defaultAppearance, type Appearance } from '../avatar/appearance';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import type { Appearance } from '../avatar/appearance';
 import { createAvatar } from '../avatar/createAvatar';
 import type { AvatarDriver, AvatarState, Emotion, Gesture } from '../avatar/types';
 import type { Viseme } from '../avatar/visemes';
@@ -18,10 +18,14 @@ export interface AvatarHandle {
 /**
  * Hosts whichever avatar renderer is available and feeds it. Expression and gesture events go
  * straight to the driver through the handle, not through React state: they're moments, not data.
+ *
+ * Until the look is known nothing is built - not a stand-in llama that then swaps - and until the
+ * character is ready (a 3D model downloading, say) a soft glow holds its place; then it fades in.
  */
 export const AvatarStage = forwardRef<AvatarHandle, {
   state: AvatarState;
-  appearance?: Appearance | null;
+  /** How it looks; null while that isn't known yet. */
+  appearance: Appearance | null;
   /** How far a 3D character is turned round, in radians (the studio's turn control). */
   turn?: number;
 }>(function AvatarStage({ state, appearance, turn = 0 }, ref) {
@@ -29,19 +33,22 @@ export const AvatarStage = forwardRef<AvatarHandle, {
   const driver = useRef<AvatarDriver | null>(null);
   const stateRef = useRef(state);
   const turnRef = useRef(turn);
-  const look = appearance ?? defaultAppearance;
+  const look = appearance;
   const lookRef = useRef(look);
+  /** The model whose renderer is built and showing. */
+  const [shown, setShown] = useState('');
 
   // A different model means a different renderer; anything else is applied to the one there is.
-  const model = look.model === 'vrm' ? (look.vrmId ? `vrm:${look.vrmId}` : 'llama') : `${look.model}:${look.style ?? '2d'}`;
+  const model = !look ? '' : look.model === 'vrm' ? (look.vrmId ? `vrm:${look.vrmId}` : 'llama') : `${look.model}:${look.style ?? '2d'}`;
 
   // First, so a change of model below builds the new renderer from the new look, not the last one.
   useEffect(() => {
     lookRef.current = look;
-    driver.current?.setLook?.(look);
+    if (look) driver.current?.setLook?.(look);
   }, [look]);
 
   useEffect(() => {
+    if (!model || !lookRef.current) return;
     let disposed = false;
     let created: AvatarDriver | null = null;
 
@@ -54,6 +61,7 @@ export const AvatarStage = forwardRef<AvatarHandle, {
       driver.current = avatar;
       avatar.setState(stateRef.current);
       avatar.setTurn?.(turnRef.current);
+      setShown(model);
     });
 
     return () => {
@@ -88,5 +96,5 @@ export const AvatarStage = forwardRef<AvatarHandle, {
     },
   }), []);
 
-  return <div ref={container} className="avatar-stage" data-state={state} />;
+  return <div ref={container} className="avatar-stage" data-state={state} data-loading={model && shown === model ? undefined : ''} />;
 });

@@ -60,6 +60,7 @@ import app.familiar.shared.platform.SecureStore
 import app.familiar.shared.voice.SpeechAudio
 import app.familiar.shared.voice.SpeechPlayer
 import app.familiar.shared.protocol.ServerEvent
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.coroutines.launch
 
@@ -86,6 +87,9 @@ private val toolDoing = mapOf(
 /** "off" when the user turned replies' voice off; on by default. */
 private const val VOICE_KEY = "voice"
 
+/** How the familiar looked last time, per account: the avatar starts as that, not a stand-in. */
+private fun lookKey(username: String) = "look:$username"
+
 /** States the avatar page knows; anything newer from the server reads as busy. */
 private val avatarStates = setOf("idle", "listening", "thinking", "speaking", "resting")
 
@@ -107,7 +111,13 @@ fun ChatScreen(
     val controller = remember(signedIn) { ConversationController(api, scope, onSignedOut, calendar) }
     val state by controller.state.collectAsState()
     val calendarOn by controller.calendarOn.collectAsState()
-    val avatar = remember(signedIn) { AvatarController() }
+    val avatar = remember(signedIn) {
+        AvatarController().also { controller ->
+            store.read(lookKey(signedIn.username))
+                ?.let { runCatching { Json.parseToJsonElement(it) as? JsonObject }.getOrNull() }
+                ?.let(controller::look)
+        }
+    }
 
     var voiceOn by remember { mutableStateOf(store.read(VOICE_KEY) != "off") }
     var audible by remember { mutableStateOf(false) }
@@ -130,8 +140,16 @@ fun ChatScreen(
 
     // How it looks is the studio's business (on the web); here it's read, and again on each
     // reconnect so a change made there shows up.
+    // It's remembered for next time; if it can't be read and there's nothing remembered, the default.
     suspend fun refreshLook() {
-        runCatching { (api.familiar()["appearance"] as? JsonObject)?.let(avatar::look) }
+        val appearance = runCatching { api.familiar()["appearance"] as? JsonObject }.getOrNull()
+        when {
+            appearance != null -> {
+                avatar.look(appearance)
+                store.write(lookKey(signedIn.username), appearance.toString())
+            }
+            !avatar.hasLook -> avatar.look(JsonObject(emptyMap()))
+        }
     }
     LaunchedEffect(controller) {
         controller.onEvent = { event ->

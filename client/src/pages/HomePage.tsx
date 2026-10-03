@@ -4,7 +4,9 @@ import { AvatarStage, type AvatarHandle } from '../components/AvatarStage';
 import { ChatPanel } from '../components/ChatPanel';
 import { TimersPanel } from '../components/TimersPanel';
 import { familiarApi } from '../api/familiar';
-import type { Appearance } from '../avatar/appearance';
+import { defaultAppearance, type Appearance } from '../avatar/appearance';
+import { cachedLook, rememberLook } from '../avatar/lookCache';
+import { useAuth } from '../auth/AuthContext';
 import { useConversation } from '../conversation/useConversation';
 import { AudioPlayer } from '../voice/AudioPlayer';
 import { HandsFree } from '../voice/HandsFree';
@@ -47,12 +49,21 @@ export function HomePage() {
   const [voiceOn, setVoiceOn] = useState(readVoicePreference);
   const [handsFreeOn, setHandsFreeOn] = useState(false);
   const [userSpeaking, setUserSpeaking] = useState(false);
-  const [appearance, setAppearance] = useState<Appearance | null>(null);
+  const { account } = useAuth();
+  const username = account?.username;
+  // How it looked last time on this browser, until the profile says (null: nothing yet).
+  const [appearance, setAppearance] = useState<Appearance | null>(() => cachedLook(username));
 
-  // How it looks is the studio's business; here it's only read.
+  // How it looks is the studio's business; here it's only read. If it can't be, the default.
   useEffect(() => {
-    familiarApi.get().then((p) => setAppearance(p.appearance)).catch(() => undefined);
-  }, []);
+    familiarApi
+      .get()
+      .then((p) => {
+        setAppearance(p.appearance);
+        rememberLook(username, p.appearance);
+      })
+      .catch(() => setAppearance((a) => a ?? defaultAppearance));
+  }, [username]);
 
   const player = useMemo(() => new AudioPlayer(), []);
   const recorder = useMemo(() => new Recorder(), []);

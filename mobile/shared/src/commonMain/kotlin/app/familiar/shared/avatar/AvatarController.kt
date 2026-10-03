@@ -25,6 +25,9 @@ class AvatarController {
     private var look: JsonObject? = null
     private var state = "idle"
 
+    /** Whether it has been told how it looks yet (until then the page draws nothing). */
+    val hasLook: Boolean get() = look != null
+
     /** What a freshly loaded page needs: the look, then the state. */
     fun snapshot(): List<String> = listOfNotNull(look?.let { call("look", it) }, call("state", JsonPrimitive(state)))
 

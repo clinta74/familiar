@@ -14,18 +14,11 @@ The header has Chat, Studio and Settings (the current page underlined) and an ac
 menu has Settings, Devices, Users (admins) and Sign out; user administration is its own page,
 `/admin`.
 
-### 4. No flash of the default llama while the real look loads
+### 4. ~~No flash of the default llama~~ — done (2026-10-03)
 
-On every load, the stage shows the default 2D llama until the profile (and, for 3D or VRM, the
-model) has loaded, then swaps — so someone with a 3D fox sees a flat llama first. Instead:
-
-- Don't build any avatar until the appearance is known; show an empty stage with a soft
-  placeholder (a gentle pulsing glow in the accent colour, or the character's silhouette) and fade
-  the real one in when it's ready.
-- Remember the last appearance in `localStorage`, so a returning visit can build the right
-  character straight away while the profile is re-checked.
-- Same in the Android app: it currently starts from the page's default look until `/api/familiar`
-  answers.
+Nothing is built until the look is known; a pulsing glow holds the place and the character fades
+in. The last look is remembered per account (`localStorage` on the web, the secure store on
+Android), so a returning visit builds the right one straight away.
 
 ### 5. Warm the prompt, not just the model
 

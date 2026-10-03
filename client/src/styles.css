@@ -391,6 +391,44 @@ button.link:hover:not(:disabled) {
   }
 }
 
+/* While the character is being built: a soft glow in the accent where it will be, then it fades in. */
+.avatar-stage {
+  position: relative;
+}
+
+.avatar-stage > * {
+  transition: opacity 0.4s ease;
+}
+
+.avatar-stage[data-loading] > * {
+  opacity: 0;
+}
+
+.avatar-stage[data-loading]::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(60%, 220px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 38%, transparent), transparent 68%);
+  transform: translate(-50%, -50%);
+  animation: avatar-wait 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes avatar-wait {
+  0%, 100% { opacity: 0.45; transform: translate(-50%, -50%) scale(0.92); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-stage[data-loading]::before {
+    animation: none;
+  }
+}
+
 .familiar-name {
   margin: 4px 0 0;
   font-weight: 700;

@@ -13,6 +13,8 @@ import {
 import { emotions, gestures, type Emotion, type Gesture } from '../avatar/types';
 import { AvatarStage, type AvatarHandle } from '../components/AvatarStage';
 import { Shell } from './Shell';
+import { cachedLook, rememberLook } from '../avatar/lookCache';
+import { useAuth } from '../auth/AuthContext';
 
 interface UploadedModel {
   id: string;
@@ -72,15 +74,23 @@ export function StudioPage() {
   /** How far the preview is turned round, in degrees: 3D looks can be seen from the side. */
   const [turn, setTurn] = useState(0);
   const drag = useRef<{ x: number; turn: number } | null>(null);
+  const { account } = useAuth();
+  const username = account?.username;
+  /** What to show before the profile has loaded: the look as last seen here, or nothing yet. */
+  const [early, setEarly] = useState(() => cachedLook(username));
 
   const load = useCallback(() => {
     familiarApi.get().then((p) => {
       setProfile(p);
       setLook(p.appearance);
       setSaved(p.appearance);
-    }).catch(() => setStatus({ ok: false, message: 'Couldn’t load your familiar.' }));
+      rememberLook(username, p.appearance);
+    }).catch(() => {
+      setStatus({ ok: false, message: 'Couldn’t load your familiar.' });
+      setEarly((e) => e ?? defaultAppearance);
+    });
     avatarsApi.list().then(setModels).catch(() => undefined);
-  }, []);
+  }, [username]);
   useEffect(load, [load]);
 
   const dirty = JSON.stringify(look) !== JSON.stringify(saved);
@@ -93,6 +103,7 @@ export function StudioPage() {
       const updated = await familiarApi.save({ ...profile, appearance: look });
       setProfile(updated);
       setSaved(updated.appearance);
+      rememberLook(username, updated.appearance);
       setStatus({ ok: true, message: 'Saved. This is how it looks everywhere now.' });
     } catch (e) {
       setStatus({ ok: false, message: e instanceof Error ? e.message : 'Couldn’t save.' });
@@ -167,7 +178,7 @@ export function StudioPage() {
             onPointerUp={() => (drag.current = null)}
             onPointerCancel={() => (drag.current = null)}
           >
-            <AvatarStage ref={avatar} state="idle" appearance={look} turn={(turn * Math.PI) / 180} />
+            <AvatarStage ref={avatar} state="idle" appearance={profile ? look : early} turn={(turn * Math.PI) / 180} />
           </div>
           {turnable && (
             <div className="try-row turn-row">
