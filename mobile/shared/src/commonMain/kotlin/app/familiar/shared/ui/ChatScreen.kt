@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -52,6 +53,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.familiar.shared.avatar.AvatarView
 import app.familiar.shared.conversation.ChatMessage
@@ -80,6 +82,9 @@ private val toolDoing = mapOf(
     "remember" to "Remembering",
     "forget" to "Forgetting",
 )
+
+/** Slimmer than a button's default, so the message box gets the room. */
+private val compact = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
 
 /** States the avatar page knows; anything newer from the server reads as busy. */
 private val avatarStates = setOf("idle", "listening", "thinking", "speaking", "resting")
@@ -188,7 +193,7 @@ fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyLi
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .padding(end = 8.dp)
-                        .size(52.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
                         .background(
                             when {
@@ -209,22 +214,25 @@ fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyLi
                             })
                         },
                 ) {
-                    Text(if (lit) "●" else "🎤", style = MaterialTheme.typography.titleMedium)
+                    Text(if (lit) "●" else "🎤", style = MaterialTheme.typography.titleSmall)
                 }
             }
             OutlinedTextField(
                 value = draft,
                 onValueChange = { draft = it },
-                placeholder = { Text("Message ${state.familiarName}…") },
+                // One line for the hint, however long the familiar's name: wrapped, it made the box
+                // twice the height. What's typed still grows to five lines.
+                placeholder = { Text("Message ${state.familiarName}…", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                textStyle = MaterialTheme.typography.bodyMedium,
                 maxLines = 5,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { send() }),
                 modifier = Modifier.weight(1f),
             )
             if (busy) {
-                OutlinedButton(onClick = { session.stopReply() }, modifier = Modifier.padding(start = 8.dp)) { Text("Stop") }
+                OutlinedButton(onClick = { session.stopReply() }, contentPadding = compact, modifier = Modifier.padding(start = 8.dp)) { Text("Stop") }
             } else {
-                Button(onClick = { send() }, enabled = draft.isNotBlank(), modifier = Modifier.padding(start = 8.dp)) { Text("Send") }
+                Button(onClick = { send() }, enabled = draft.isNotBlank(), contentPadding = compact, modifier = Modifier.padding(start = 8.dp)) { Text("Send") }
             }
         }
 
