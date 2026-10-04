@@ -122,7 +122,6 @@ the memory first and embed it in the background.
 while it works (`aria-busy` on the web, `BusyButton` in the app); memories, hook tokens and webhooks
 hadn't had a busy state at all.
 
-
 ---
 
 ## Voice and sound
