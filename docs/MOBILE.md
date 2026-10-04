@@ -306,8 +306,8 @@ Turning it off is the system's app-permission screen.
 
 ## 8. Open decisions
 
-1. ~~Play Store or sideload~~ — **decided: sideload** for now. Signed release APKs from CI,
-   installed by hand. Play's policy review of exact-alarm and assistant-role permissions is
+1. ~~Play Store or sideload~~ — **decided: sideload** for now. Signed release APKs from CI (a
+   version tag publishes one as a GitHub release: [RELEASING.md](RELEASING.md)), installed by hand. Play's policy review of exact-alarm and assistant-role permissions is
    deferred until there's a reason to publish.
 2. ~~FCM or UnifiedPush/ntfy~~ — **decided (2026-10-03): ntfy on the NAS** (UnifiedPush): no
    Google account or Firebase project, works on de-Googled phones; one more container.

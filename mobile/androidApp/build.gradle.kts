@@ -6,6 +6,18 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
+// A release (docs/RELEASING.md): CI passes the version from the tag (-Pfamiliar.version=1.2.3) and
+// the signing key through FAMILIAR_SIGNING_* environment variables. Without them, a release build
+// is left unsigned, and a debug build is as it always was.
+val releaseVersion: String? = providers.gradleProperty("familiar.version").orNull
+val signingStore: String? = providers.environmentVariable("FAMILIAR_SIGNING_STORE").orNull
+
+/** 1.2.3 -> 1002003: always higher for a later version, so the phone takes it as an update. */
+fun versionCodeOf(version: String): Int {
+    val (major, minor, patch) = version.substringBefore('-').split('.').map { it.toInt() } + listOf(0, 0)
+    return major * 1_000_000 + minor * 1_000 + patch
+}
+
 android {
     namespace = "app.familiar.android"
     compileSdk = libs.versions.android.compile.sdk.get().toInt()
@@ -14,8 +26,8 @@ android {
         applicationId = "app.familiar"
         minSdk = libs.versions.android.min.sdk.get().toInt()
         targetSdk = libs.versions.android.target.sdk.get().toInt()
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = releaseVersion?.let(::versionCodeOf) ?: 1
+        versionName = releaseVersion ?: "0.1.0"
 
         // Phones (arm64) and the emulator (x86_64): ONNX Runtime's native code is a few MB per ABI.
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
@@ -25,9 +37,21 @@ android {
         compose = true
     }
 
+    signingConfigs {
+        if (signingStore != null) {
+            create("release") {
+                storeFile = file(signingStore)
+                storePassword = providers.environmentVariable("FAMILIAR_SIGNING_STORE_PASSWORD").get()
+                keyAlias = providers.environmentVariable("FAMILIAR_SIGNING_KEY_ALIAS").get()
+                keyPassword = providers.environmentVariable("FAMILIAR_SIGNING_KEY_PASSWORD").get()
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (signingStore != null) signingConfig = signingConfigs.getByName("release")
         }
     }
 
