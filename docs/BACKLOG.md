@@ -127,3 +127,29 @@ A version tag (`v0.2.0`) publishes a GitHub release with the APK signed by the r
 from the tag, alongside the Docker images ([RELEASING.md](RELEASING.md)). **Needs, once:** the release
 key made and its four `ANDROID_*` secrets added (RELEASING.md, "The release key"); until then the
 release job fails and says so.
+
+### 11. Speech is slow to start — review why
+
+Reported 2026-10-04, on the phone (v0.1.0) and the website alike: the familiar takes a while to
+start talking. Since both are slow, the delay is most likely on the server (steps 1-4 below), not in
+either client. Find out where the time goes before changing anything. The path from "sent" to
+sound, and what to check at each step:
+
+1. **Transcription** (push-to-talk and hands-free only): Whisper on the uploaded WAV.
+2. **The model's first words**: prefill is about 1 s on the dev box (item 5), more on the NAS if it
+   runs a slower GPU or loaded a different model.
+3. **The first whole sentence**: nothing is synthesised until the sentence chunker sees a sentence
+   end, so a long first sentence waits for all of its words. Starting on the first clause (a comma
+   after a few words) is a possible fix.
+4. **Synthesis**: Kokoro, one sentence at a time. Fast on a GPU; check what the NAS runs it on, and
+   whether the first clip after idle is cold (`SpeechWarmUp`).
+5. **The client fetching the clip**: a separate request per sentence (over the VPN from the phone),
+   with TLS to the NAS; check whether the connection is reused.
+6. **Decoding and playing**: the web decodes each clip with Web Audio; the phone
+   (`AndroidSpeechAudio`) decodes the whole MP3 with MediaCodec, then starts an `AudioTrack` and
+   asks for audio focus.
+
+Steps 1-4 are already in the server's log, per turn: `Turn: transcribe … ms, first text … ms,
+first audio … ms, total … ms` (ServerLog event 53), plus each sentence's synthesis time. Read those
+on the NAS for slow turns first: if "first audio" accounts for the wait, it's steps 1-4. Only if it
+doesn't, time 5-6 in the clients, from the `audio` event arriving to the first sample played.
