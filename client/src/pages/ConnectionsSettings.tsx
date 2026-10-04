@@ -53,6 +53,7 @@ function HookTokens() {
   const [name, setName] = useState('Home Assistant');
   const [created, setCreated] = useState<{ name: string; token: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => void api<HookToken[]>('/api/hooks/tokens').then(setTokens).catch(() => undefined), []);
   useEffect(load, [load]);
@@ -60,12 +61,15 @@ function HookTokens() {
   async function create(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    setBusy(true);
     try {
       const result = await api<NewHookTokenView>('/api/hooks/tokens', { body: { name } satisfies NameRequest });
       setCreated(result);
       load();
     } catch (e) {
       setError(message(e, 'Couldn’t create a token.'));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -109,7 +113,7 @@ function HookTokens() {
       )}
       <form className="memory-edit" onSubmit={create}>
         <input value={name} onChange={(e) => setName(e.target.value)} maxLength={64} aria-label="What will use it" />
-        <button type="submit" disabled={!name.trim()}>Create token</button>
+        <button type="submit" disabled={busy || !name.trim()} aria-busy={busy}>Create token</button>
       </form>
       {error && <p className="error" role="alert">{error}</p>}
     </div>
@@ -124,6 +128,7 @@ function Webhooks() {
   const [secret, setSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   const load = useCallback(() => void api<Webhook[]>('/api/webhooks').then(setHooks).catch(() => undefined), []);
   useEffect(load, [load]);
@@ -131,6 +136,7 @@ function Webhooks() {
   async function create(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    setAdding(true);
     try {
       const result = await api<NewWebhookView>('/api/webhooks', { body: { name, url, events } satisfies WebhookRequest });
       setSecret(result.secret);
@@ -139,6 +145,8 @@ function Webhooks() {
       load();
     } catch (e) {
       setError(message(e, 'Couldn’t add that webhook.'));
+    } finally {
+      setAdding(false);
     }
   }
 
@@ -199,7 +207,7 @@ function Webhooks() {
             </label>
           ))}
         </fieldset>
-        <button type="submit" disabled={!name.trim() || !url.trim() || events.length === 0}>Add webhook</button>
+        <button type="submit" disabled={adding || !name.trim() || !url.trim() || events.length === 0} aria-busy={adding}>Add webhook</button>
       </form>
       {error && <p className="error" role="alert">{error}</p>}
     </div>
@@ -300,7 +308,7 @@ function McpServers() {
           Access token <span className="muted small">(optional; sent as a bearer token)</span>
           <input value={token} onChange={(e) => setToken(e.target.value)} type="password" autoComplete="off" />
         </label>
-        <button type="submit" disabled={busy || !name || !url}>{busy ? 'Connecting…' : 'Connect'}</button>
+        <button type="submit" disabled={busy || !name || !url} aria-busy={busy}>{busy ? 'Connecting…' : 'Connect'}</button>
       </form>
       {error && <p className="error" role="alert">{error}</p>}
     </div>

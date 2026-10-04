@@ -106,6 +106,22 @@ first audio … ms, total … ms` (ServerLog event 53), plus each sentence's syn
 on the NAS for slow turns first: if "first audio" accounts for the wait, it's steps 1-4. Only if it
 doesn't, time 5-6 in the clients, from the `audio` event arriving to the first sample played.
 
+
+### 12. Saving a memory is slow — reviewed; spinners on every save (2026-10-04)
+
+Reported on the web's "What it remembers". **Why:** saving a memory waits for its embedding (the
+vector "forget …" and the duplicate check match by), one call to Ollama's embedding model before the
+response. On the dev box's GPU that's 35-175 ms (the whole save ~430 ms). On the NAS it was on the CPU
+until 2026-10-04 (item 11), and with `OLLAMA_MAX_LOADED_MODELS` 2 the embedding model can be swapped
+out for the chat model and back, which costs seconds each way. The server now logs any embedding over
+a second (event 94, "Embedding a memory took … ms"), so the NAS's log says whether it still happens.
+If it does: keep both models loaded (`ollama ps` shows nomic-embed-text beside familiar-chat), or save
+the memory first and embed it in the background.
+
+**Done:** every save, add and sign-in button on the web and in the app shows a spinner and is disabled
+while it works (`aria-busy` on the web, `BusyButton` in the app); memories, hook tokens and webhooks
+hadn't had a busy state at all.
+
 ---
 
 ## Avatars
@@ -164,3 +180,9 @@ A version tag (`v0.2.0`) publishes a GitHub release with the APK signed by the r
 from the tag, alongside the Docker images ([RELEASING.md](RELEASING.md)). **Needs, once:** the release
 key made and its four `ANDROID_*` secrets added (RELEASING.md, "The release key"); until then the
 release job fails and says so.
+
+### 13. ~~Settings and the studio in the app~~ — done (2026-10-04)
+
+Everything a user can change on the web, natively in the app (MOBILE.md): Settings (the familiar,
+memories, calendars, connections, account and password, devices) and the studio with a live preview.
+User administration stays on the web. The phone can now change the password, as a browser can.

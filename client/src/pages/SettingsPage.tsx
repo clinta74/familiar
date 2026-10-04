@@ -52,7 +52,7 @@ function PasswordForm() {
         />
       </label>
       {status && <p className={status.ok ? 'success' : 'error'} role="status">{status.message}</p>}
-      <button type="submit" disabled={busy}>Change password</button>
+      <button type="submit" disabled={busy} aria-busy={busy}>Change password</button>
     </form>
   );
 }

@@ -315,7 +315,7 @@ export function StudioPage() {
 
           {status && <p className={status.ok ? 'success' : 'error'} role="status">{status.message}</p>}
           <div className="confirm-actions">
-            <button type="button" onClick={() => void save()} disabled={busy || !dirty || !profile}>Save</button>
+            <button type="button" onClick={() => void save()} disabled={busy || !dirty || !profile} aria-busy={busy && dirty}>Save</button>
             <button type="button" className="secondary" onClick={() => setLook(saved)} disabled={!dirty}>Undo changes</button>
           </div>
           <p className="muted small">Name, voice and personality are in Settings.</p>

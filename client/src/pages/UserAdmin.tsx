@@ -103,7 +103,7 @@ function UserRow({ user, onChanged, onRemoved }: { user: AdminUser; onChanged: (
             aria-label={`New password for ${user.username}`}
             autoFocus
           />
-          <button type="submit" disabled={busy || password.length < 8}>Set</button>
+          <button type="submit" disabled={busy || password.length < 8} aria-busy={busy}>Set</button>
         </form>
       )}
       {status && <p className={status.ok ? 'success small' : 'error small'} role="status">{status.text}</p>}
@@ -181,7 +181,7 @@ export function UserAdmin() {
           <input type="checkbox" checked={admin} onChange={(e) => setAdmin(e.target.checked)} />
           <span>Admin <span className="muted">— can manage users, like you</span></span>
         </label>
-        <button type="submit" disabled={busy}>Add account</button>
+        <button type="submit" disabled={busy} aria-busy={busy}>Add account</button>
       </form>
       {status && <p className={status.ok ? 'success' : 'error'} role="status">{status.text}</p>}
     </div>

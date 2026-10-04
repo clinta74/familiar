@@ -123,6 +123,32 @@ button:disabled {
   cursor: progress;
 }
 
+/* Working on it (a save, an upload): a spinner before the label until it's done. */
+button[aria-busy='true']::before {
+  content: '';
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-right: 8px;
+  vertical-align: -0.1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: button-spin 0.7s linear infinite;
+}
+
+@keyframes button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button[aria-busy='true']::before {
+    animation-duration: 2.5s;
+  }
+}
+
 button.secondary {
   background: transparent;
   color: var(--text);

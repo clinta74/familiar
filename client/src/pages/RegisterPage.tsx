@@ -55,7 +55,7 @@ export function RegisterPage() {
           />
         </label>
         {error && <p className="error" role="alert">{error}</p>}
-        <button type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create account'}</button>
+        <button type="submit" disabled={busy} aria-busy={busy}>{busy ? 'Creating…' : 'Create account'}</button>
       </form>
       <p className="muted">Already have one? <Link to="/login">Sign in</Link></p>
     </AuthCard>

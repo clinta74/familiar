@@ -23,15 +23,19 @@ function MemoryRow({ memory, onSaved, onDeleted }: { memory: Memory; onSaved: (m
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(memory.text);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   async function save(event: FormEvent) {
     event.preventDefault();
+    setBusy(true);
     try {
       onSaved(await memoriesApi.update(memory.id, text));
       setEditing(false);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Couldn’t save that.');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -40,7 +44,7 @@ function MemoryRow({ memory, onSaved, onDeleted }: { memory: Memory; onSaved: (m
       <li>
         <form className="memory-edit" onSubmit={save}>
           <input value={text} onChange={(e) => setText(e.target.value)} maxLength={300} aria-label="Memory" autoFocus />
-          <button type="submit">Save</button>
+          <button type="submit" disabled={busy} aria-busy={busy}>Save</button>
           <button type="button" className="secondary" onClick={() => { setEditing(false); setText(memory.text); }}>Cancel</button>
         </form>
         {error && <p className="error">{error}</p>}
@@ -70,6 +74,7 @@ export function MemorySettings() {
   const [memories, setMemories] = useState<Memory[] | null>(null);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
     memoriesApi.list().then(setMemories).catch((e: unknown) => setError(e instanceof Error ? e.message : 'Couldn’t load memories.'));
@@ -79,12 +84,15 @@ export function MemorySettings() {
   async function add(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    setBusy(true);
     try {
       const memory = await memoriesApi.add(draft);
       setMemories((list) => [...(list ?? []), memory]);
       setDraft('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Couldn’t add that.');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -117,7 +125,7 @@ export function MemorySettings() {
         )}
       <form className="memory-edit" onSubmit={add}>
         <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Add something, e.g. “I’m vegetarian”" maxLength={300} aria-label="New memory" />
-        <button type="submit" disabled={!draft.trim()}>Add</button>
+        <button type="submit" disabled={busy || !draft.trim()} aria-busy={busy}>Add</button>
       </form>
       {error && <p className="error" role="alert">{error}</p>}
       {memories.length > 0 && (

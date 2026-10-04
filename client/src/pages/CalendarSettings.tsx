@@ -108,7 +108,7 @@ export function CalendarSettings() {
           iCal address
           <input value={url} onChange={(e) => setUrl(e.target.value)} type="url" placeholder="https://… or webcal://…" required />
         </label>
-        <button type="submit" disabled={busy || !name.trim() || !url.trim()}>{busy ? 'Fetching…' : 'Add calendar'}</button>
+        <button type="submit" disabled={busy || !name.trim() || !url.trim()} aria-busy={busy}>{busy ? 'Fetching…' : 'Add calendar'}</button>
       </form>
       {error && <p className="error" role="alert">{error}</p>}
 

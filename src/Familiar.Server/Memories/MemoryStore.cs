@@ -22,6 +22,12 @@ public sealed class MemoryStore(IDbContextFactory<FamiliarDbContext> db, IEmbedd
     /// <summary>…and beat the runner-up by this much, or the familiar asks which.</summary>
     internal const double ForgetMargin = 0.06;
 
+    /// <summary>
+    /// Slower than this, an embedding is logged: a memory saved in Settings waits for it, and on a
+    /// GPU it takes well under a second unless the model has to be loaded.
+    /// </summary>
+    internal static readonly TimeSpan SlowEmbedding = TimeSpan.FromSeconds(1);
+
     /// <summary>A sanity limit per account; the oldest conversation-picked memories go first.</summary>
     public const int MaxPerAccount = 500;
 
@@ -162,6 +168,7 @@ public sealed class MemoryStore(IDbContextFactory<FamiliarDbContext> db, IEmbedd
 
     private async Task<float[]?> TryEmbedAsync(string text, EmbeddingPurpose purpose, CancellationToken ct)
     {
+        var started = clock.GetTimestamp();
         try
         {
             return await embedder.EmbedAsync(text, purpose, ct);
@@ -170,6 +177,13 @@ public sealed class MemoryStore(IDbContextFactory<FamiliarDbContext> db, IEmbedd
         {
             logger.EmbeddingFailed(exception.Message);
             return null;
+        }
+        finally
+        {
+            if (clock.GetElapsedTime(started) is var elapsed && elapsed >= SlowEmbedding)
+            {
+                logger.EmbeddingSlow((long)elapsed.TotalMilliseconds);
+            }
         }
     }
 }

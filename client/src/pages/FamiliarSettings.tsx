@@ -90,7 +90,7 @@ export function FamiliarSettings() {
       </label>
 
       {status && <p className={status.ok ? 'success' : 'error'} role="status">{status.message}</p>}
-      <button type="submit" disabled={busy}>Save</button>
+      <button type="submit" disabled={busy} aria-busy={busy}>Save</button>
     </form>
   );
 }
