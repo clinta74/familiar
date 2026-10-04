@@ -126,7 +126,17 @@ hadn't had a busy state at all.
 
 ## Voice and sound
 
-### 14. Sound effects, and maybe singing — idea; decision needed
+### 14. Sound effects, and maybe singing — sound effects decided; waiting on a listen
+
+**Decided (2026-10-04): sound effects, yes.** The vocal ones (giggle, gasp, sigh, yawn, "hmm") must
+match the familiar's voice, so the plan is for Kokoro to make them itself by saying them ("Hehehe!",
+"Oh!", "Hmmmm…") in the familiar's voice and speed, cached per voice on the server; non-vocal effects
+(pop, boing, sparkle, ta-da) synthesised in Web Audio and shared. They play with the matching
+gestures (laugh, yawn, sigh, excited) and when the model asks for one from a fixed list, sparingly,
+with a "Sound effects" switch beside the voice switch. **Next:** samples of ten sounds in three voices
+(af_heart, am_michael, bf_emma) were sent for a listen; which come out right decides the list, and
+any that don't get reworded or replaced by a synthesised one. Singing stays an idea, below.
+
 
 Asked for 2026-10-04: the familiar making sounds besides speech (a giggle, a gasp, a yawn, a "ta-da"),
 and perhaps singing. Kokoro, today's voice, only speaks: it can't laugh convincingly or hold a note.
