@@ -59,6 +59,20 @@ public sealed class FamiliarProfile
     /// </summary>
     public string? Appearance { get; set; }
 
+    public const int MaxHomePlaceLength = 80;
+
+    /// <summary>
+    /// It may look things up (the weather, what a word means) from fixed outside services. Off until
+    /// the user turns it on: a look-up leaves the house.
+    /// </summary>
+    public bool LookUps { get; set; }
+
+    /// <summary>
+    /// Where the user lives, as they put it ("Leeds"), for the weather when they don't say where. Only
+    /// the weather look-up reads it; it's never put into the prompt.
+    /// </summary>
+    public string? HomePlace { get; set; }
+
     /// <summary>When it last spoke first, so it doesn't greet every time a tab is opened.</summary>
     public DateTimeOffset? LastGreetedAt { get; set; }
 

@@ -89,6 +89,27 @@ export function FamiliarSettings() {
         </span>
       </label>
 
+      <label className="check">
+        <input type="checkbox" checked={profile.lookUps ?? false} onChange={(e) => update({ lookUps: e.target.checked })} />
+        <span>
+          Look things up
+          <span className="muted">
+            {' '}— the weather (Open-Meteo) and what words mean (Wiktionary). Only those; what you ask goes to them, nothing else
+            about you.
+          </span>
+        </span>
+      </label>
+      <label>
+        Where you live <span className="muted small">(for the weather; a town is enough)</span>
+        <input
+          value={profile.homePlace ?? ''}
+          onChange={(e) => update({ homePlace: e.target.value })}
+          placeholder="e.g. Leeds"
+          maxLength={80}
+          disabled={!(profile.lookUps ?? false)}
+        />
+      </label>
+
       {status && <p className={status.ok ? 'success' : 'error'} role="status">{status.message}</p>}
       <button type="submit" disabled={busy} aria-busy={busy}>Save</button>
     </form>

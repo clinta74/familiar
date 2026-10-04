@@ -845,6 +845,20 @@
             }
           ],
           "default": null
+        },
+        "lookUps": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "homePlace": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       },
       "required": [

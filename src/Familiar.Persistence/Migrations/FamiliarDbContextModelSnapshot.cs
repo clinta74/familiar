@@ -425,9 +425,18 @@ namespace Familiar.Persistence.Migrations
                         .HasColumnType("double precision")
                         .HasColumnName("formality");
 
+                    b.Property<string>("HomePlace")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("home_place");
+
                     b.Property<DateTimeOffset?>("LastGreetedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_greeted_at");
+
+                    b.Property<bool>("LookUps")
+                        .HasColumnType("boolean")
+                        .HasColumnName("look_ups");
 
                     b.Property<string>("Name")
                         .IsRequired()

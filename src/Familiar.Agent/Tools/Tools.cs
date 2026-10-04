@@ -10,7 +10,23 @@ public sealed record ToolDefinition(string Name, string Description, JsonObject 
 public sealed record ToolCall(string Id, string Name, JsonObject Arguments);
 
 /// <summary>Who a tool is running for, and when and where they are.</summary>
-public sealed record ToolContext(Guid AccountId, Guid ReplyId, TimeZoneInfo Zone, DateTimeOffset Now);
+/// <param name="AccountId">Whose familiar it is.</param>
+/// <param name="ReplyId">The reply the tool is part of.</param>
+/// <param name="Zone">The user's time zone.</param>
+/// <param name="Now">When the turn started.</param>
+/// <param name="LookUps">The user lets it look things up outside (the weather, a dictionary).</param>
+/// <param name="HomePlace">Where the user lives, for the weather when they don't say where.</param>
+public sealed record ToolContext(Guid AccountId, Guid ReplyId, TimeZoneInfo Zone, DateTimeOffset Now, bool LookUps = false, string? HomePlace = null)
+{
+    /// <summary>What this reply's tools have done so far.</summary>
+    public ToolTurn Turn { get; } = new();
+}
+
+/// <summary>A reply's tool calls so far: how many look-ups, which taint what follows.</summary>
+public sealed class ToolTurn
+{
+    public int LookUps { get; set; }
+}
 
 /// <summary>
 /// What a tool did. <see cref="Data"/> goes back to the model, which turns it into speech;

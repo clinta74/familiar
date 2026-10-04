@@ -269,6 +269,8 @@ data class FamiliarView(
     val voiceSpeed: Double = 1.0,
     val proactive: Boolean? = null,
     val appearance: AppearanceView? = null,
+    val lookUps: Boolean? = null,
+    val homePlace: String? = null,
 )
 
 /** A one-off body movement the familiar makes mid-sentence. */

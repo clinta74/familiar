@@ -102,6 +102,26 @@ fun FamiliarSettingsScreen(session: FamiliarSession, onBack: () -> Unit) {
                 }
             }
 
+            Card {
+                val lookUps = current.lookUps ?: false
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Look things up", style = MaterialTheme.typography.bodyLarge)
+                        Muted("The weather (Open-Meteo) and what words mean (Wiktionary). Only those; what you ask goes to them, nothing else about you.")
+                    }
+                    Switch(checked = lookUps, onCheckedChange = { update(current.copy(lookUps = it)) })
+                }
+                OutlinedTextField(
+                    value = current.homePlace.orEmpty(),
+                    onValueChange = { update(current.copy(homePlace = it.take(80))) },
+                    label = { Text("Where you live (for the weather)") },
+                    placeholder = { Text("e.g. Leeds") },
+                    enabled = lookUps,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
             StatusLine(status)
             BusyButton(
                 "Save",

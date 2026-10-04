@@ -221,6 +221,8 @@ export interface FamiliarView {
   voiceSpeed?: number;
   proactive?: boolean | null;
   appearance?: AppearanceView | null;
+  lookUps?: boolean | null;
+  homePlace?: string | null;
 }
 
 /** A one-off body movement the familiar makes mid-sentence. */

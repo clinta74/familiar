@@ -11,6 +11,12 @@ public enum ToolRisk
 
     /// <summary>Reaches outside Familiar (a calendar, a webhook): asks the user first.</summary>
     WriteExternal = 2,
+
+    /// <summary>
+    /// Reads from one fixed outside source (the weather, a dictionary) when the user has turned
+    /// look-ups on. What comes back is untrusted: anything changed later in the same reply asks first.
+    /// </summary>
+    LookUp = 3,
 }
 
 public enum ToolOutcome

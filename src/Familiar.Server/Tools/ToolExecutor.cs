@@ -86,11 +86,18 @@ public sealed class ToolExecutor(
 {
     private readonly Dictionary<string, ITool> _tools = tools.ToDictionary(t => t.Definition.Name, StringComparer.Ordinal);
 
+    /// <summary>At most this many look-ups a reply: enough to answer, not enough to go wandering.</summary>
+    public const int MaxLookUpsPerReply = 2;
+
     /// <summary>The built-in tools, the same for everyone.</summary>
     public IReadOnlyList<ToolDefinition> BuiltIn => [.. _tools.Values.Select(t => t.Definition)];
 
+    /// <summary>The built-in tools, the look-ups only for a user who's turned them on, then their MCP tools.</summary>
     public async Task<IReadOnlyList<ToolDefinition>> DefinitionsAsync(ToolContext context, CancellationToken ct) =>
-        [.. BuiltIn, .. (await mcp.ToolsForAsync(context.AccountId, ct)).Select(t => t.Definition)];
+    [
+        .. BuiltIn.Where(d => d.Risk != ToolRisk.LookUp || context.LookUps),
+        .. (await mcp.ToolsForAsync(context.AccountId, ct)).Select(t => t.Definition),
+    ];
 
     public async Task<ToolResult> ExecuteAsync(ToolCall call, ToolContext context, CancellationToken ct)
     {
@@ -107,11 +114,29 @@ public sealed class ToolExecutor(
         ToolResult result;
         ToolOutcome outcome;
 
+        var risk = tool.Definition.Risk;
+        if (risk == ToolRisk.LookUp && !context.LookUps)
+        {
+            return ToolResult.Failure("Looking things up is turned off. Say you can't look that up; the user can turn it on in Settings.");
+        }
+
+        if (risk == ToolRisk.LookUp && context.Turn.LookUps >= MaxLookUpsPerReply)
+        {
+            return ToolResult.Failure("That's enough looking up for one reply. Answer with what you have.");
+        }
+
         try
         {
-            if (tool.Definition.Risk == ToolRisk.WriteExternal)
+            // After a look-up, outside text has been in the conversation: anything that changes
+            // something asks first, so the text can't quietly make it act.
+            if (risk == ToolRisk.WriteExternal || (risk == ToolRisk.WriteOwn && context.Turn.LookUps > 0))
             {
                 approved = await confirmations.AskAsync(context, call, tool.Describe(call.Arguments), ct);
+            }
+
+            if (risk == ToolRisk.LookUp)
+            {
+                context.Turn.LookUps++;
             }
 
             if (approved == false)
@@ -177,6 +202,17 @@ public static class ToolRegistration
         services.AddSingleton<ITool, Calendars.CreateEventTool>();
         services.AddSingleton<ITool, Memories.RememberTool>();
         services.AddSingleton<ITool, Memories.ForgetTool>();
+
+        // Look-ups (BACKLOG item 15): fixed outside services, and nowhere else.
+        services.AddMemoryCache();
+        services.AddTransient<LookUps.LookUpHosts>();
+        services.AddHttpClient(nameof(LookUps), http =>
+        {
+            http.Timeout = TimeSpan.FromSeconds(8);
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("Familiar/1.0 (self-hosted household assistant)");
+        }).AddHttpMessageHandler<LookUps.LookUpHosts>();
+        services.AddSingleton<ITool, LookUps.WeatherTool>();
+        services.AddSingleton<ITool, LookUps.DefineTool>();
         services.AddSingleton<IToolExecutor, ToolExecutor>();
         return services;
     }

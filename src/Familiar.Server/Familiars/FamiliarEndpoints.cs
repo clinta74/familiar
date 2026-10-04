@@ -19,11 +19,13 @@ public sealed record FamiliarView(
     string? Voice = null,
     double VoiceSpeed = 1.0,
     bool? Proactive = null,
-    AppearanceView? Appearance = null)
+    AppearanceView? Appearance = null,
+    bool? LookUps = null,
+    string? HomePlace = null)
 {
     public static FamiliarView From(FamiliarProfile p) =>
         new(p.Name, p.UserNickname, p.Warmth, p.Playfulness, p.Verbosity, p.Formality, p.Expressiveness, p.Voice, p.VoiceSpeed, p.Proactive,
-            AppearanceView.Parse(p.Appearance));
+            AppearanceView.Parse(p.Appearance), p.LookUps, p.HomePlace);
 }
 
 /// <param name="Voices">What the TTS service offers; empty if it isn't reachable.</param>
@@ -64,6 +66,13 @@ public static class FamiliarEndpoints
             return AuthEndpoints.Error(StatusCodes.Status400BadRequest, "That isn't a voice.");
         }
 
+        // Null leaves it as it was (an app a version behind doesn't send it); empty clears it.
+        var homePlace = request.HomePlace?.Trim();
+        if (homePlace?.Length > FamiliarProfile.MaxHomePlaceLength)
+        {
+            return AuthEndpoints.Error(StatusCodes.Status400BadRequest, $"Where you live is at most {FamiliarProfile.MaxHomePlaceLength} characters - a town is enough.");
+        }
+
         var accountId = http.User.AccountId()!.Value;
         if (request.Appearance is { } appearance)
         {
@@ -87,6 +96,8 @@ public static class FamiliarEndpoints
         profile.VoiceSpeed = ClampSpeed(request.VoiceSpeed);
         profile.Proactive = request.Proactive ?? profile.Proactive;
         profile.Appearance = request.Appearance?.ToJson() ?? profile.Appearance;
+        profile.LookUps = request.LookUps ?? profile.LookUps;
+        profile.HomePlace = homePlace is null ? profile.HomePlace : homePlace.Length == 0 ? null : homePlace;
 
         return TypedResults.Ok(FamiliarView.From(await store.SaveProfileAsync(profile, ct)));
     }

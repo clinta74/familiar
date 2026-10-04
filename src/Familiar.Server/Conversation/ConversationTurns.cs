@@ -469,7 +469,7 @@ public sealed class ConversationTurns(
             }
 
             var runner = scope.ServiceProvider.GetRequiredService<TurnRunner>();
-            var toolContext = new ToolContext(accountId, replyId, request.Zone, clock.GetUtcNow());
+            var toolContext = new ToolContext(accountId, replyId, request.Zone, clock.GetUtcNow(), profile.LookUps, profile.HomePlace);
             // A greeting gets no tools: it's a hello, not a chance to start doing things.
             var result = userMessage is null
                 ? await runner.RunAsync(prompt, Emit, ct)
