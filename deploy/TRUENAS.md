@@ -24,19 +24,15 @@ docker inspect familiar-postgres familiar-backup --format '{{.Name}}{{range .Mou
 ```
 
 If the sources are under `/mnt/.ix-apps/...`, carry on. The folder that holds `data/` and
-`backups/` is the **old folder** below (the postgres source minus `/data/postgres`).
+`backups/` is the **old folder** below (the postgres source minus `/data/postgres`); for a custom
+YAML app it's like `/mnt/.ix-apps/app_configs/familiar/versions/1.0.0/templates/rendered`. TrueNAS
+generates that folder from the YAML, so move the data out before editing the app for anything else.
 
 ### 2. Take a backup first, and keep it outside the app
 
 Create the dataset in **Datasets › Add Dataset**: e.g. `<pool>/familiar`, preset *Generic*. Then a
-verified backup through the backup container (this also proves it can sign in to the database):
-
-```bash
-docker exec familiar-backup familiar-backup --once
-```
-
-It should end with a line saying the dump was verified. And an independent copy, straight from the
-database, onto the new dataset:
+copy straight from the database onto it (this needs no password, so it works even if the backup
+container's is missing):
 
 ```bash
 docker exec familiar-postgres pg_dump -U familiar -d familiar --format=custom > /mnt/<pool>/familiar/before-move.dump
@@ -46,7 +42,12 @@ docker exec familiar-postgres pg_dump -U familiar -d familiar --format=custom > 
 ls -lh /mnt/<pool>/familiar/before-move.dump
 ```
 
-A few MB or more; not zero.
+A few MB or more; not zero. If the backup container has the database password (an app deployed
+with `${POSTGRES_PASSWORD}` and no `.env` gave it an empty one), a verified backup too:
+
+```bash
+docker exec familiar-backup familiar-backup --once
+```
 
 ### 3. Stop the app
 
