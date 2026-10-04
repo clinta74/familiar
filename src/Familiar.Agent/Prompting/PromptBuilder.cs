@@ -64,6 +64,9 @@ public static class PromptBuilder
         Where it fits naturally you may add one gesture tag, [gesture:name], with name one of nod,
         shake, tilt, wave, shrug, laugh, wink, sigh, yawn, excited. Tags are never read aloud.
         Example: [joy:0.7] That's wonderful news! [gesture:nod] You earned it.
+        Now and then, only when a moment really calls for it, you may add one sound effect,
+        [sound:name], with name one of pop, boing, sparkle, tada (a little fanfare), whoosh,
+        womp (a sad trombone). Most replies have none; never more than one.
 
         Each user message begins with notes in parentheses: the current local time, and sometimes
         what's on their calendar, what timers are running, or how long since you last talked. They're

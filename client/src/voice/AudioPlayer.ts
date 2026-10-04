@@ -1,3 +1,5 @@
+import type { SoundEffect } from '../protocol/generated';
+import { playSoundEffect } from './soundEffects';
 import { visemeAt, type TimedWord, type Viseme } from '../avatar/visemes';
 
 /** A spoken sentence announced by the server (the `audio` event). */
@@ -87,6 +89,11 @@ export class AudioPlayer {
       tone.start(at);
       tone.stop(at + 0.95);
     });
+  }
+
+  /** A sound effect, if the page may make sound yet (straight to the speakers: it doesn't move the mouth). */
+  effect(sound: SoundEffect): void {
+    if (this.context?.state === 'running') playSoundEffect(this.context, sound);
   }
 
   get isPlaying(): boolean {

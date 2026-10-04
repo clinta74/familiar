@@ -97,6 +97,7 @@ fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyLi
     val state by controller.state.collectAsState()
     val calendarOn by controller.calendarOn.collectAsState()
     val voiceOn by session.voiceOn.collectAsState()
+    val effectsOn by session.effectsOn.collectAsState()
     val audible by session.audible.collectAsState()
     val recording by session.recording.collectAsState()
     val micLevel by session.micLevel.collectAsState()
@@ -272,6 +273,10 @@ fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyLi
                                 session.setVoice(!voiceOn)
                             })
                         }
+                        DropdownMenuItem(text = { Text(if (effectsOn) "Turn sound effects off" else "Turn sound effects on") }, onClick = {
+                            menu = false
+                            session.setEffects(!effectsOn)
+                        })
                         if (session.calendar != null) {
                             DropdownMenuItem(
                                 text = { Text(if (calendarOn) "Refresh phone calendar" else "Use this phone's calendar") },

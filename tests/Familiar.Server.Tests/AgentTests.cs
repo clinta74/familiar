@@ -86,6 +86,26 @@ public sealed class ExpressionParserTests
     public void Gesture_words_the_model_reaches_for_are_understood(string tag, Gesture gesture) =>
         Assert.Equal(new GestureToken(gesture), ExpressionParser.TryParseTag(tag));
 
+    [Theory]
+    [InlineData("[sound:pop]", SoundEffect.Pop)]
+    [InlineData("[sound:Sparkle]", SoundEffect.Sparkle)]
+    [InlineData("[sound:ta-da]", SoundEffect.Tada)]
+    [InlineData("[ sound : womp ]", SoundEffect.Womp)]
+    public void Sound_tags_are_understood(string tag, SoundEffect sound) =>
+        Assert.Equal(new SoundToken(sound), ExpressionParser.TryParseTag(tag));
+
+    [Theory]
+    [InlineData("Oh! [sound:drumroll] Here it is.")]
+    [InlineData("Oh! [sound:3] Here it is.")]
+    public void A_sound_it_cannot_make_is_dropped_never_spoken(string text)
+    {
+        var tokens = Parse(text);
+
+        Assert.Equal("Oh! Here it is.", Spoken(tokens));
+        Assert.Contains(tokens, t => t is IgnoredTag);
+        Assert.DoesNotContain(tokens, t => t is SoundToken);
+    }
+
     [Fact]
     public void A_known_emotion_with_a_garbled_intensity_is_still_that_emotion() =>
         Assert.Equal(new EmotionToken(Emotion.Joy, ExpressionParser.DefaultIntensity), ExpressionParser.TryParseTag("[joy:lots]"));
@@ -206,6 +226,15 @@ public sealed class TurnRunnerTests
 
         Assert.Equal("Ta-da! Fun.", result.Text);
         Assert.Contains(new TagIgnored("[gesture:dance]"), events);
+    }
+
+    [Fact]
+    public async Task One_sound_per_reply_however_many_the_model_writes()
+    {
+        var (result, events) = await Run(new FakeLlm { Fragments = ["[joy:0.8] [sound:tada] Done!", " [sound:sparkle] All of it."] });
+
+        Assert.Equal("Done! All of it.", result.Text);
+        Assert.Equal([new SoundMade(SoundEffect.Tada)], events.OfType<SoundMade>());
     }
 
     [Fact]

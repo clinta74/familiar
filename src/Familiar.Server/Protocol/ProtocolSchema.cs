@@ -37,6 +37,7 @@ public static class ProtocolCatalog
         (EventTypes.ReplyTruncated, typeof(ReplyTruncatedEvent)),
         (EventTypes.Expression, typeof(ExpressionEvent)),
         (EventTypes.Gesture, typeof(GestureEvent)),
+        (EventTypes.Sound, typeof(SoundEvent)),
         (EventTypes.Audio, typeof(AudioEvent)),
         (EventTypes.AudioEnd, typeof(AudioEndEvent)),
         (EventTypes.Error, typeof(ErrorEvent)),

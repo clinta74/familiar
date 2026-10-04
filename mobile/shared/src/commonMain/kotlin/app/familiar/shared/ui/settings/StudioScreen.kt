@@ -53,6 +53,7 @@ import app.familiar.shared.protocol.FamiliarJson
 import app.familiar.shared.protocol.FamiliarView
 import app.familiar.shared.protocol.Gesture
 import app.familiar.shared.protocol.LlamaColours
+import app.familiar.shared.protocol.SoundEffect
 import app.familiar.shared.session.FamiliarSession
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.jsonObject
@@ -73,6 +74,10 @@ private val tryEmotions = listOf(
 private val tryGestures = listOf(
     Gesture.NOD, Gesture.SHAKE, Gesture.TILT, Gesture.WAVE, Gesture.SHRUG,
     Gesture.LAUGH, Gesture.WINK, Gesture.SIGH, Gesture.YAWN, Gesture.EXCITED,
+)
+
+private val trySounds = listOf(
+    SoundEffect.POP, SoundEffect.BOING, SoundEffect.SPARKLE, SoundEffect.TADA, SoundEffect.WHOOSH, SoundEffect.WOMP,
 )
 
 /** The most an upload may be; the server says the same. */
@@ -169,6 +174,9 @@ fun StudioScreen(session: FamiliarSession, files: FilePicker?, onBack: () -> Uni
             }
             Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 tryGestures.forEach { gesture -> Pill(gesture) { preview.gesture(gesture) } }
+            }
+            Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                trySounds.forEach { sound -> Pill("♪ $sound") { preview.sound(sound) } }
             }
         }
     }

@@ -3,6 +3,8 @@ import { defaultAppearance, type Appearance } from '../avatar/appearance';
 import { createAvatar } from '../avatar/createAvatar';
 import type { AvatarDriver, AvatarState, Emotion, Gesture } from '../avatar/types';
 import { visemeAt, type TimedWord } from '../avatar/visemes';
+import type { SoundEffect } from '../protocol/generated';
+import { playSoundEffect } from '../voice/soundEffects';
 
 /**
  * The avatar on its own, for the phone apps to host in a WebView (MOBILE.md §1.1). The app bundles
@@ -26,6 +28,8 @@ export interface AvatarEmbed {
   silence(): void;
   /** Turned round this far (radians; 0 faces front): the studio shows a 3D character from the side. */
   turn(radians: number): void;
+  /** A sound effect, made here (the app plays the voice natively; effects are synthesised). */
+  sound(sound: SoundEffect): void;
 }
 
 const stage = document.getElementById('stage')!;
@@ -35,6 +39,7 @@ let model = '';
 let appearance: Appearance = defaultAppearance;
 let state: AvatarState = 'idle';
 let turned = 0;
+let effects: AudioContext | null = null;
 let building: Promise<void> = Promise.resolve();
 
 let words: TimedWord[] | null = null;
@@ -104,6 +109,11 @@ const embed: AvatarEmbed = {
   level(next) {
     loudness = Math.max(0, Math.min(1, next));
     if (!words) driver?.setMouthOpen(loudness);
+  },
+  sound(sound) {
+    effects ??= new AudioContext();
+    void effects.resume();
+    playSoundEffect(effects, sound);
   },
   turn(radians) {
     turned = radians;

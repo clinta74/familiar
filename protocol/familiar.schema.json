@@ -39,6 +39,10 @@
       "constant": "Gesture",
       "payload": "GestureEvent"
     },
+    "sound": {
+      "constant": "Sound",
+      "payload": "SoundEvent"
+    },
     "audio": {
       "constant": "Audio",
       "payload": "AudioEvent"
@@ -1596,6 +1600,30 @@
       "required": [
         "text",
         "timeZone"
+      ]
+    },
+    "SoundEffect": {
+      "description": "A sound effect, not a voice: made by the clients themselves (synthesised, so nothing to fetch), the same whichever voice the familiar has. Vocal sounds (a giggle, a gasp) come later, in its voice.",
+      "type": "string",
+      "enum": [
+        "pop",
+        "boing",
+        "sparkle",
+        "tada",
+        "whoosh",
+        "womp"
+      ]
+    },
+    "SoundEvent": {
+      "description": "A sound effect to play now, made by the client (no audio to fetch).",
+      "type": "object",
+      "properties": {
+        "sound": {
+          "$ref": "#/$defs/SoundEffect"
+        }
+      },
+      "required": [
+        "sound"
       ]
     },
     "SpokenWord": {

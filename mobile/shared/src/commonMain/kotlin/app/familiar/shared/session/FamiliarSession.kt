@@ -69,6 +69,11 @@ class FamiliarSession(
     /** Replies are spoken (and there's a speaker to speak them). */
     val voiceOn: StateFlow<Boolean> = _voiceOn.asStateFlow()
 
+    private val _effectsOn = MutableStateFlow(store.read(EFFECTS_KEY) != "off")
+
+    /** Sound effects (a pop, a fanfare) play, besides the voice. */
+    val effectsOn: StateFlow<Boolean> = _effectsOn.asStateFlow()
+
     private val _audible = MutableStateFlow(false)
 
     /** A reply is playing aloud right now. */
@@ -122,6 +127,7 @@ class FamiliarSession(
                 is ServerEvent.Ready -> scope.launch { refreshLook() }
                 is ServerEvent.Jobs -> alarms?.sync(event.jobs, controller.state.value.familiarName)
                 is ServerEvent.Audio -> if (controller.speak) player?.enqueue(event.clip)
+                is ServerEvent.Sound -> if (_effectsOn.value) avatar.sound(event.sound)
                 is ServerEvent.ReplyStart, ServerEvent.Cleared -> player?.stop()
                 else -> Unit
             }
@@ -170,6 +176,11 @@ class FamiliarSession(
         controller.speak = on && player != null
         store.write(VOICE_KEY, if (on) null else "off")
         if (!on) player?.stop()
+    }
+
+    fun setEffects(on: Boolean) {
+        _effectsOn.value = on
+        store.write(EFFECTS_KEY, if (on) null else "off")
     }
 
     /** Stop talking, and tell the server how much was heard so the stored reply matches. */
@@ -332,6 +343,9 @@ class FamiliarSession(
     private companion object {
         /** "off" when the user turned replies' voice off; on by default. */
         const val VOICE_KEY = "voice"
+
+        /** "off" when the user turned sound effects off; on by default. */
+        const val EFFECTS_KEY = "effects"
 
         /** How long listening once waits for the user to start talking. */
         const val ONCE_GIVE_UP_MS = 12_000L

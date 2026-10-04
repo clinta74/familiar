@@ -448,6 +448,10 @@ public sealed class ConversationTurns(
                         channel.Publish(EventTypes.Gesture, new GestureEvent(gesture.Gesture));
                         break;
 
+                    case SoundMade sound:
+                        channel.Publish(EventTypes.Sound, new SoundEvent(sound.Sound));
+                        break;
+
                     case TagIgnored ignored:
                         logger.TagIgnored(ignored.Tag);
                         break;

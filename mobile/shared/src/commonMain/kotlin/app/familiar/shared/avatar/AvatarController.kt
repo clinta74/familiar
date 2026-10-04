@@ -65,6 +65,9 @@ class AvatarController {
 
     fun silence() = emit(call("silence"))
 
+    /** A sound effect (pop, boing, sparkle, tada, whoosh, womp), synthesised by the page. */
+    fun sound(sound: String) = emit(call("sound", JsonPrimitive(sound)))
+
     /** Turned round this far, in radians (0 faces front): a 3D character seen from the side. */
     fun turn(radians: Double) = emit(call("turn", JsonPrimitive(radians)))
 

@@ -12,12 +12,14 @@ public sealed record EmotionToken(Emotion Emotion, double Intensity) : Expressio
 
 public sealed record GestureToken(Gesture Gesture) : ExpressionToken;
 
+public sealed record SoundToken(SoundEffect Sound) : ExpressionToken;
+
 /// <summary>A tag that is clearly a tag but means nothing we can show. Neither spoken nor acted.</summary>
 public sealed record IgnoredTag(string Tag) : ExpressionToken;
 
 /// <summary>
 /// Splits the model's streamed output into speech and the expression tags it's asked to write
-/// (PLAN.md §4.4): <c>[joy:0.8]</c>, <c>[sad]</c>, <c>[gesture:nod]</c>.
+/// (PLAN.md §4.4): <c>[joy:0.8]</c>, <c>[sad]</c>, <c>[gesture:nod]</c>, <c>[sound:pop]</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -145,6 +147,15 @@ public sealed class ExpressionParser
         if (name.Equals("gesture", StringComparison.OrdinalIgnoreCase))
         {
             return TryParseGesture(value, out var gesture) ? new GestureToken(gesture) : new IgnoredTag(tag);
+        }
+
+        // Likewise "[sound:x]": a sound we can't make is dropped, not read out.
+        if (name.Equals("sound", StringComparison.OrdinalIgnoreCase))
+        {
+            return Enum.TryParse<SoundEffect>(value.Replace("-", string.Empty, StringComparison.Ordinal), ignoreCase: true, out var sound)
+                && Enum.IsDefined(sound) && !int.TryParse(value, out _)
+                ? new SoundToken(sound)
+                : new IgnoredTag(tag);
         }
 
         // Stage directions the model writes despite being asked not to: "[laughs]", "[nods]".

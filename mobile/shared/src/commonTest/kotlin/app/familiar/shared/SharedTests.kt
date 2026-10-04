@@ -43,6 +43,7 @@ class ProtocolTests {
         val timer = assertIs<ServerEvent.Jobs>(jobs).jobs.single()
         assertEquals(Triple("pasta", true, true), Triple(timer.label, timer.isTimer, timer.ring))
         assertIs<ServerEvent.Resync>(ServerEvent.parse("resync", "{}"))
+        assertEquals("tada", assertIs<ServerEvent.Sound>(ServerEvent.parse("sound", """{"sound":"tada"}""")).sound)
     }
 }
 

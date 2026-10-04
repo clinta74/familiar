@@ -10,6 +10,8 @@ export interface VoiceControls {
   recording: boolean;
   onToggle: () => void;
   onMic: () => void;
+  /** Sound effects (a pop, a fanfare) besides the voice. */
+  effects: { on: boolean; onToggle: () => void };
   handsFree: {
     available: boolean;
     on: boolean;
@@ -76,6 +78,14 @@ function MicIcon() {
     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
       <rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" />
       <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function SparkleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" fill="currentColor" />
     </svg>
   );
 }
@@ -214,6 +224,10 @@ export function ChatPanel({
               {voice.on ? 'Voice on' : 'Voice off'}
             </button>
           )}
+          <button type="button" className="link voice-toggle" onClick={voice.effects.onToggle} aria-pressed={voice.effects.on}>
+            <SparkleIcon />
+            {voice.effects.on ? 'Sounds on' : 'Sounds off'}
+          </button>
           {voice.handsFree.available && (
             <button type="button" className="link voice-toggle" onClick={voice.handsFree.onToggle} aria-pressed={voice.handsFree.on}>
               <MicIcon />

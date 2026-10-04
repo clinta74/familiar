@@ -17,6 +17,7 @@ public static class EventTypes
     public const string ReplyEnd = "reply.end";
     public const string Expression = "expression";
     public const string Gesture = "gesture";
+    public const string Sound = "sound";
     public const string Error = "turn.error";
     public const string Cleared = "cleared";
     public const string Resync = "resync";
@@ -61,6 +62,9 @@ public sealed record ReplyEndEvent(Guid Id, string Text, Emotion Emotion, double
 public sealed record ExpressionEvent(Emotion Emotion, double Intensity);
 
 public sealed record GestureEvent(Gesture Gesture);
+
+/// <summary>A sound effect to play now, made by the client (no audio to fetch).</summary>
+public sealed record SoundEvent(SoundEffect Sound);
 
 public sealed record ErrorEvent(string Code, string Message);
 

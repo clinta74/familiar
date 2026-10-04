@@ -31,3 +31,28 @@ public enum Gesture
     /// <summary>A big happy hop - more than joy's gentle bounce.</summary>
     Excited = 9,
 }
+
+/// <summary>
+/// A sound effect, not a voice: made by the clients themselves (synthesised, so nothing to fetch),
+/// the same whichever voice the familiar has. Vocal sounds (a giggle, a gasp) come later, in its voice.
+/// </summary>
+public enum SoundEffect
+{
+    /// <summary>A bubbly pop: an idea, a surprise, something appearing.</summary>
+    Pop = 0,
+
+    /// <summary>A springy boing: something silly, a bounce.</summary>
+    Boing = 1,
+
+    /// <summary>A twinkle of bright notes: magic, delight, something nice.</summary>
+    Sparkle = 2,
+
+    /// <summary>A little fanfare: done it, a reveal, a celebration.</summary>
+    Tada = 3,
+
+    /// <summary>A rush of air: off it goes, quick as anything.</summary>
+    Whoosh = 4,
+
+    /// <summary>A sad trombone: a gentle, comic "oh dear".</summary>
+    Womp = 5,
+}

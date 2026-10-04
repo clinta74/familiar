@@ -552,6 +552,26 @@ data class SendMessageRequest(
     val speak: Boolean? = null,
 )
 
+/**
+ * A sound effect, not a voice: made by the clients themselves (synthesised, so nothing to fetch),
+ * the same whichever voice the familiar has. Vocal sounds (a giggle, a gasp) come later, in its
+ * voice.
+ */
+object SoundEffect {
+    const val POP = "pop"
+    const val BOING = "boing"
+    const val SPARKLE = "sparkle"
+    const val TADA = "tada"
+    const val WHOOSH = "whoosh"
+    const val WOMP = "womp"
+}
+
+/** A sound effect to play now, made by the client (no audio to fetch). */
+@Serializable
+data class SoundEvent(
+    val sound: String,
+)
+
 @Serializable
 data class SpokenWord(
     val word: String,
@@ -723,6 +743,7 @@ object EventTypes {
     const val REPLY_TRUNCATED = "reply.truncated"
     const val EXPRESSION = "expression"
     const val GESTURE = "gesture"
+    const val SOUND = "sound"
     const val AUDIO = "audio"
     const val AUDIO_END = "audio.end"
     const val ERROR = "turn.error"

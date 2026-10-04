@@ -12,7 +12,8 @@ import {
 } from '../avatar/appearance';
 import { emotions, gestures, type Emotion, type Gesture } from '../avatar/types';
 import { AvatarStage, type AvatarHandle } from '../components/AvatarStage';
-import type { AvatarView } from '../protocol/generated';
+import type { AvatarView, SoundEffect } from '../protocol/generated';
+import { playSoundEffect, soundEffects } from '../voice/soundEffects';
 import { Shell } from './Shell';
 import { cachedLook, rememberLook } from '../avatar/lookCache';
 import { useAuth } from '../auth/AuthContext';
@@ -137,6 +138,15 @@ export function StudioPage() {
     load();
   }
 
+  /** The sound effects it can make in conversation, to hear here (a click is the gesture audio needs). */
+  const sounds = useRef<AudioContext | null>(null);
+  const trySound = (sound: SoundEffect) => {
+    sounds.current ??= new AudioContext();
+    void sounds.current.resume();
+    playSoundEffect(sounds.current, sound);
+  };
+  useEffect(() => () => void sounds.current?.close(), []);
+
   const setColour = (key: keyof LlamaColours, value: string) =>
     setLook((l) => ({ ...l, colours: { ...l.colours, [key]: value } }));
 
@@ -196,6 +206,11 @@ export function StudioPage() {
           <div className="try-row" aria-label="Try a gesture">
             {gestures.map((g: Gesture) => (
               <button key={g} type="button" className="chip" onClick={() => avatar.current?.gesture(g)}>{g}</button>
+            ))}
+          </div>
+          <div className="try-row" aria-label="Try a sound effect">
+            {soundEffects.map((sound) => (
+              <button key={sound} type="button" className="chip" onClick={() => trySound(sound)}>♪ {sound}</button>
             ))}
           </div>
         </section>

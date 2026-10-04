@@ -64,7 +64,8 @@ actual fun AvatarView(controller: AvatarController, loadModel: suspend (String) 
                     allowContentAccess = false
                     cacheMode = WebSettings.LOAD_NO_CACHE
                     setSupportZoom(false)
-                    mediaPlaybackRequiresUserGesture = true
+                    // The page is the app's own, offline: its sound effects (Web Audio) may play without a tap.
+                    mediaPlaybackRequiresUserGesture = false
                 }
                 // The page's warnings (a VRM model that wouldn't load, say) in logcat.
                 webChromeClient = object : WebChromeClient() {

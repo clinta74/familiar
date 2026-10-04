@@ -14,24 +14,28 @@ import { Recorder } from '../voice/Recorder';
 import { Shell } from './Shell';
 
 const VOICE_KEY = 'familiar.voice';
+const EFFECTS_KEY = 'familiar.effects';
 
 // A per-device preference, so browser storage; it may be unavailable (private mode), which just
 // means the default.
-function readVoicePreference(): boolean {
+function readPreference(key: string): boolean {
   try {
-    return localStorage.getItem(VOICE_KEY) !== 'off';
+    return localStorage.getItem(key) !== 'off';
   } catch {
     return true;
   }
 }
 
-function writeVoicePreference(on: boolean) {
+function writePreference(key: string, on: boolean) {
   try {
-    localStorage.setItem(VOICE_KEY, on ? 'on' : 'off');
+    localStorage.setItem(key, on ? 'on' : 'off');
   } catch {
     // Not persisted; it still applies for this visit.
   }
 }
+
+const readVoicePreference = () => readPreference(VOICE_KEY);
+const writeVoicePreference = (on: boolean) => writePreference(VOICE_KEY, on);
 
 const statusText: Record<string, string> = {
   listening: 'listening…',
@@ -47,6 +51,7 @@ export function HomePage() {
   const [audible, setAudible] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const [voiceOn, setVoiceOn] = useState(readVoicePreference);
+  const [effectsOn, setEffectsOn] = useState(() => readPreference(EFFECTS_KEY));
   const [handsFreeOn, setHandsFreeOn] = useState(false);
   const [userSpeaking, setUserSpeaking] = useState(false);
   const { account } = useAuth();
@@ -73,9 +78,11 @@ export function HomePage() {
 
   // Read by stream and microphone callbacks, which outlive renders.
   const voiceOnRef = useRef(voiceOn);
+  const effectsOnRef = useRef(effectsOn);
   const audibleRef = useRef(audible);
   useEffect(() => {
     voiceOnRef.current = voiceOn;
+    effectsOnRef.current = effectsOn;
     audibleRef.current = audible;
   });
 
@@ -120,6 +127,9 @@ export function HomePage() {
   const conversation = useConversation({
     onExpression: (emotion, intensity) => avatar.current?.express(emotion, intensity),
     onGesture: (gesture) => avatar.current?.gesture(gesture),
+    onSound: (sound) => {
+      if (effectsOnRef.current) player.effect(sound);
+    },
     // With audio playing, the mouth follows the voice; otherwise it follows the text.
     onSpeech: (text) => {
       if (!audibleRef.current) avatar.current?.speak(text);
@@ -291,6 +301,16 @@ export function HomePage() {
             recording,
             onToggle: toggleVoice,
             onMic: () => void toggleMic(),
+            effects: {
+              on: effectsOn,
+              onToggle: () => {
+                player.unlock();
+                setEffectsOn((on) => {
+                  writePreference(EFFECTS_KEY, !on);
+                  return !on;
+                });
+              },
+            },
             handsFree: {
               available: conversation.speechAvailable && HandsFree.supported,
               on: handsFreeOn,

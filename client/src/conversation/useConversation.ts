@@ -7,6 +7,8 @@ import type {
   ReplyTruncatedEvent,
   ExpressionEvent,
   GestureEvent,
+  SoundEffect,
+  SoundEvent,
   JobsEvent,
   MessageView,
   NotifyEvent,
@@ -26,6 +28,8 @@ import { conversationReducer, initialConversation } from './reducer';
 export interface ConversationHandlers {
   onExpression?: (emotion: Emotion, intensity: number) => void;
   onGesture?: (gesture: Gesture) => void;
+  /** A sound effect, to play now (made here, nothing to fetch). */
+  onSound?: (sound: SoundEffect) => void;
   /** Each piece of reply text as it arrives - what moves the mouth when there's no audio. */
   onSpeech?: (text: string) => void;
   /** A new reply has started: anything still being spoken from the last one should stop. */
@@ -84,6 +88,7 @@ export function useConversation(handlers: ConversationHandlers, options: { speak
     on<ReplyEndEvent>('reply.end', (end) => dispatch({ type: 'replyEnd', end }));
     on<ExpressionEvent>('expression', ({ emotion, intensity }) => handlersRef.current.onExpression?.(emotion, intensity));
     on<GestureEvent>('gesture', ({ gesture }) => handlersRef.current.onGesture?.(gesture));
+    on<SoundEvent>('sound', ({ sound }) => handlersRef.current.onSound?.(sound));
     on<ErrorEvent>('turn.error', ({ message }) => dispatch({ type: 'error', message }));
     on<AudioEvent>('audio', (clip) => handlersRef.current.onAudio?.(clip));
     on<ReplyTruncatedEvent>('reply.truncated', ({ id, text }) => dispatch({ type: 'replyTruncated', id, text }));

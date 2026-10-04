@@ -455,6 +455,18 @@ export interface SendMessageRequest {
   speak?: boolean | null;
 }
 
+/**
+ * A sound effect, not a voice: made by the clients themselves (synthesised, so nothing to fetch),
+ * the same whichever voice the familiar has. Vocal sounds (a giggle, a gasp) come later, in its
+ * voice.
+ */
+export type SoundEffect = 'pop' | 'boing' | 'sparkle' | 'tada' | 'whoosh' | 'womp';
+
+/** A sound effect to play now, made by the client (no audio to fetch). */
+export interface SoundEvent {
+  sound: SoundEffect;
+}
+
 export interface SpokenWord {
   word: string;
   start: number;
@@ -609,6 +621,7 @@ export interface EventPayloads {
   'reply.truncated': ReplyTruncatedEvent;
   'expression': ExpressionEvent;
   'gesture': GestureEvent;
+  'sound': SoundEvent;
   'audio': AudioEvent;
   'audio.end': AudioEndEvent;
   'turn.error': ErrorEvent;
@@ -636,6 +649,7 @@ export const EventTypes = {
   ReplyTruncated: 'reply.truncated',
   Expression: 'expression',
   Gesture: 'gesture',
+  Sound: 'sound',
   Audio: 'audio',
   AudioEnd: 'audio.end',
   Error: 'turn.error',

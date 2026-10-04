@@ -38,6 +38,9 @@ sealed interface ServerEvent {
     data class ReplyTruncated(val id: String, val text: String) : ServerEvent
     data class Expression(val emotion: String, val intensity: Double) : ServerEvent
     data class Gesture(val gesture: String) : ServerEvent
+
+    /** A sound effect to play now (SoundEffect's names). */
+    data class Sound(val sound: String) : ServerEvent
     data class Error(val message: String) : ServerEvent
     data class ToolStarted(val event: ToolStartedEvent) : ServerEvent
     data class ToolFinished(val event: ToolFinishedEvent) : ServerEvent
@@ -63,6 +66,7 @@ sealed interface ServerEvent {
                 EventTypes.REPLY_TRUNCATED -> FamiliarJson.decodeFromString<ReplyTruncatedEvent>(json).let { ReplyTruncated(it.id, it.text) }
                 EventTypes.EXPRESSION -> FamiliarJson.decodeFromString<ExpressionEvent>(json).let { Expression(it.emotion, it.intensity) }
                 EventTypes.GESTURE -> Gesture(FamiliarJson.decodeFromString<GestureEvent>(json).gesture)
+                EventTypes.SOUND -> Sound(FamiliarJson.decodeFromString<SoundEvent>(json).sound)
                 EventTypes.ERROR -> Error(FamiliarJson.decodeFromString<ErrorEvent>(json).message)
                 EventTypes.TOOL_STARTED -> ToolStarted(FamiliarJson.decodeFromString(json))
                 EventTypes.TOOL_FINISHED -> ToolFinished(FamiliarJson.decodeFromString(json))

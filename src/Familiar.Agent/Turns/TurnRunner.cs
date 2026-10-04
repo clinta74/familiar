@@ -17,6 +17,9 @@ public sealed record ExpressionChanged(Emotion Emotion, double Intensity) : Turn
 
 public sealed record GestureMade(Gesture Gesture) : TurnEvent;
 
+/// <summary>A sound effect, at most one per reply: more than that stops being charming.</summary>
+public sealed record SoundMade(SoundEffect Sound) : TurnEvent;
+
 /// <summary>
 /// A tag the model wrote that means nothing we can show (an unknown gesture). Dropped from the reply;
 /// reported so the gestures the model keeps reaching for can be added.
@@ -72,6 +75,7 @@ public sealed class TurnRunner(ILlmClient llm)
         var spoken = new StringBuilder();
         (Emotion Emotion, double Intensity)? first = null;
         var interrupted = false;
+        var sounded = false;
 
         async ValueTask Handle(IReadOnlyList<ExpressionToken> tokens)
         {
@@ -89,6 +93,12 @@ public sealed class TurnRunner(ILlmClient llm)
                         break;
                     case GestureToken gesture:
                         await emit(new GestureMade(gesture.Gesture));
+                        break;
+                    case SoundToken sound when !sounded:
+                        sounded = true;
+                        await emit(new SoundMade(sound.Sound));
+                        break;
+                    case SoundToken:
                         break;
                     case IgnoredTag ignored:
                         await emit(new TagIgnored(ignored.Tag));

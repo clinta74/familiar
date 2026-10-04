@@ -18,6 +18,8 @@ export type {
   NotifyEvent,
   ReadyEvent,
   ReplyDeltaEvent,
+  SoundEffect,
+  SoundEvent,
   ReplyEndEvent,
   ReplyStartEvent,
   ReplyTruncatedEvent,
