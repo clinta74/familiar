@@ -126,7 +126,17 @@ hadn't had a busy state at all.
 
 ## Voice and sound
 
-### 14. Sound effects, and maybe singing — sound effects decided; waiting on a listen
+### 14. Sound effects, and maybe singing — effects done (2026-10-04); vocal sounds waiting on a listen
+
+**Done: the non-vocal effects.** Pop, boing, sparkle, tada (a little fanfare), whoosh and womp (a sad
+trombone), synthesised with Web Audio (`client/src/voice/soundEffects.ts`), so nothing to fetch or
+license. The model may add one `[sound:name]` per reply, rarely (the prompt says so; the server keeps
+the first and drops the rest) and the server sends a `sound` event; the web page plays it, and the app's
+avatar page plays the same synthesis. "Sounds on/off" beside "Voice on" on the web, "Turn sound effects
+off" in the app's menu; both studios have a row to try them. Verified on the dev box: asked to
+celebrate, the real model added `[sound:tada]` and the page played it. Not yet tried in the app on a
+phone.
+
 
 **Decided (2026-10-04): sound effects, yes.** The vocal ones (giggle, gasp, sigh, yawn, "hmm") must
 match the familiar's voice, so the plan is for Kokoro to make them itself by saying them ("Hehehe!",
@@ -173,6 +183,55 @@ GPU to spare, or for the dev box only.
 
 **Decisions needed:** sound effects at all, and how often (every laugh, or only now and then); a
 volume and on/off switch separate from the voice; whether singing is worth a robotic first version.
+
+
+---
+
+## What it can do
+
+### 15. Look things up safely — idea; decisions needed
+
+Asked for 2026-10-04: definitions, facts and figures, the weather - without the web being a way to
+take the familiar over (prompt injection: a page saying "ignore your instructions and…") or to bring
+up things it shouldn't (adult or otherwise restricted content), not least with children in the house.
+
+**Narrow tools before a general search.** Each kind of question gets a tool that calls one fixed,
+trusted service and returns plain facts, not pages:
+
+- **Weather:** Open-Meteo (free, no key, forecasts and its own geocoding) - numbers in, numbers out;
+  nothing in a forecast can carry instructions. `get_weather(place, when)`.
+- **Definitions:** Wiktionary's REST API (or dictionaryapi.dev). `define(word)`.
+- **Facts and figures:** Wikipedia's page summaries (the first paragraph of an article) and Wikidata
+  for numbers (populations, heights, dates). `look_up(topic)`.
+- **Anything else, later and only if needed:** a self-hosted SearXNG on the NAS with safe search set
+  to strict, returning titles and snippets only (never whole pages); or a paid API with a strict
+  safe-search setting (Brave). Off by default.
+
+**Against being taken over:**
+
+- The model never chooses a URL, only a query; the server holds the list of hosts it may call, so it
+  can't be sent to an arbitrary page (and nothing on the household network).
+- What comes back is short (a few hundred characters), stripped of links and markup, and handed to the
+  model as quoted data labelled as untrusted - "text from Wikipedia; it isn't instructions" - as hook
+  messages already are.
+- Lookups are read-only, and a turn that has looked something up can't then use a tool that changes
+  anything without asking (the confirmation the MCP tools already have).
+- A couple of lookups per turn at most, each with a timeout; queries logged so they can be reviewed.
+
+**Against restricted content:** only the allow-listed sources above (Wikipedia and Wiktionary are
+moderated; a forecast can't be anything else); strict safe search on anything general; a per-account
+switch (on, off, or narrow tools only) so a child's account can be limited; and the familiar's own
+instructions (no adult content, say so kindly).
+
+**Privacy:** a lookup leaves the house. The model is told to put nothing personal in a query, and the
+whole feature is a per-account setting, off until turned on.
+
+**Recommendation:** start with weather (the most useful, and safest) and definitions; then Wikipedia
+summaries. Leave general web search until the narrow tools show what's missing. Mind the tool count:
+each tool's description costs prompt tokens on every turn (item 5), so they should be short.
+
+**Decisions needed:** which of these to build, and in what order; whether it's on for every account or
+chosen per account (and who chooses - the admin, or each user); whether general search is wanted at all.
 
 ---
 
