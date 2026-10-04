@@ -70,7 +70,11 @@ A conversation that arrives all at once (restored, reloaded after a resync, a ne
 latest message, on the web and Android; messages after that still don't pull someone reading back.
 
 
-### 11. Speech is slow to start — review why
+### 11. ~~Speech is slow to start~~ — the NAS was synthesising on the CPU; moved to the GPU (2026-10-04)
+
+The NAS now runs Ollama, Whisper and Kokoro on the 3060 (its YAML regenerated from
+`docker-compose.nas.yml` + `docker-compose.nas.gpu.yml`, deploy/TRUENAS.md), and replies sounded right
+after. If it's slow again, the notes below say where to look.
 
 Reported 2026-10-04, on the phone (v0.1.0) and the website alike: the familiar takes a while to
 start talking. Since both are slow, the delay is most likely on the server (steps 1-4 below), not in
