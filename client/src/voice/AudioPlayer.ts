@@ -93,6 +93,11 @@ export class AudioPlayer {
     return this.playing;
   }
 
+  /** The browser lets it make sound: something on the page was clicked, tapped or typed since it loaded. */
+  get unlocked(): boolean {
+    return this.context?.state === 'running';
+  }
+
   enqueue(clip: Clip): void {
     if (clip.replyId !== this.replyId) {
       // A new reply supersedes whatever was still being said.

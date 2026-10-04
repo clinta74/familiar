@@ -8,7 +8,7 @@ import { defaultAppearance, type Appearance } from '../avatar/appearance';
 import { cachedLook, rememberLook } from '../avatar/lookCache';
 import { useAuth } from '../auth/AuthContext';
 import { useConversation } from '../conversation/useConversation';
-import { AudioPlayer } from '../voice/AudioPlayer';
+import { AudioPlayer, type Clip } from '../voice/AudioPlayer';
 import { HandsFree } from '../voice/HandsFree';
 import { Recorder } from '../voice/Recorder';
 import { Shell } from './Shell';
@@ -93,6 +93,30 @@ export function HomePage() {
     };
   }, [player, recorder, handsFree]);
 
+  // Browsers keep a page silent until it's been clicked, tapped or typed in. Any of those arms the
+  // voice, not only sending or talking: an announcement from a hook can arrive before either.
+  useEffect(() => {
+    const arm = () => player.unlock();
+    const options = { capture: true, once: true } as const;
+    document.addEventListener('pointerdown', arm, options);
+    document.addEventListener('keydown', arm, options);
+    return () => {
+      document.removeEventListener('pointerdown', arm, options);
+      document.removeEventListener('keydown', arm, options);
+    };
+  }, [player]);
+
+  /** What was said aloud while the page couldn't play it yet: kept, and offered with a button. */
+  const unheard = useRef<Clip[]>([]);
+  const [hasUnheard, setHasUnheard] = useState(false);
+
+  const hearUnheard = useCallback(() => {
+    player.unlock();
+    for (const clip of unheard.current) player.enqueue(clip);
+    unheard.current = [];
+    setHasUnheard(false);
+  }, [player]);
+
   const conversation = useConversation({
     onExpression: (emotion, intensity) => avatar.current?.express(emotion, intensity),
     onGesture: (gesture) => avatar.current?.gesture(gesture),
@@ -100,9 +124,19 @@ export function HomePage() {
     onSpeech: (text) => {
       if (!audibleRef.current) avatar.current?.speak(text);
     },
-    onReplyStart: () => player.stop(),
+    onReplyStart: () => {
+      player.stop();
+      unheard.current = [];
+      setHasUnheard(false);
+    },
     onAudio: (clip) => {
-      if (voiceOnRef.current) player.enqueue(clip);
+      if (!voiceOnRef.current) return;
+      if (player.unlocked) {
+        player.enqueue(clip);
+      } else {
+        unheard.current.push(clip);
+        setHasUnheard(true);
+      }
     },
     onCleared: () => player.stop(),
     // The announcement itself arrives as a reply; this is the bell before it.
@@ -230,6 +264,11 @@ export function HomePage() {
             {conversation.familiarName}
             {status && <span className="familiar-status"> · {status}</span>}
           </p>
+          {hasUnheard && (
+            <button type="button" className="secondary hear-unheard" onClick={hearUnheard}>
+              🔊 Hear what {conversation.familiarName} said
+            </button>
+          )}
           <TimersPanel jobs={conversation.jobs} onCancel={conversation.cancelJob} />
         </section>
         <ChatPanel

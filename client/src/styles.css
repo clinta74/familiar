@@ -467,6 +467,11 @@ button.link:hover:not(:disabled) {
   font-size: 0.95rem;
 }
 
+/* Something was said before the page could play sound (see HomePage). */
+.hear-unheard {
+  margin-top: 8px;
+}
+
 /* --- timers and reminders --- */
 
 .timers {
