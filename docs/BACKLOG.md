@@ -98,7 +98,7 @@ height, a 786×604 canvas (pixel ratio capped at 2 of 2.75).
 - **Found on the way: the app had never shown 3D.** The page's Content Security Policy blocked
   WebAssembly, which the compressed GLBs need, so every 3D character but Spot quietly fell back to the
   flat drawing. Fixed with `'wasm-unsafe-eval'` (compiling WebAssembly only, no `eval`), and a test
-  keeps it (`client/src/embed/avatarPage.test.ts`).
+  keeps it (`client/src/embed/avatarPage.test.ts`). Seen in the app itself on the Fold with v0.1.0: the 3D fox.
 - **Frame rate:** every character a steady 60 fps, no frame over 25 ms, for 16 minutes of the
   giraffe (the heaviest) in a row. The page's own work per frame is 3-4.5 ms (the flat ones 0.3 ms).
 - **CPU:** Chrome's processes together use about half of one core for a 3D character (48-53%),
