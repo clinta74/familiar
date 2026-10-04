@@ -20,7 +20,10 @@ Nothing is built until the look is known; a pulsing glow holds the place and the
 in. The last look is remembered per account (`localStorage` on the web, the secure store on
 Android), so a returning visit builds the right one straight away.
 
-### 5. Warm the prompt, not just the model — measured; blocked on the model
+### 5. ~~Warm the prompt, not just the model~~ — measured; left as it is (2026-10-03)
+
+Decided: the ~1 s of prefill on the first turn is acceptable, so neither a shorter prompt, another
+model nor llama-server is worth it for now. The notes stay for if it starts to matter.
 
 `LlmWarmUp` / `OllamaWarmUp` load the chat model at startup and keep it loaded, but the first turn
 after a restart still pays to **prefill the whole system prompt** (persona, rules, look). Muwbta's
@@ -60,7 +63,6 @@ What would actually cut the ~1 s of prefill before the first word:
 - **llama.cpp's `llama-server`** with `cache_prompt`, which also has slot save/restore across
   restarts.
 
-Decision needed: which of these is worth it.
 
 ### 5a. ~~Open the chat at its latest message~~ — done (2026-10-03)
 
@@ -73,12 +75,10 @@ latest message, on the web and Android; messages after that still don't pull som
 
 ### 6. ~~The 3D model pipeline~~ — done (2026-10-03)
 
-Option A below: the characters are scripted in Blender (`tools/models/`), the runtime loads the
-GLBs. Still open:
-
-- **Flat characters' arms** still hang with paws on the tummy; the 3D ones now stand to the ground
-  like a sitting dog's. Decide whether the flat ones should follow.
-- A local image-to-3D model (TRELLIS / Hunyuan3D) as a reference for harder shapes: not needed so far.
+The characters are scripted in Blender (`tools/models/`: the scripts are the source, the GLBs are
+built from them and committed); fur, face and motion stay in the runtime (`Plush3D`). The flat
+characters keep their paws on the tummy (decided 2026-10-03); only the 3D ones sit like a dog. A
+local image-to-3D model (TRELLIS / Hunyuan3D) as a reference for harder shapes hasn't been needed.
 
 ### 7. ~~An otter and a giraffe~~ — done (2026-10-03)
 
@@ -89,11 +89,29 @@ Both, flat and 3D, in the studio with presets, accepted by the server, with a pe
 The studio and the gallery say "Llama". Descriptions stay "a plush llama" as the others' do ("a plush
 fox"), and "Fuzzy monster" is unchanged.
 
-### 8. Check 3D on a real phone
+### 8. ~~Check 3D on a real phone~~ — measured on the Fold; fine as it is (2026-10-04)
 
-All five 3D characters were reviewed in a desktop browser only. Try them on the Pixel Fold in the
-Android app's WebView: frame rate, heat, battery over ten minutes. If it's too much, the levers are
-fewer fur shells on phones, a lower pixel ratio, and pausing rendering when nothing moves.
+Measured on the Pixel 10 Pro Fold (folded, Chrome 154; the app's WebView is the same engine) with the
+app's own avatar page (the production build), at the app's size: the full width and 40% of the
+height, a 786×604 canvas (pixel ratio capped at 2 of 2.75).
+
+- **Found on the way: the app had never shown 3D.** The page's Content Security Policy blocked
+  WebAssembly, which the compressed GLBs need, so every 3D character but Spot quietly fell back to the
+  flat drawing. Fixed with `'wasm-unsafe-eval'` (compiling WebAssembly only, no `eval`), and a test
+  keeps it (`client/src/embed/avatarPage.test.ts`).
+- **Frame rate:** every character a steady 60 fps, no frame over 25 ms, for 16 minutes of the
+  giraffe (the heaviest) in a row. The page's own work per frame is 3-4.5 ms (the flat ones 0.3 ms).
+- **CPU:** Chrome's processes together use about half of one core for a 3D character (48-53%),
+  against a third (33-35%) for a flat one; Spot in 3D, 38%.
+- **Heat:** with the giraffe, skin temperature rose from 34.6 °C and levelled off at about 38.5 °C
+  after ten minutes; the flat llama held the same temperature, about 1 °C cooler at the chip. No
+  thermal throttling at any point. (The phone was charging over USB throughout, which warms it too.)
+- **Battery:** not measured directly - the phone was on USB power and its energy counters aren't
+  readable without root. The CPU difference above is the best proxy: about a sixth of a core more.
+
+So none of the levers (fewer fur shells, a lower pixel ratio, pausing when still) is needed. If
+battery turns out to matter in long hands-free sessions, pausing rendering while the screen is off is
+already the case (the WebView stops drawing), and capping the frame rate at 30 when idle would be next.
 
 ---
 
@@ -103,72 +121,9 @@ fewer fur shells on phones, a lower pixel ratio, and pausing rendering when noth
 
 Hold the mic button to talk, let go to send (MOBILE.md, M1). Still to do on a real phone, with item 8.
 
----
+### 10. ~~Publish the APK as a release~~ — done (2026-10-03)
 
-## Blender, or AI-generated models? (for item 6)
-
-The 3D characters are built in code from ellipsoids and swept spheres, with shell fur on top. That
-got us soft, expressive toys quickly, but the shapes are limited to what primitives blend into:
-seams where a muzzle meets a face, no real sculpted forms. Three ways to get better models, and
-what each would take.
-
-### A. Blender, scripted (recommended)
-
-Blender has a complete Python API and runs headless (`blender -b -P build_otter.py`), so models
-can be **made by scripts** — written and iterated by Claude, committed to the repo, and rebuilt by
-anyone. Subdivision-surface modelling gives continuous organic shapes (a head that flows into its
-muzzle, a body that flows into its legs) that ellipsoids can't. Each script:
-
-- builds the character as named parts with their pivots (`head`, `ear.L`, `arm.L.upper`,
-  `arm.L.fore`, `tail`, `torso` …) and materials named by colour role (`wool`, `face`, `ear`);
-- exports a small GLB (100–300 KB) into the client;
-- renders preview images (front, three-quarter, side) so the result can be reviewed and iterated
-  without anyone opening Blender.
-
-At runtime, `Plush3D` loads the GLB instead of building primitives, and keeps doing what it does
-now: shell fur over each part, the palette, the painted face, eyes and lids, the pose. Blender's own
-hair doesn't export to the web, so fur stays ours.
-
-**Needs:** a current Blender (this machine has 2.91, from 2020; its glTF exporter and Python API are
-too old — install 4.5 LTS or newer). **Effort:** the pipeline (shared modelling helpers, export,
-preview renders) and the GLB loader in `Plush3D` are about a day; then each character is a script
-and a few review rounds. **Limits:** scripted modelling is still modelling-by-description; it beats
-primitives clearly, but it isn't a sculptor's hand.
-
-### B. Blender driven live over MCP
-
-The open-source *blender-mcp* add-on lets an AI session drive a running Blender: create and edit
-objects, run Python, take screenshots, pull assets from Poly Haven, generate models through Hyper3D
-Rodin. Same modelling power as A, but interactive — you can watch, tweak by hand, and Claude picks
-up from there. Good for review sessions; save the resulting script so it stays reproducible. Needs
-the add-on installed in Blender and the MCP server added to Claude Code.
-
-### C. AI image-to-3D
-
-Generate a picture of each plush (an image model), then turn it into a textured mesh:
-
-- **Locally, on this machine's RTX 5070 Ti (16 GB):** Microsoft TRELLIS (MIT licence; ~16 GB, tight),
-  Tencent Hunyuan3D-2 (smaller variants fit; its licence excludes the EU, UK and South Korea),
-  Stability's SPAR3D / Stable Fast 3D (community licence).
-- **Hosted:** Meshy, Tripo, Hyper3D Rodin — paid credits, commercial use on paid plans, HTTP APIs
-  (and MCP servers for some).
-
-This gives the most natural shapes and textures fastest, **but** the output is one fused mesh with
-the colours and face baked in: no separate ears, arms or tail to move, a face that can't make our
-expressions, colours that can't be changed in the studio, and messy topology. Making one usable is
-Blender work anyway — split the parts, rebuild the face area, re-UV.
-
-Claude can't call another AI model by itself; it can use one connected as an MCP server, or call a
-hosted API from a script with an API key you provide.
-
-### Recommendation
-
-**A, with C as an optional reference.** Script the characters in Blender (the scripts are the
-source; the GLBs are built from them), keep fur, face and motion in the runtime, and if a shape is
-hard to get right by description, generate a reference mesh with TRELLIS or Hunyuan3D locally and
-model the clean, part-split version over it (Blender's shrinkwrap). B is worth adding for live
-review sessions once A exists. Start with the llama (to compare against today's) and then build
-the otter and giraffe this way.
-
-**Decisions needed:** install a current Blender here (and later wherever the build runs, if GLBs are
-rebuilt in CI rather than committed); whether to set up a local image-to-3D model.
+A version tag (`v0.2.0`) publishes a GitHub release with the APK signed by the release key, versioned
+from the tag, alongside the Docker images ([RELEASING.md](RELEASING.md)). **Needs, once:** the release
+key made and its four `ANDROID_*` secrets added (RELEASING.md, "The release key"); until then the
+release job fails and says so.
