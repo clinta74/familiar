@@ -30,7 +30,9 @@ generates that folder from the YAML, so move the data out before editing the app
 
 ### 2. Take a backup first, and keep it outside the app
 
-Create the dataset in **Datasets › Add Dataset**: e.g. `<pool>/familiar`, preset *Generic*. Then a
+Create the dataset in **Datasets › Add Dataset**: e.g. `<pool>/familiar`, preset *Generic*. (A
+dataset, not a folder made with `mkdir`: a folder can't have its own snapshots or replication, and
+the commands below fail if it doesn't exist.) Then a
 copy straight from the database onto it (this needs no password, so it works even if the backup
 container's is missing):
 
@@ -47,6 +49,13 @@ with `${POSTGRES_PASSWORD}` and no `.env` gave it an empty one), a verified back
 
 ```bash
 docker exec familiar-backup familiar-backup --once
+```
+
+If that dump failed, a file-level copy works as well once the app is stopped (step 3), before
+copying:
+
+```bash
+tar -C "$OLD" -czf /mnt/<pool>/familiar/before-move.tgz data backups
 ```
 
 ### 3. Stop the app
@@ -74,14 +83,15 @@ rsync -aH --numeric-ids "$OLD/data/" "$NEW/data/"
 rsync -aH --numeric-ids "$OLD/backups/" "$NEW/backups/"
 ```
 
-Check the copy matches and the database folder kept its owner (`999 999`, `drwx------`):
+Check the copy matches and the database folder kept its owner. Postgres 18 keeps its data in
+`postgres/18/docker`, which must be `999 999` and `drwx------` (the folders above it are root's):
 
 ```bash
 du -s "$OLD/data" "$NEW/data" "$OLD/backups" "$NEW/backups"
 ```
 
 ```bash
-ls -ln "$NEW/data"
+ls -ln "$NEW/data/postgres/18"
 ```
 
 ### 5. Point the app at the new folders
