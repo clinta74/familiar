@@ -38,3 +38,9 @@ data/
 
 # Hands-free assets, copied from node_modules by client/scripts/copy-vad-assets.mjs.
 client/public/vad/
+
+# Android Studio's "Generate Signed APK" output; releases are built by CI (docs/RELEASING.md).
+mobile/androidApp/release/
+# Signing keys never belong in the repository.
+*.jks
+*.keystore
