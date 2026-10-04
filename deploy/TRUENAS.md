@@ -1,0 +1,123 @@
+# Familiar on TrueNAS
+
+TrueNAS's "Install via YAML" takes the compose file alone: there's no `.env` beside it, so every
+`${VAR:-default}` resolves to its default. Write the settings into the file as plain values instead
+(passwords included; the file lives in TrueNAS's app configuration, so don't commit or share it).
+
+## Moving the data onto a dataset
+
+With the defaults, the data and backup folders are relative (`./data`, `./backups`), which TrueNAS
+resolves inside its own app storage under `/mnt/.ix-apps/`. That's a poor home for them: deleting
+or reinstalling the app can remove them, they're not in any snapshot task, and the backups sit
+next to the database they're meant to protect. These steps move them onto a dataset you own.
+
+What moves: `data/postgres` (the database), `data/logs` (the server's logs), `data/ntfy` (push,
+if ntfy has run) and `backups/`. Ollama's models are already on an absolute path
+(`OLLAMA_MODELS_DIR`), and Whisper's model cache is a Docker volume; neither moves.
+
+Run the commands as root, in **System › Shell** (`sudo -i` first).
+
+### 1. Check where things are now
+
+```bash
+docker inspect familiar-postgres familiar-backup --format '{{.Name}}{{range .Mounts}}  {{.Source}} -> {{.Destination}}{{end}}'
+```
+
+If the sources are under `/mnt/.ix-apps/...`, carry on. The folder that holds `data/` and
+`backups/` is the **old folder** below (the postgres source minus `/data/postgres`).
+
+### 2. Take a backup first, and keep it outside the app
+
+Create the dataset in **Datasets › Add Dataset**: e.g. `<pool>/familiar`, preset *Generic*. Then a
+verified backup through the backup container (this also proves it can sign in to the database):
+
+```bash
+docker exec familiar-backup familiar-backup --once
+```
+
+It should end with a line saying the dump was verified. And an independent copy, straight from the
+database, onto the new dataset:
+
+```bash
+docker exec familiar-postgres pg_dump -U familiar -d familiar --format=custom > /mnt/<pool>/familiar/before-move.dump
+```
+
+```bash
+ls -lh /mnt/<pool>/familiar/before-move.dump
+```
+
+A few MB or more; not zero.
+
+### 3. Stop the app
+
+**Apps › familiar › Stop**, then check nothing of it is running (no output):
+
+```bash
+docker ps --filter name=familiar- --format '{{.Names}}'
+```
+
+### 4. Copy, keeping owners and permissions
+
+Postgres refuses to start on a data folder that isn't owned by its own user (uid 999) with mode
+0700, so copy with numeric ownership kept. Set the two folders once (replace both):
+
+```bash
+OLD=/mnt/.ix-apps/app_configs/familiar/<the old folder>; NEW=/mnt/<pool>/familiar
+```
+
+```bash
+rsync -aH --numeric-ids "$OLD/data/" "$NEW/data/"
+```
+
+```bash
+rsync -aH --numeric-ids "$OLD/backups/" "$NEW/backups/"
+```
+
+Check the copy matches and the database folder kept its owner (`999 999`, `drwx------`):
+
+```bash
+du -s "$OLD/data" "$NEW/data" "$OLD/backups" "$NEW/backups"
+```
+
+```bash
+ls -ln "$NEW/data"
+```
+
+### 5. Point the app at the new folders
+
+**Apps › familiar › Edit**, and in the YAML replace every `./data/` with `/mnt/<pool>/familiar/data/`
+and `./backups` with `/mnt/<pool>/familiar/backups`. Four lines change: the postgres, server and
+ntfy volumes and the backup volume. Save; the app starts.
+
+### 6. Check it
+
+```bash
+docker inspect familiar-postgres familiar-backup --format '{{.Name}}{{range .Mounts}}  {{.Source}} -> {{.Destination}}{{end}}'
+```
+
+Now under `/mnt/<pool>/familiar/`. Then:
+
+```bash
+docker logs familiar-postgres 2>&1 | tail -5
+```
+
+"database system is ready to accept connections", and no "initdb" (which would mean it started an
+empty database instead of finding yours). Sign in on the web: your conversation, memories and
+timers are there. Then one more backup, into the new folder:
+
+```bash
+docker exec familiar-backup familiar-backup --once
+```
+
+### 7. Afterwards
+
+- Keep the old folder for a week, then delete it (`rm -rf "$OLD/data" "$OLD/backups"`). Keep
+  `before-move.dump` until then too.
+- **Data Protection › Periodic Snapshot Tasks:** a daily snapshot of `<pool>/familiar`.
+- The nightly dumps protect against a broken database, not a lost pool: replicate
+  `<pool>/familiar/backups` (or the whole dataset) to another machine or a cloud target
+  (**Data Protection › Replication / Cloud Sync**).
+
+**If something's wrong** at step 6: stop the app, put the YAML's paths back to `./data` and
+`./backups`, and start it; the old folder is untouched. If the database itself is the problem,
+`before-move.dump` restores with `pg_restore`.
