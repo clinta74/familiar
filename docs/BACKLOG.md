@@ -189,7 +189,19 @@ volume and on/off switch separate from the voice; whether singing is worth a rob
 
 ## What it can do
 
-### 15. Look things up safely — idea; decisions needed
+### 15. Look things up safely — weather and definitions done (2026-10-04)
+
+**Done:** `get_weather` (Open-Meteo; the place asked about, or "where you live" from Settings; today
+or up to a week ahead; °F and mph in the US) and `define` (Wiktionary's English senses), in
+`src/Familiar.Server/LookUps/`. A per-account "Look things up" switch, off by default, with "Where you
+live" beside it (web and app); off, the tools aren't offered. The guards as designed below: the hosts
+are allow-listed in the HTTP client itself (`LookUpHosts`), results are cleaned (no markup or links),
+cut short and labelled as reference text, at most two look-ups a reply, and after one anything that
+changes something asks first. The home town reaches only the weather tool, never the prompt. Tried on
+the real model: weather today, tomorrow and in Paris on Saturday, two definitions, all with the right
+tool; a joke, with none. **Next, if wanted:** Wikipedia summaries; the server adding the forecast to
+the greeting's notes.
+
 
 Asked for 2026-10-04: definitions, facts and figures, the weather - without the web being a way to
 take the familiar over (prompt injection: a page saying "ignore your instructions and…") or to bring
@@ -225,6 +237,19 @@ instructions (no adult content, say so kindly).
 
 **Privacy:** a lookup leaves the house. The model is told to put nothing personal in a query, and the
 whole feature is a per-account setting, off until turned on.
+
+**What triggers a look-up.** The familiar's own decision, as it already decides to set a timer: each
+look-up is a tool, offered with a one-line description ("get_weather: the forecast for a place; use
+when asked about the weather"), and the model calls it when a question needs something it doesn't
+know - "Do I need a coat tomorrow?", "What does petrichor mean?". Its instructions narrow that: current
+or specific facts only (weather, definitions, figures), not chit-chat or opinions, never because some
+text asked it to. What can't trigger one: a Home Assistant "tell" (that turn has no tools), the
+greeting (no tools either), a result (at most two look-ups a reply), or an account with it switched off
+(the tools aren't offered). Optionally the server fetches the weather itself, as one of the notes the
+model already gets each turn, so the morning hello can mention rain with no look-up at all. Asking
+first ("Want me to look that up?") is possible but slower; if a general search ever comes, ask first
+for that and answer straight away for the narrow tools. Each new tool gets tried on the real model
+with a few phrasings, as in the tool bake-off.
 
 **Recommendation:** start with weather (the most useful, and safest) and definitions; then Wikipedia
 summaries. Leave general web search until the narrow tools show what's missing. Mind the tool count:
