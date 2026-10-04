@@ -122,6 +122,49 @@ the memory first and embed it in the background.
 while it works (`aria-busy` on the web, `BusyButton` in the app); memories, hook tokens and webhooks
 hadn't had a busy state at all.
 
+
+---
+
+## Voice and sound
+
+### 14. Sound effects, and maybe singing — idea; decision needed
+
+Asked for 2026-10-04: the familiar making sounds besides speech (a giggle, a gasp, a yawn, a "ta-da"),
+and perhaps singing. Kokoro, today's voice, only speaks: it can't laugh convincingly or hold a note.
+What's possible, cheapest first:
+
+**Sound effects**
+
+- **A small bundled set, played on cue (recommended first).** Twenty or so short sounds - giggle,
+  gasp, sigh, yawn, "hmm", pop, boing, ta-da, a happy trill - from a CC0 library (Kenney's audio
+  packs, Freesound's CC0 section) or made in Web Audio like the timer chime. Played with the gestures
+  that already exist (laugh, yawn, sigh, excited) and by a new `sound` event the model can ask for
+  from a fixed list, as it asks for expressions. Instant, offline, no GPU, on the web and in the app.
+  The work is choosing sounds that suit a plush toy, not engineering.
+- **Generated on demand.** A text-to-audio model makes a sound from a description ("a teacup
+  clinking"). Stable Audio Open (and its Small version, which runs on a CPU) under Stability's
+  community licence; Meta's AudioGen is non-commercial only. Takes seconds per sound, and the NAS's
+  3060 is nearly full with the chat model, Whisper and Kokoro (~10.4 of 12 GB), so it would run on the
+  CPU or load in turn with the chat model. Novel, but slower and less predictable than a set.
+
+**Singing**
+
+- **Kokoro, pitched to a tune.** Speak the words, then shift each syllable to a melody's notes
+  (PSOLA). Robotic, but in the familiar's own voice and cute for a plush toy - enough for "happy
+  birthday" or a little jingle when a timer ends. No new model.
+- **A singing model.** Suno's Bark (MIT) sings roughly when lyrics are marked with ♪, inconsistently.
+  Song generators - ACE-Step, YuE, DiffRhythm (open licences; check each at the time) - make whole
+  songs with music from lyrics, in their own voices, not the familiar's; they want most of a GPU
+  (YuE well over 12 GB) and tens of seconds or minutes per song. Making it the familiar's voice too
+  would mean voice conversion on top (RVC and the like).
+
+**Recommendation:** the bundled sound-effect set first (small, and it adds a lot of character), then
+try pitched-Kokoro singing for short set pieces. Leave generated audio and full songs until there's
+GPU to spare, or for the dev box only.
+
+**Decisions needed:** sound effects at all, and how often (every laugh, or only now and then); a
+volume and on/off switch separate from the voice; whether singing is worth a robotic first version.
+
 ---
 
 ## Avatars
