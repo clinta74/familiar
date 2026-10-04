@@ -91,6 +91,12 @@ sound, and what to check at each step:
    (`AndroidSpeechAudio`) decodes the whole MP3 with MediaCodec, then starts an `AudioTrack` and
    asks for audio focus.
 
+**First finding (2026-10-04): synthesis on the NAS is on the CPU.** Kokoro's own log on the NAS
+shows one sentence taking 3,246 ms; on the dev box's GPU the same takes 60-200 ms. The NAS compose
+uses `kokoro-fastapi-cpu` (and Whisper's and Ollama's CPU setup) unless it's started with
+`docker-compose.nas.gpu.yml`, which moves all three onto the 3060. Start it with the overlay, check
+`nvidia-smi` and `ollama ps` (100% GPU), then measure again before looking further.
+
 Steps 1-4 are already in the server's log, per turn: `Turn: transcribe … ms, first text … ms,
 first audio … ms, total … ms` (ServerLog event 53), plus each sentence's synthesis time. Read those
 on the NAS for slow turns first: if "first audio" accounts for the wait, it's steps 1-4. Only if it
