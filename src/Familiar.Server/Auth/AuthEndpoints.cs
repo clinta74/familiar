@@ -44,8 +44,10 @@ public static partial class AuthEndpoints
 
         group.MapGet("/me", MeAsync).RequireAuthorization();
 
+        // From a browser or a phone: either way the current password is required, so a device
+        // token alone can't change it.
         group.MapPost("/password", ChangePasswordAsync)
-            .RequireAuthorization(Policies.Browser)
+            .RequireAuthorization()
             .RequireRateLimiting(RateLimiting.Auth);
     }
 
@@ -210,13 +212,23 @@ public static partial class AuthEndpoints
 
         account.PasswordHash = hasher.HashPassword(account, request.NewPassword!);
 
-        // Every other browser session and every device token is now stale.
+        // Every other browser session and every device token is now stale...
         account.RotateSecurityStamp();
+
+        // ...except the caller's, or the person who changed the password is the first one signed
+        // out by it: a phone's token takes the new stamp, a browser's cookie is re-issued with it.
+        if (http.User.DeviceId() is { } deviceId)
+        {
+            var token = await db.AccessTokens.SingleOrDefaultAsync(t => t.Id == deviceId && t.AccountId == account.Id, ct);
+            token?.SecurityStamp = account.SecurityStamp;
+        }
+
         await db.SaveChangesAsync(ct);
 
-        // ...except this one: re-issue the caller's cookie with the new stamp, or the person who
-        // changed the password is the first one logged out by it.
-        await CookieSession.SignInAsync(http, account, clock);
+        if (http.User.DeviceId() is null)
+        {
+            await CookieSession.SignInAsync(http, account, clock);
+        }
 
         loggers.CreateLogger(typeof(AuthEndpoints)).PasswordChanged(account.Username);
         return TypedResults.NoContent();

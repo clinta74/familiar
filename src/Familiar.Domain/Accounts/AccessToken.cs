@@ -29,8 +29,11 @@ public sealed class AccessToken
 
     public required string SecretHash { get; init; }
 
-    /// <summary>The account's <see cref="Account.SecurityStamp"/> when this token was issued.</summary>
-    public required string SecurityStamp { get; init; }
+    /// <summary>
+    /// The account's <see cref="Account.SecurityStamp"/> when this token was issued, or when this
+    /// device itself changed the password (which rotates the stamp for everything else).
+    /// </summary>
+    public required string SecurityStamp { get; set; }
 
     public DateTimeOffset CreatedAt { get; init; }
 

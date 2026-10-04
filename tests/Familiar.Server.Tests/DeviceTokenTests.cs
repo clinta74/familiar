@@ -58,15 +58,34 @@ public sealed class DeviceTokenTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task A_device_token_cannot_change_the_password()
+    public async Task A_phone_can_change_the_password_and_stays_signed_in()
     {
         await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
-        (await app.CreateClient().RegisterAsync("kim")).EnsureSuccessStatusCode();
+        var browser = app.CreateClient();
+        (await browser.RegisterAsync("kim")).EnsureSuccessStatusCode();
         var phone = app.DeviceClient((await app.CreateClient().DeviceLoginAsync("kim")).Token);
+        var otherPhone = app.DeviceClient((await app.CreateClient().DeviceLoginAsync("kim")).Token);
 
         var response = await phone.PostAsJsonAsync("/api/auth/password", new ChangePasswordRequest("correct horse", "battery staple"));
 
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await phone.GetAsync("/api/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await otherPhone.GetAsync("/api/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await browser.GetAsync("/api/auth/me")).StatusCode);
+        (await app.CreateClient().LoginAsync("kim", "battery staple")).EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public async Task A_phone_still_needs_the_current_password()
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        (await app.CreateClient().RegisterAsync("kit")).EnsureSuccessStatusCode();
+        var phone = app.DeviceClient((await app.CreateClient().DeviceLoginAsync("kit")).Token);
+
+        var response = await phone.PostAsJsonAsync("/api/auth/password", new ChangePasswordRequest("a guess", "battery staple"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await phone.GetAsync("/api/auth/me")).StatusCode);
     }
 
     [Fact]
