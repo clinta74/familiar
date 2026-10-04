@@ -35,6 +35,12 @@ next release can't update installed phones; they'd have to uninstall it (and sig
    base64 -w0 familiar-release.jks | gh secret set ANDROID_KEYSTORE_BASE64
    ```
 
+   or in PowerShell:
+
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\familiar-release.jks")) | gh secret set ANDROID_KEYSTORE_BASE64
+   ```
+
    ```bash
    gh secret set ANDROID_KEYSTORE_PASSWORD
    ```
