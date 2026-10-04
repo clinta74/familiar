@@ -3,8 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <!-- Bundled into the phone apps and loaded from there, never from the network (MOBILE.md §1.1). -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob: data:" />
+    <!-- Bundled into the phone apps and loaded from there, never from the network (MOBILE.md §1.1).
+         'wasm-unsafe-eval' compiles WebAssembly only (no eval): the 3D models are meshopt-compressed,
+         and without it every one of them falls back to the flat drawing. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob: data:" />
     <title>Familiar avatar</title>
     <style>
       html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
