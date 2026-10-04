@@ -1,6 +1,7 @@
 // Generates the clients' protocol types from protocol/familiar.schema.json (docs/MOBILE.md §6): the
 // web client's TypeScript and the phone apps' Kotlin. The schema is generated from the server's
-// records (src/Familiar.Server/Protocol/ProtocolSchema.cs), so the three can't drift.
+// records (src/Familiar.Server/Protocol/ProtocolSchema.cs), so the three can't drift. Also the
+// phone apps' copy of the studio's characters, from client/src/avatar/characters.json.
 //
 //   npm run protocol         write the generated files
 //   npm run protocol:check   fail if they're out of date (CI)
@@ -12,6 +13,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const schemaPath = join(root, 'protocol', 'familiar.schema.json');
 const tsPath = join(root, 'client', 'src', 'protocol', 'generated.ts');
 const ktPath = join(root, 'mobile', 'shared', 'src', 'commonMain', 'kotlin', 'app', 'familiar', 'shared', 'protocol', 'Generated.kt');
+const charactersPath = join(root, 'client', 'src', 'avatar', 'characters.json');
+const ktCharactersPath = join(root, 'mobile', 'shared', 'src', 'commonMain', 'kotlin', 'app', 'familiar', 'shared', 'avatar', 'Characters.kt');
 
 const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
 const defs = schema.$defs;
@@ -173,11 +176,64 @@ function kotlin() {
   return out;
 }
 
+// --- the studio's characters, for the phone apps -----------------------------------------------
+
+const ktString = (value) => JSON.stringify(value).replaceAll('$', '\\$');
+
+function characters() {
+  const list = JSON.parse(readFileSync(charactersPath, 'utf8'));
+  const lines = [
+    "// Generated from client/src/avatar/characters.json by client/scripts/protocol.mjs - don't edit.",
+    '// To change it, change the JSON (the web client reads it too), then npm run protocol.',
+    '',
+    'package app.familiar.shared.avatar',
+    '',
+    'import app.familiar.shared.protocol.LlamaColours',
+    '',
+    '/** A built-in character, as the studio offers it. The first preset is its default. */',
+    'data class Character(',
+    '    val id: String,',
+    '    val name: String,',
+    '    val blurb: String,',
+    '    val has3d: Boolean,',
+    '    /** What it can wear; "none" first. */',
+    '    val accessories: List<String>,',
+    "    /** What each colour paints on it, in order; a colour it doesn't use isn't here. */",
+    '    val colourLabels: Map<String, String>,',
+    '    val presets: List<Preset>,',
+    ')',
+    '',
+    'data class Preset(val name: String, val colours: LlamaColours)',
+    '',
+    "/** The built-in characters, in the studio's order. */",
+    'val characters: List<Character> = listOf(',
+  ];
+  for (const c of list) {
+    lines.push(
+      '    Character(',
+      `        id = ${ktString(c.id)},`,
+      `        name = ${ktString(c.name)},`,
+      `        blurb = ${ktString(c.blurb)},`,
+      `        has3d = ${c.has3d},`,
+      `        accessories = listOf(${c.accessories.map(ktString).join(', ')}),`,
+      `        colourLabels = linkedMapOf(${Object.entries(c.colourLabels).map(([k, v]) => `${ktString(k)} to ${ktString(v)}`).join(', ')}),`,
+      '        presets = listOf(',
+      ...c.presets.map(({ name, colours: k }) =>
+        `            Preset(${ktString(name)}, LlamaColours(${ktString(k.wool)}, ${ktString(k.face)}, ${ktString(k.ear)}, ${ktString(k.blush)}, ${ktString(k.accent)})),`),
+      '        ),',
+      '    ),',
+    );
+  }
+  lines.push(')');
+  return lines.join('\n') + '\n';
+}
+
 // --- write, or check ----------------------------------------------------------------------------
 
 const outputs = [
   [tsPath, typescript()],
   [ktPath, kotlin()],
+  [ktCharactersPath, characters()],
 ];
 
 if (process.argv.includes('--check')) {
@@ -189,7 +245,7 @@ if (process.argv.includes('--check')) {
     }
   });
   if (stale.length > 0) {
-    console.error(`Out of date with protocol/familiar.schema.json: ${stale.map(([p]) => relative(root, p)).join(', ')}. Run npm run protocol.`);
+    console.error(`Out of date with protocol/familiar.schema.json or client/src/avatar/characters.json: ${stale.map(([p]) => relative(root, p)).join(', ')}. Run npm run protocol.`);
     process.exit(1);
   }
   console.log('protocol: generated types are current');

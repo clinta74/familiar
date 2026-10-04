@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { characters, fromOklch, lightness, mixVivid, toOklch } from './appearance';
+import { accessories, characters, fromOklch, lightness, mixVivid, toOklch, type CharacterModel } from './appearance';
 import { tuftPath } from './PlushHedgehogAvatar';
 import { blendShape, spotColour, spotCore, spotPath } from './SpotAvatar';
 import { emotions, type Emotion } from './types';
@@ -97,5 +97,17 @@ describe('the characters', () => {
       expect(c.colourLabels.wool).toBeTruthy();
     }
     expect(characters.map((c) => c.id)).toEqual(['llama', 'fox', 'hedgehog', 'monster', 'otter', 'giraffe', 'spot']);
+  });
+
+  it('are exactly the models the server accepts, wearing only what it accepts (characters.json)', () => {
+    // A Record over the generated type: adding a model to the server's AppearanceView without
+    // listing it here fails to compile, and the catalogue must match it.
+    const models: Record<CharacterModel, true> = { llama: true, fox: true, hedgehog: true, monster: true, otter: true, giraffe: true, spot: true };
+    expect(characters.map((c) => c.id).sort()).toEqual(Object.keys(models).sort());
+    for (const c of characters) {
+      expect(c.accessories[0]).toBe('none');
+      for (const a of c.accessories) expect(accessories).toContain(a);
+      for (const key of Object.keys(c.colourLabels)) expect(['wool', 'face', 'ear', 'blush', 'accent']).toContain(key);
+    }
   });
 });

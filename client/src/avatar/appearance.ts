@@ -2,6 +2,7 @@
 // MOBILE.md §6), which it validates - colours are #rrggbb and the accessory is one of the known ones
 // before anything here puts them into CSS.
 import type { AppearanceView, LlamaColours } from '../protocol/generated';
+import catalogue from './characters.json';
 
 export type { LlamaColours };
 
@@ -18,22 +19,6 @@ export type CharacterModel = Exclude<Appearance['model'], 'vrm'>;
 /** How a built-in character is drawn: flat (SVG), or modelled and lit (three.js). */
 export type AvatarStyle = Appearance['style'];
 
-
-/** The look the llama was drawn with; matches the server's default. */
-export const classicColours: LlamaColours = { wool: '#fdfaf5', face: '#e4d6cc', ear: '#b3a093', blush: '#f4aab5', accent: '#7c5cff' };
-
-export const defaultAppearance: Appearance = { model: 'llama', vrmId: null, colours: classicColours, accessory: 'none', style: '2d' };
-
-/** The llama's starting points in the studio. Every colour can still be changed after picking one. */
-export const presets: readonly { name: string; colours: LlamaColours }[] = [
-  { name: 'Classic', colours: classicColours },
-  { name: 'Cocoa', colours: { wool: '#8a6249', face: '#ead2bd', ear: '#5c3f2e', blush: '#f2a3a3', accent: '#e8b04a' } },
-  { name: 'Storm', colours: { wool: '#b9bcc4', face: '#ece6e1', ear: '#6f7380', blush: '#f0a6b8', accent: '#3d7bd9' } },
-  { name: 'Midnight', colours: { wool: '#3b3a48', face: '#d9cfc8', ear: '#22212b', blush: '#e891a6', accent: '#f5c542' } },
-  { name: 'Rosy', colours: { wool: '#f7d4dc', face: '#f3e2d9', ear: '#d78ea0', blush: '#f08aa5', accent: '#8d5bd6' } },
-  { name: 'Mint', colours: { wool: '#d3efe3', face: '#efe4da', ear: '#7fbfa5', blush: '#f4a9b4', accent: '#e86f5a' } },
-];
-
 export interface CharacterInfo {
   id: CharacterModel;
   name: string;
@@ -43,104 +28,23 @@ export interface CharacterInfo {
   colourLabels: Partial<Record<keyof LlamaColours, string>>;
   accessories: readonly Accessory[];
   /** Has a 3D version yet. */
-  has3d?: boolean;
+  has3d: boolean;
 }
 
-/** The built-in characters, as the studio offers them. The first preset is each one's default. */
-export const characters: readonly CharacterInfo[] = [
-  {
-    id: 'llama',
-    name: 'Llama',
-    blurb: 'Big ears that show every feeling, and spectacular lashes.',
-    presets,
-    colourLabels: { wool: 'Fleece', face: 'Face', ear: 'Ears & hooves', blush: 'Cheeks', accent: 'Accessory' },
-    accessories,
-    has3d: true,
-  },
-  {
-    id: 'fox',
-    name: 'Fox',
-    blurb: 'Swivelling pointed ears and a bushy tail that swishes when it’s happy.',
-    presets: [
-      { name: 'Red fox', colours: { wool: '#e0773a', face: '#fbf1e4', ear: '#3a2721', blush: '#f4a0a0', accent: '#2e7d8c' } },
-      { name: 'Arctic', colours: { wool: '#eef1f5', face: '#ffffff', ear: '#7d8696', blush: '#f2a6b8', accent: '#3d7bd9' } },
-      { name: 'Silver', colours: { wool: '#6f7280', face: '#e8e6e3', ear: '#2b2c33', blush: '#eb98ad', accent: '#e8b04a' } },
-      { name: 'Fennec', colours: { wool: '#e9c99b', face: '#fbf3e6', ear: '#c98f6b', blush: '#f4a9a0', accent: '#d6577c' } },
-    ],
-    colourLabels: { wool: 'Coat', face: 'Muzzle & chest', ear: 'Inner ears & paws', blush: 'Cheeks', accent: 'Accessory' },
-    accessories,
-    has3d: true,
-  },
-  {
-    id: 'hedgehog',
-    name: 'Hedgehog',
-    blurb: 'A round ball of soft prickles that bristle when it’s startled and lie flat when it’s sad.',
-    presets: [
-      { name: 'Hedgerow', colours: { wool: '#a38a74', face: '#f6ecdf', ear: '#d9b598', blush: '#f2a3a3', accent: '#5d9a4a' } },
-      { name: 'Snowy', colours: { wool: '#d8d2c8', face: '#fbf6ef', ear: '#e3c5c2', blush: '#f4a9b8', accent: '#8d5bd6' } },
-      { name: 'Cinnamon', colours: { wool: '#b06a3b', face: '#f6e2cc', ear: '#d99c7a', blush: '#f19a8e', accent: '#2e7d8c' } },
-    ],
-    colourLabels: { wool: 'Prickles', face: 'Face & tummy', ear: 'Ears & paws', blush: 'Cheeks', accent: 'Accessory' },
-    accessories,
-    has3d: true,
-  },
-  {
-    id: 'monster',
-    name: 'Fuzzy monster',
-    blurb: 'Googly eyes, stubby horns and fur that stands on end when it’s surprised.',
-    presets: [
-      { name: 'Teal', colours: { wool: '#3bb3a8', face: '#a8e6d8', ear: '#f4d35e', blush: '#f58f9e', accent: '#e8505b' } },
-      { name: 'Grape', colours: { wool: '#7b52c7', face: '#c9b4ef', ear: '#ffd166', blush: '#ff8fab', accent: '#06d6a0' } },
-      { name: 'Tangerine', colours: { wool: '#f08a36', face: '#ffd2a8', ear: '#6c4ab6', blush: '#ef6f8a', accent: '#118ab2' } },
-      { name: 'Bubblegum', colours: { wool: '#f28bbd', face: '#ffd0e6', ear: '#8ecae6', blush: '#e5527f', accent: '#ffb703' } },
-    ],
-    colourLabels: { wool: 'Fur', face: 'Belly', ear: 'Horns & paws', blush: 'Cheeks', accent: 'Accessory' },
-    accessories,
-    has3d: true,
-  },
-  {
-    id: 'otter',
-    name: 'Otter',
-    blurb: 'Sleek and round, with a big whiskery muzzle and a thick tail curled round beside it.',
-    presets: [
-      { name: 'River', colours: { wool: '#8a5a3c', face: '#ecd9c0', ear: '#3f2a1f', blush: '#f2a3a3', accent: '#2e7d8c' } },
-      { name: 'Sea', colours: { wool: '#6b5a4e', face: '#f1e6d6', ear: '#2f2620', blush: '#f0a6b8', accent: '#e8b04a' } },
-      { name: 'Golden', colours: { wool: '#b37b46', face: '#f5e4c8', ear: '#5a3a22', blush: '#f4a9a0', accent: '#5d9a4a' } },
-      { name: 'Snow', colours: { wool: '#cfc6bc', face: '#fbf7f1', ear: '#6f6359', blush: '#f4a9b8', accent: '#8d5bd6' } },
-    ],
-    colourLabels: { wool: 'Coat', face: 'Muzzle & chest', ear: 'Nose & paws', blush: 'Cheeks', accent: 'Accessory' },
-    accessories,
-    has3d: true,
-  },
-  {
-    id: 'giraffe',
-    name: 'Giraffe',
-    blurb: 'A long neck, a patchwork coat, little horns and the longest lashes of all.',
-    presets: [
-      { name: 'Savanna', colours: { wool: '#f2c66b', face: '#faecd0', ear: '#a8612f', blush: '#f4a0a0', accent: '#2e7d8c' } },
-      { name: 'Sunset', colours: { wool: '#f4a65e', face: '#fde3c6', ear: '#8c3f22', blush: '#ef8f8f', accent: '#7c5cff' } },
-      { name: 'Pastel', colours: { wool: '#f7dfa8', face: '#fff4de', ear: '#d9a06a', blush: '#f4a9b8', accent: '#3d7bd9' } },
-      { name: 'Midnight', colours: { wool: '#5b5770', face: '#d8d3e6', ear: '#2c2a38', blush: '#e891a6', accent: '#f5c542' } },
-    ],
-    colourLabels: { wool: 'Coat', face: 'Muzzle & tummy', ear: 'Patches, mane & horns', blush: 'Cheeks', accent: 'Accessory' },
-    accessories,
-    has3d: true,
-  },
-  {
-    id: 'spot',
-    name: 'Spot',
-    blurb: 'No face at all: it shows how it feels with its shape, its surface and its colour.',
-    presets: [
-      { name: 'Violet', colours: { wool: '#7c5cff', face: '#7c5cff', ear: '#7c5cff', blush: '#7c5cff', accent: '#c4b5ff' } },
-      { name: 'Ocean', colours: { wool: '#2a9d8f', face: '#2a9d8f', ear: '#2a9d8f', blush: '#2a9d8f', accent: '#8ee3ef' } },
-      { name: 'Ember', colours: { wool: '#e76f51', face: '#e76f51', ear: '#e76f51', blush: '#e76f51', accent: '#f4a261' } },
-      { name: 'Moon', colours: { wool: '#d9d6cf', face: '#d9d6cf', ear: '#d9d6cf', blush: '#d9d6cf', accent: '#ffffff' } },
-    ],
-    colourLabels: { wool: 'Colour', accent: 'Glow' },
-    accessories: ['none'],
-    has3d: true,
-  },
-];
+/**
+ * The built-in characters, as the studio offers them; the first preset is each one's default. In
+ * characters.json so the phone apps' studio offers the same (client/scripts/protocol.mjs generates
+ * their Kotlin copy).
+ */
+export const characters = catalogue as readonly CharacterInfo[];
+
+/** The look the llama was drawn with; matches the server's default. */
+export const classicColours: LlamaColours = characters[0]!.presets[0]!.colours;
+
+export const defaultAppearance: Appearance = { model: 'llama', vrmId: null, colours: classicColours, accessory: 'none', style: '2d' };
+
+/** The llama's starting points in the studio. Every colour can still be changed after picking one. */
+export const presets = characters[0]!.presets;
 
 export const characterInfo = (model: CharacterModel): CharacterInfo => characters.find((c) => c.id === model) ?? characters[0]!;
 
