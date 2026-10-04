@@ -58,6 +58,7 @@ import app.familiar.shared.conversation.ChatMessage
 import app.familiar.shared.conversation.Connection
 import app.familiar.shared.conversation.ToolChip
 import app.familiar.shared.session.FamiliarSession
+import app.familiar.shared.ui.settings.Route
 import kotlinx.coroutines.launch
 
 private val emotionLabels = mapOf(
@@ -89,7 +90,7 @@ private val avatarStates = setOf("idle", "listening", "thinking", "speaking", "r
  * screen - a hands-free conversation carries on with the screen off.
  */
 @Composable
-fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyList()) {
+fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyList(), open: (Route) -> Unit = {}) {
     val scope = rememberCoroutineScope()
     val controller = session.controller
     val avatar = session.avatar
@@ -253,6 +254,14 @@ fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyLi
                 Box {
                     TextButton(onClick = { menu = true }) { Text("⋮") }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(text = { Text("Settings") }, onClick = {
+                            menu = false
+                            open(Route.Settings)
+                        })
+                        DropdownMenuItem(text = { Text("Studio") }, onClick = {
+                            menu = false
+                            open(Route.Studio)
+                        })
                         DropdownMenuItem(text = { Text("New conversation") }, onClick = {
                             menu = false
                             controller.startOver()

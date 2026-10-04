@@ -36,6 +36,8 @@ kotlin {
         }
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
+            // BackHandler, for the settings screens.
+            implementation(libs.androidx.activity.compose)
             // Silero, for hands-free's speech detection.
             implementation(libs.onnxruntime.android)
         }

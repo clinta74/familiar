@@ -65,6 +65,9 @@ class AvatarController {
 
     fun silence() = emit(call("silence"))
 
+    /** Turned round this far, in radians (0 faces front): a 3D character seen from the side. */
+    fun turn(radians: Double) = emit(call("turn", JsonPrimitive(radians)))
+
     /**
      * The stream's moments: expressions, gestures, and - when nothing is being played aloud - the
      * reply text moving the mouth. State is set separately, since it also depends on the phone

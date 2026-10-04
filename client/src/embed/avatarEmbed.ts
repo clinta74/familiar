@@ -24,6 +24,8 @@ export interface AvatarEmbed {
   level(level: number): void;
   /** Nothing is being said. */
   silence(): void;
+  /** Turned round this far (radians; 0 faces front): the studio shows a 3D character from the side. */
+  turn(radians: number): void;
 }
 
 const stage = document.getElementById('stage')!;
@@ -32,6 +34,7 @@ let driver: AvatarDriver | null = null;
 let model = '';
 let appearance: Appearance = defaultAppearance;
 let state: AvatarState = 'idle';
+let turned = 0;
 let building: Promise<void> = Promise.resolve();
 
 let words: TimedWord[] | null = null;
@@ -53,6 +56,7 @@ function rebuild() {
     const next = await createAvatar(stage, appearance);
     driver = next;
     driver.setState(state);
+    driver.setTurn?.(turned);
     delete stage.dataset.loading;
   });
 }
@@ -100,6 +104,10 @@ const embed: AvatarEmbed = {
   level(next) {
     loudness = Math.max(0, Math.min(1, next));
     if (!words) driver?.setMouthOpen(loudness);
+  },
+  turn(radians) {
+    turned = radians;
+    driver?.setTurn?.(radians);
   },
   silence() {
     words = null;

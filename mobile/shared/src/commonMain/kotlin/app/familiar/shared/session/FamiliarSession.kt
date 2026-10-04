@@ -23,8 +23,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import app.familiar.shared.protocol.AppearanceView
+import app.familiar.shared.protocol.FamiliarJson
+import app.familiar.shared.protocol.FamiliarView
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 
 /**
  * One signed-in device's familiar: the conversation stream, the voice, the avatar's state, and the
@@ -36,7 +40,7 @@ class FamiliarSession(
     val signedIn: SignedIn,
     private val store: SecureStore,
     val calendar: DeviceCalendar?,
-    speechAudio: SpeechAudio?,
+    private val speechAudio: SpeechAudio?,
     val microphone: Microphone?,
     handsFreeAudio: HandsFreeAudio?,
     /** The phone's alarms, kept in step with the timers and reminders. */
@@ -263,6 +267,33 @@ class FamiliarSession(
                 setHandsFree(false)
             }
         }
+    }
+
+    /** Saved in Settings or the studio: the chat's name and avatar follow at once. */
+    fun profileSaved(profile: FamiliarView) {
+        controller.renamed(profile.name)
+        profile.appearance?.let { appearance ->
+            val look = FamiliarJson.encodeToJsonElement(AppearanceView.serializer(), appearance).jsonObject
+            avatar.look(look)
+            store.write(lookKey(signedIn.username), look.toString())
+        }
+    }
+
+    /**
+     * Plays a sample of [voice] at [speed] through the phone's speaker, cutting off anything the
+     * familiar is saying. False when there's no speaker or the sample couldn't be played.
+     */
+    suspend fun previewVoice(voice: String, speed: Double): Boolean {
+        val audio = speechAudio ?: return false
+        val pcm = runCatching { audio.decode(api.voicePreview(voice, speed)) }.getOrNull() ?: return false
+        player?.stop()
+        audio.focus(true)
+        try {
+            audio.play(pcm) { _, _ -> }
+        } finally {
+            audio.focus(false)
+        }
+        return true
     }
 
     fun signOut() {

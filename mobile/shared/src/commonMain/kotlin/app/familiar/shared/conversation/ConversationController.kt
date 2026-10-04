@@ -128,6 +128,11 @@ class ConversationController(
         }
     }
 
+    /** The familiar was renamed in Settings: the chat says so straight away, not at the next reconnect. */
+    fun renamed(name: String) {
+        _state.update { it.copy(familiarName = name) }
+    }
+
     /** Uploads the phone's calendar now rather than at the next quarter-hour. */
     fun syncCalendar() {
         scope.launch { uploadCalendar() }

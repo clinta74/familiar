@@ -4,6 +4,8 @@ import android.Manifest
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.provider.OpenableColumns
 import android.provider.Settings
 import app.familiar.shared.session.FamiliarSessions
 import app.familiar.shared.ui.PlatformAction
@@ -14,6 +16,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import app.familiar.shared.platform.AndroidDeviceCalendar
+import app.familiar.shared.platform.FilePicker
+import app.familiar.shared.platform.PickedFile
 import app.familiar.shared.platform.KeystoreStore
 import app.familiar.shared.ui.FamiliarApp
 import app.familiar.shared.voice.AndroidHandsFree
@@ -21,7 +25,9 @@ import app.familiar.shared.voice.AndroidMicrophone
 import app.familiar.shared.voice.AndroidSpeechAudio
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** The app's one screen; everything inside is the shared Compose UI (mobile/shared). */
 class MainActivity : ComponentActivity() {
@@ -35,6 +41,30 @@ class MainActivity : ComponentActivity() {
     private val permissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         permissionAnswer?.complete(Unit)
         permissionAnswer = null
+    }
+
+    private var documentAnswer: CompletableDeferred<Uri?>? = null
+
+    /** The system's file chooser (a VRM model, in the studio). */
+    private val documents = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        documentAnswer?.complete(uri)
+        documentAnswer = null
+    }
+
+    private val files = object : FilePicker {
+        override suspend fun pick(): PickedFile? {
+            documentAnswer?.complete(null)
+            val answer = CompletableDeferred<Uri?>().also { documentAnswer = it }
+            // VRM has no MIME type of its own; providers report it as binary, or as glTF.
+            documents.launch(arrayOf("model/gltf-binary", "application/octet-stream", "*/*"))
+            val uri = answer.await() ?: return null
+            return withContext(Dispatchers.IO) {
+                val name = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                } ?: "model.vrm"
+                contentResolver.openInputStream(uri)?.use { PickedFile(name, it.readBytes()) }
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,6 +82,7 @@ class MainActivity : ComponentActivity() {
                 AppServices.microphone,
                 AppServices.handsFree,
                 AppServices.alarms,
+                files,
                 onSession = {
                     askForNotifications()
                     Push.register(this)
@@ -96,6 +127,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         if (Permissions.activity === this) Permissions.activity = null
         permissionAnswer?.complete(Unit)
+        documentAnswer?.complete(null)
         super.onDestroy()
     }
 

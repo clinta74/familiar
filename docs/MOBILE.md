@@ -283,6 +283,23 @@ mode.
   opening the system's assistant page. Not yet: the widget on a home screen (needs the launcher),
   and all of it on the phone.
 
+**Settings and the studio (2026-10-04).** Everything a user can change on the web, natively: the
+chat menu's Settings has the familiar (name, personality, voice with a preview, saying hello first),
+what it remembers, calendars, connections (hook tokens, webhooks, MCP servers), the account and its
+password, and devices; and Studio changes the look with the avatar previewing it live (turned round
+in 3D, trying expressions and gestures), VRM uploads through the system's file chooser included.
+Saving updates the chat's name and avatar at once. User administration stays on the web.
+- *One list of characters.* The studio's characters, presets, colour names and accessories are
+  `client/src/avatar/characters.json`, which the web client imports and `npm run protocol` turns into
+  `Characters.kt` (checked in CI with the protocol types), so the two studios can't drift.
+- *The password from the phone.* It used to be browser-only; the current password is required either
+  way. The phone that changes it stays signed in (its token takes the new security stamp), every other
+  browser and phone is signed out.
+- Verified on an emulator against the dev server with a throwaway account: renaming the familiar (the
+  chat's title followed), the voice preview, the fox in 3D turned round and saved (the server stored
+  it), adding a memory, a hook token created and revoked, the password changed from the phone (the
+  browser session signed out, the phone still in), the devices list.
+
 **Device calendar (2026-10-03), the first of M3.** "Use this phone's calendar" in the chat menu asks
 for READ/WRITE_CALENDAR. Once allowed, the app reads `CalendarContract.Instances` (visible
 calendars; declined and cancelled left out) from 12 hours ago to 14 days ahead and uploads it on

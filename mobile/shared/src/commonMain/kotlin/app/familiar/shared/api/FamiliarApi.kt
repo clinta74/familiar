@@ -1,13 +1,30 @@
 package app.familiar.shared.api
 
+import app.familiar.shared.protocol.AccountResponse
+import app.familiar.shared.protocol.AddFeedRequest
+import app.familiar.shared.protocol.AvatarView
+import app.familiar.shared.protocol.CalendarView
+import app.familiar.shared.protocol.ChangePasswordRequest
 import app.familiar.shared.protocol.DeviceCalendarUpload
 import app.familiar.shared.protocol.DeviceEventView
 import app.familiar.shared.protocol.DeviceLoginRequest
 import app.familiar.shared.protocol.DeviceLoginResponse
+import app.familiar.shared.protocol.DeviceSummary
 import app.familiar.shared.protocol.ErrorBody
+import app.familiar.shared.protocol.EventView
 import app.familiar.shared.protocol.FamiliarJson
+import app.familiar.shared.protocol.FamiliarView
+import app.familiar.shared.protocol.HookTokenView
 import app.familiar.shared.protocol.InterruptRequest
 import app.familiar.shared.protocol.JobView
+import app.familiar.shared.protocol.McpServerRequest
+import app.familiar.shared.protocol.McpServerView
+import app.familiar.shared.protocol.McpToolsRequest
+import app.familiar.shared.protocol.MemoryRequest
+import app.familiar.shared.protocol.MemoryView
+import app.familiar.shared.protocol.NameRequest
+import app.familiar.shared.protocol.NewHookTokenView
+import app.familiar.shared.protocol.NewWebhookView
 import app.familiar.shared.protocol.NotificationView
 import app.familiar.shared.protocol.PushKeyResponse
 import app.familiar.shared.protocol.SubscribeRequest
@@ -15,6 +32,11 @@ import app.familiar.shared.protocol.MessageView
 import app.familiar.shared.protocol.SendMessageRequest
 import app.familiar.shared.protocol.ServerEvent
 import app.familiar.shared.protocol.ToolResultRequest
+import app.familiar.shared.protocol.VoicesView
+import app.familiar.shared.protocol.WebhookRequest
+import app.familiar.shared.protocol.WebhookTestResult
+import app.familiar.shared.protocol.WebhookView
+import io.ktor.http.encodeURLParameter
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
@@ -133,6 +155,124 @@ class FamiliarApi(
 
     /** An uploaded VRM model, for the avatar page, which can't fetch it itself. */
     suspend fun avatarModel(id: String): ByteArray = call { http.get("api/avatars/$id/model") }
+
+    // --- Settings and the studio: everything the web's Settings page does but user admin ---------
+
+    /** Who the familiar is, how it sounds and how it looks. */
+    suspend fun profile(): FamiliarView = call { http.get("api/familiar") }
+
+    /** Saves the whole profile; the server's copy (validated) comes back. */
+    suspend fun saveProfile(profile: FamiliarView): FamiliarView = put("api/familiar", profile)
+
+    suspend fun voices(): VoicesView = call { http.get("api/familiar/voices") }
+
+    /** A sentence in [voice] at [speed], as audio, to hear before choosing it. */
+    suspend fun voicePreview(voice: String, speed: Double): ByteArray =
+        call { http.get("api/familiar/voice-preview?voice=${voice.encodeURLParameter()}&speed=$speed") }
+
+    /** The VRM models this account uploaded. */
+    suspend fun avatars(): List<AvatarView> = call { http.get("api/avatars") }
+
+    /** Uploads a VRM model (up to 40 MB); it's offered in the studio from then on. */
+    suspend fun uploadAvatar(fileName: String, bytes: ByteArray): AvatarView =
+        call {
+            http.post("api/avatars?fileName=${fileName.encodeURLParameter()}") {
+                setBody(ByteArrayContent(bytes, ContentType("model", "gltf-binary")))
+            }
+        }
+
+    /** Deletes an uploaded model; a familiar wearing it goes back to the llama. */
+    suspend fun deleteAvatar(id: String) = delete("api/avatars/$id")
+
+    suspend fun account(): AccountResponse = call { http.get("api/auth/me") }
+
+    /** Every other browser and phone is signed out; this one stays signed in. */
+    suspend fun changePassword(current: String, new: String) = post("api/auth/password", ChangePasswordRequest(current, new))
+
+    /** The phones signed in to this account, this one marked. */
+    suspend fun devices(): List<DeviceSummary> = call { http.get("api/auth/devices") }
+
+    suspend fun memories(): List<MemoryView> = call { http.get("api/memories") }
+
+    suspend fun addMemory(text: String): MemoryView = postFor("api/memories", MemoryRequest(text))
+
+    suspend fun updateMemory(id: String, text: String): MemoryView = put("api/memories/$id", MemoryRequest(text))
+
+    suspend fun forgetMemory(id: String) = delete("api/memories/$id")
+
+    suspend fun forgetEverything() = delete("api/memories")
+
+    suspend fun calendars(): List<CalendarView> = call { http.get("api/calendars") }
+
+    /** Subscribes to a feed by its (secret) iCal address; fetched straight away. */
+    suspend fun addCalendar(name: String, url: String): CalendarView = postFor("api/calendars", AddFeedRequest(name, url))
+
+    suspend fun syncCalendar(id: String): CalendarView = call { http.post("api/calendars/$id/sync") }
+
+    suspend fun removeCalendar(id: String) = delete("api/calendars/$id")
+
+    /** The next [days] days, across every calendar. */
+    suspend fun events(days: Int = 7): List<EventView> = call { http.get("api/calendars/events?days=$days") }
+
+    /** Deletes an event from the familiar's own calendar. */
+    suspend fun deleteEvent(id: String) = delete("api/calendars/events/$id")
+
+    suspend fun hookTokens(): List<HookTokenView> = call { http.get("api/hooks/tokens") }
+
+    /** A new token, shown once. */
+    suspend fun createHookToken(name: String): NewHookTokenView = postFor("api/hooks/tokens", NameRequest(name))
+
+    suspend fun revokeHookToken(id: String) = delete("api/hooks/tokens/$id")
+
+    suspend fun webhooks(): List<WebhookView> = call { http.get("api/webhooks") }
+
+    /** A new webhook and its signing secret, shown once. */
+    suspend fun createWebhook(request: WebhookRequest): NewWebhookView = postFor("api/webhooks", request)
+
+    suspend fun testWebhook(id: String): WebhookTestResult = call { http.post("api/webhooks/$id/test") }
+
+    suspend fun deleteWebhook(id: String) = delete("api/webhooks/$id")
+
+    suspend fun mcpServers(): List<McpServerView> = call { http.get("api/mcp") }
+
+    /** Connects and lists its tools; a connection problem comes back as the server's `lastError`. */
+    suspend fun addMcpServer(request: McpServerRequest): McpServerView = postFor("api/mcp", request)
+
+    suspend fun refreshMcpServer(id: String): McpServerView = call { http.post("api/mcp/$id/refresh") }
+
+    /** Which of its tools the familiar may use. */
+    suspend fun setMcpTools(id: String, enabled: List<String>): McpServerView = put("api/mcp/$id/tools", McpToolsRequest(enabled))
+
+    suspend fun deleteMcpServer(id: String) = delete("api/mcp/$id")
+
+    private suspend inline fun <reified B : Any> post(path: String, body: B) {
+        call<Unit> {
+            http.post(path) {
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+        }
+    }
+
+    private suspend inline fun <reified B : Any, reified T> postFor(path: String, body: B): T =
+        call {
+            http.post(path) {
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+        }
+
+    private suspend inline fun <reified B : Any, reified T> put(path: String, body: B): T =
+        call {
+            http.put(path) {
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+        }
+
+    private suspend fun delete(path: String) {
+        call<Unit> { http.delete(path) }
+    }
 
     /** A spoken sentence, by the url its `audio` event gave. */
     suspend fun clip(url: String): ByteArray = call { http.get(url.trimStart('/')) }

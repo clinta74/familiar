@@ -5,6 +5,11 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import java.security.KeyStore
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.TimeZone
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -12,6 +17,13 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 actual fun currentTimeZoneId(): String = TimeZone.getDefault().id
+
+actual fun formatInstant(iso: String, withTime: Boolean, utc: Boolean): String = runCatching {
+    val zone: ZoneId = if (utc) ZoneOffset.UTC else ZoneId.systemDefault()
+    val format = if (withTime) DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT) else DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+    // Not Instant.parse: before Android 13 its java.time won't take an offset ("+00:00"), which .NET writes.
+    format.format(OffsetDateTime.parse(iso).atZoneSameInstant(zone))
+}.getOrDefault(iso)
 
 /**
  * Values encrypted with an AES key that lives in the Android Keystore (it never leaves the secure
