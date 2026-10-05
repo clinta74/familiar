@@ -280,7 +280,15 @@ each tool's description costs prompt tokens on every turn (item 5), so they shou
 chosen per account (and who chooses - the admin, or each user); whether general search is wanted at all.
 
 
-### 16. Saying the time like a person — to do
+### 16. ~~Saying the time like a person~~ — done (2026-10-05)
+
+`ClockWords` (Familiar.Agent/Speech): the notes give the time roughly first ("just after noon (12:02
+PM)"), reminders and events later today say how long until them ("at 6:00 PM (in about 50 minutes)"),
+the instructions ask for times as people say them unless asked exactly, and any digit time left in a
+reply is spoken in words ("12:02" -> "twelve oh two"). Chips in the chat keep the plain clock time.
+Tried on the real model: "just after five in the afternoon", "in about twenty-five minutes", "coming
+up in about fifty minutes", and asked exactly, "five twelve in the afternoon". The original notes:
+
 
 Asked for 2026-10-05: "It is currently twelve zero two in the afternoon" is how it answered "what
 time is it?". In casual conversation it should sound like a person - "just after twelve", "about ten
@@ -299,6 +307,12 @@ What to change:
 - **Before speaking** (`SpeechText`): turn any digit times left in a reply into words ("12:02" ->
   "twelve oh two", "3:30pm" -> "half past three"), so even an exact time sounds natural.
 - Test it on the real model with "what time is it?", "when's my timer done?", "when is my meeting?".
+
+
+### 17. Yawning on the 3D giraffe and otter: a strip down the chin — to look at
+
+Reported 2026-10-05: when the giraffe or the otter (3D) yawns, the mouth shows artifacts that look like
+a strip running down the chin. The other characters yawn correctly.
 
 ---
 

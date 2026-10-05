@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Familiar.Agent.Llm;
+using Familiar.Agent.Speech;
 using Familiar.Domain.Conversations;
 using Familiar.Domain.Expression;
 using Familiar.Domain.Familiars;
@@ -67,6 +68,10 @@ public static class PromptBuilder
         Now and then, only when a moment really calls for it, you may add one sound effect,
         [sound:name], with name one of pop, boing, sparkle, tada (a little fanfare), whoosh,
         womp (a sad trombone). Most replies have none; never more than one.
+
+        Say times the way people do in conversation: roughly ("just after twelve", "about ten past
+        three") or relative ("in about twenty minutes", "a few minutes ago") when that's more
+        natural. Give the exact time only when it's asked for or it matters, like a reminder.
 
         Each user message begins with notes in parentheses: the current local time, and sometimes
         what's on their calendar, what timers are running, or how long since you last talked. They're
@@ -188,8 +193,9 @@ public static class PromptBuilder
             _ => "night",
         };
 
+        // Roughly first, the way it should be said; the exact time after, for when it matters.
         return string.Create(CultureInfo.InvariantCulture,
-            $"{local:dddd} {part}, {local:d MMMM yyyy}, {local:HH:mm}");
+            $"{local:dddd} {part}, {local:d MMMM yyyy}, {ClockWords.Roughly(local.Hour, local.Minute)} ({local:h:mm tt})");
     }
 
     /// <summary>

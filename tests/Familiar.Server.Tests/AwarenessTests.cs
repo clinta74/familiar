@@ -449,6 +449,6 @@ public sealed class AwarenessUnitTests
 
         Assert.StartsWith(without[0].Content, messages[0].Content, StringComparison.Ordinal);
         Assert.EndsWith("- Their name is Sam.", messages[0].Content, StringComparison.Ordinal);
-        Assert.Equal("(Thursday evening, 1 October 2026, 17:30. On their calendar: Dentist, in 25 minutes) hi", messages[^1].Content);
+        Assert.Equal("(Thursday evening, 1 October 2026, half past five (5:30 PM). On their calendar: Dentist, in 25 minutes) hi", messages[^1].Content);
     }
 }

@@ -138,10 +138,9 @@ public sealed class CreateReminderTool(Scheduler scheduler) : ITool
             return ToolResult.Failure($"There are already {Scheduler.MaxPending} timers and reminders running.");
         }
 
-        var when = Spoken.When(due, context.Zone, context.Now);
         return ToolResult.Success(
-            new JsonObject { ["ok"] = true, ["reminder"] = new JsonObject { ["text"] = text, ["when"] = when } },
-            $"Reminder: {text}, {when}");
+            new JsonObject { ["ok"] = true, ["reminder"] = new JsonObject { ["text"] = text, ["when"] = Spoken.When(due, context.Zone, context.Now) } },
+            $"Reminder: {text}, {Spoken.When(due, context.Zone, context.Now, relative: false)}");
     }
 
     /// <summary>
@@ -299,7 +298,7 @@ public sealed class CancelScheduledTool(Scheduler scheduler) : ITool
         var name = job.Kind == JobKind.Timer
             ? job.Label.Length > 0 ? $"{job.Label} timer" : $"{Spoken.Duration(job.DurationSeconds ?? 0)} timer"
             : $"reminder to {job.Label}";
-        return $"{name} ({Spoken.When(job.DueAt, context.Zone, context.Now)})";
+        return $"{name} ({Spoken.When(job.DueAt, context.Zone, context.Now, relative: false)})";
     }
 }
 

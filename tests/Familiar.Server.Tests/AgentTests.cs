@@ -143,7 +143,7 @@ public sealed class PromptBuilderTests
         Assert.Contains("You are Pip, alice's familiar", prompt[0].Content, StringComparison.Ordinal);
         Assert.Equal("[joy:0.8] Hello!", prompt[2].Content);
         Assert.Equal("[neutral:0.5] As I was say…", prompt[3].Content);
-        Assert.Equal("(Thursday night, 1 October 2026, 22:30) What's up?", prompt[4].Content);
+        Assert.Equal("(Thursday night, 1 October 2026, half past ten (10:30 PM)) What's up?", prompt[4].Content);
     }
 
     [Fact]

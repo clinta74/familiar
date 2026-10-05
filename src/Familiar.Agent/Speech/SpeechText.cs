@@ -8,6 +8,8 @@ public static class SpeechText
 {
     public static string Clean(string text)
     {
+        // "12:02" would be read digit by digit ("twelve zero two"): in words, as a person says it.
+        text = ClockWords.SpeakTimes(text);
         var builder = new StringBuilder(text.Length);
         var enumerator = StringInfo.GetTextElementEnumerator(text);
 

@@ -66,7 +66,7 @@ public sealed class ConversationTests(PostgresFixture postgres)
 
         var prompt = app.Llm.LastPrompt!;
         Assert.Contains("You are Bramble, Al's familiar", prompt[0].Content, StringComparison.Ordinal);
-        Assert.Matches(@"^\(\w+ \w+, \d+ \w+ \d{4}, \d\d:\d\d\. This is the first time you've talked\) Hello$", prompt[^1].Content);
+        Assert.Matches(@"^\(\w+ \w+, \d+ \w+ \d{4}, [a-z' -]+ \(\d{1,2}:\d\d [AP]M\)\. This is the first time you've talked\) Hello$", prompt[^1].Content);
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using System.Globalization;
+using Familiar.Agent.Speech;
 using Familiar.Domain.Calendars;
 using Familiar.Domain.Scheduling;
 
@@ -43,14 +44,22 @@ public static class Spoken
     /// "at 6:40 PM", "tomorrow at 9:00 AM", "on Saturday 10 October at 9:00 AM" - in the user's time
     /// zone. A 12-hour clock: given "23:55" the model said "eleven minutes past".
     /// </summary>
-    public static string When(DateTimeOffset utc, TimeZoneInfo zone, DateTimeOffset now)
+    /// <param name="utc">The time.</param>
+    /// <param name="zone">The user's time zone.</param>
+    /// <param name="now">Now, for "today" and "tomorrow".</param>
+    /// <param name="relative">Add how long until it, for later today ("(in about 3 hours)"): for the
+    /// model, not for a chip in the chat, which would go stale.</param>
+    public static string When(DateTimeOffset utc, TimeZoneInfo zone, DateTimeOffset now, bool relative = true)
     {
         var local = TimeZoneInfo.ConvertTime(utc, zone);
         var today = TimeZoneInfo.ConvertTime(now, zone).Date;
         var time = local.ToString("h:mm tt", CultureInfo.InvariantCulture);
 
+        // Later today: how long that is too, which is how people talk about the next few hours.
+        var later = utc - now;
         return (local.Date - today).Days switch
         {
+            0 when relative && later > TimeSpan.Zero && later < TimeSpan.FromHours(12) => $"at {time} ({ClockWords.Relative(later)})",
             0 => $"at {time}",
             1 => $"tomorrow at {time}",
             > 1 and < 7 => $"on {local:dddd} at {time}",
