@@ -243,7 +243,20 @@ tool; a joke, with none.
 hours or more apart the server adds today's weather to the notes ("Weather where they live today:
 drizzle, 11-15°C, 70% chance of rain; 13°C now." - the town not named), cached and given at most three
 seconds, and the greeting may mention it when it's worth knowing. Tried on the real model: three
-hellos in Leeds on a drizzly day all mentioned the drizzle. **Next, if wanted:** Wikipedia summaries.
+hellos in Leeds on a drizzly day all mentioned the drizzle.
+
+**Done too (2026-10-05): facts and holidays.** `look_up` - the start of the Wikipedia article and the
+key facts from its Wikidata entry (each article names its entry, so one tool): dates to their
+precision ("officially opened 27 July 2026"), amounts with units, an office's current holder, and when
+the article was last edited; for anything that may have changed since the model learned it. It's told
+to search in the user's words unless it's sure of a name (it guessed "Blue Water Bridge" for "the new
+bridge from Canada to Michigan"; the search finds the Gordie Howe bridge). `public_holidays` - from
+Nager.Date, one request per country and year, cached: Wikidata can't stand in, since it describes most
+holidays by rule, not date. The country and region come from where the user lives, so regional
+holidays elsewhere are left out (Scotland's St Andrew's Day isn't Leeds'). Wikimedia rate-limits a
+client that doesn't say who it is: the user agent names the project. Tried on the real model: the
+bridge "officially opened back in July", Mark Carney as prime minister, Christmas Day as Leeds' next
+bank holiday, Columbus Day as Detroit's.
 
 
 Asked for 2026-10-04: definitions, facts and figures, the weather - without the web being a way to
@@ -340,6 +353,15 @@ gallery has yawn moments to check it (`moments=yawn,yawn-wide`). The other chara
 
 Reported 2026-10-05: when the giraffe or the otter (3D) yawns, the mouth shows artifacts that look like
 a strip running down the chin. The other characters yawn correctly.
+
+
+### 18. The avatar winds down when nothing's happening — bounce fixed (2026-10-05); sleepy to do
+
+Reported 2026-10-05: after a happy reply the avatar kept bouncing. **Fixed:** an expression lingers
+for 8 seconds, then softens and the bounce settles over a second and a half; after 45 seconds with
+nothing new the face is back to calm (`plush/engine.ts`, every built-in character, flat and 3D).
+**To do:** after a few minutes with nothing happening, a sleepy state - eyes drooping, the odd yawn,
+breathing slower - that it wakes from when someone types, talks, opens the page or a reply arrives.
 
 ---
 

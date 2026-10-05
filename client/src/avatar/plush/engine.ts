@@ -7,6 +7,10 @@ import { visemeMouth, type Viseme } from '../visemes';
 const LINGER_MS = 8000;
 /** What an emotion softens to once it has lingered. */
 const SOFTENED = 0.4;
+/** After this long idle with nothing new, the expression has worn off: back to a calm face. */
+const RELAX_MS = 45_000;
+/** How long a happy bounce takes to settle once the expression starts lingering. */
+const SETTLE_MS = 1500;
 
 export const GESTURE_MS: Record<Gesture, number> = { nod: 900, shake: 900, tilt: 1600, wave: 1600, shrug: 1000, laugh: 1400, wink: 750, sigh: 1700, yawn: 2200, excited: 1300 };
 
@@ -141,8 +145,8 @@ export abstract class PlushCharacter implements AvatarDriver {
   };
 
   private approachTarget(now: number, dt: number) {
-    const lingering = this.state === 'idle' && now - this.idleSince > LINGER_MS;
-    const intensity = lingering ? this.intensity * SOFTENED : this.intensity;
+    const quiet = this.state === 'idle' ? now - this.idleSince : 0;
+    const intensity = quiet > RELAX_MS ? 0 : quiet > LINGER_MS ? this.intensity * SOFTENED : this.intensity;
     const emotion: Emotion = this.state === 'thinking' ? 'thinking' : this.emotion;
     const strength = this.state === 'thinking' ? 0.8 : intensity;
     const target = faceFor(emotion, strength);
@@ -275,7 +279,10 @@ export abstract class PlushCharacter implements AvatarDriver {
     let gesture: Pose['gesture'] = null;
 
     if (this.emotion === 'joy' && this.state !== 'resting') {
-      hop = Math.abs(Math.sin(t * Math.PI * 2 * 1.3)) * this.intensity * motion;
+      // Bouncing while it's fresh; settling once it lingers, rather than bouncing for ever.
+      const quiet = this.state === 'idle' ? now - this.idleSince - LINGER_MS : 0;
+      const lively = Math.min(1, Math.max(0, 1 - quiet / SETTLE_MS));
+      hop = Math.abs(Math.sin(t * Math.PI * 2 * 1.3)) * this.intensity * motion * lively;
       dy -= hop * 5;
       earWiggle += hop * 6;
     }
