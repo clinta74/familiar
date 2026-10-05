@@ -126,7 +126,16 @@ hadn't had a busy state at all.
 
 ## Voice and sound
 
-### 14. Sound effects, and maybe singing — effects done (2026-10-04); vocal sounds waiting on a listen
+### 14. Sound effects, and maybe singing — effects done (2026-10-04); vocal sounds need another way
+
+**Kokoro can't make vocal sounds (listened to 2026-10-04):** given "Hehehe!", "Haaah…" and the like it
+reads them out as words. The options now: (1) synthesised cartoon vocalisations - vowel-shaped blips
+with a pitch contour, pitched to the voice (lower for male voices, higher for female), made in Web Audio
+like the effects (recommended: no files or licences, fits a plush toy); (2) CC0 recordings in a male and
+a female set, pitch-shifted per voice (realer, harder to match, can feel uncanny); (3) a TTS model with
+non-verbal cues (Orpheus, Dia: "<laugh>", "<sigh>" in the same voice) - replaces Kokoro and wants more
+GPU than the NAS has spare. **Next:** a prototype of (1) in the studio's sound row, to listen to.
+
 
 **Done: the non-vocal effects.** Pop, boing, sparkle, tada (a little fanfare), whoosh and womp (a sad
 trombone), synthesised with Web Audio (`client/src/voice/soundEffects.ts`), so nothing to fetch or
