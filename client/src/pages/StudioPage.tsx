@@ -14,7 +14,6 @@ import { emotions, gestures, type Emotion, type Gesture } from '../avatar/types'
 import { AvatarStage, type AvatarHandle } from '../components/AvatarStage';
 import type { AvatarView, SoundEffect } from '../protocol/generated';
 import { playSoundEffect, soundEffects } from '../voice/soundEffects';
-import { playVocalSound, vocalSounds, type VocalSound } from '../voice/vocalSounds';
 import { Shell } from './Shell';
 import { cachedLook, rememberLook } from '../avatar/lookCache';
 import { useAuth } from '../auth/AuthContext';
@@ -147,12 +146,6 @@ export function StudioPage() {
     playSoundEffect(sounds.current, sound);
   };
   useEffect(() => () => void sounds.current?.close(), []);
-  const [vocalPitch, setVocalPitch] = useState<'f' | 'm'>(() => (/^[a-z]m_/.test(profile?.voice ?? '') ? 'm' : 'f'));
-  const tryVocal = (sound: VocalSound) => {
-    sounds.current ??= new AudioContext();
-    void sounds.current.resume();
-    playVocalSound(sounds.current, sound, vocalPitch === 'm' ? 'am_' : 'af_');
-  };
 
   const setColour = (key: keyof LlamaColours, value: string) =>
     setLook((l) => ({ ...l, colours: { ...l.colours, [key]: value } }));
@@ -219,15 +212,6 @@ export function StudioPage() {
             {soundEffects.map((sound) => (
               <button key={sound} type="button" className="chip" onClick={() => trySound(sound)}>♪ {sound}</button>
             ))}
-          </div>
-          {/* A prototype (BACKLOG item 14): vocal sounds, synthesised, pitched to the voice. */}
-          <div className="try-row" aria-label="Try a vocal sound (prototype)">
-            {vocalSounds.map((sound) => (
-              <button key={sound} type="button" className="chip" onClick={() => tryVocal(sound)}>☺ {sound}</button>
-            ))}
-            <button type="button" className="chip" onClick={() => setVocalPitch((p) => (p === 'f' ? 'm' : 'f'))} aria-pressed={vocalPitch === 'm'}>
-              {vocalPitch === 'm' ? 'male voice' : 'female voice'}
-            </button>
           </div>
         </section>
 

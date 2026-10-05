@@ -1625,7 +1625,12 @@
         "sparkle",
         "tada",
         "whoosh",
-        "womp"
+        "womp",
+        "rimshot",
+        "drumroll",
+        "ding",
+        "slide",
+        "uhoh"
       ]
     },
     "SoundEvent": {

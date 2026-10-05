@@ -566,6 +566,11 @@ object SoundEffect {
     const val TADA = "tada"
     const val WHOOSH = "whoosh"
     const val WOMP = "womp"
+    const val RIMSHOT = "rimshot"
+    const val DRUMROLL = "drumroll"
+    const val DING = "ding"
+    const val SLIDE = "slide"
+    const val UHOH = "uhoh"
 }
 
 /** A sound effect to play now, made by the client (no audio to fetch). */

@@ -462,7 +462,7 @@ export interface SendMessageRequest {
  * the same whichever voice the familiar has. Vocal sounds (a giggle, a gasp) come later, in its
  * voice.
  */
-export type SoundEffect = 'pop' | 'boing' | 'sparkle' | 'tada' | 'whoosh' | 'womp';
+export type SoundEffect = 'pop' | 'boing' | 'sparkle' | 'tada' | 'whoosh' | 'womp' | 'rimshot' | 'drumroll' | 'ding' | 'slide' | 'uhoh';
 
 /** A sound effect to play now, made by the client (no audio to fetch). */
 export interface SoundEvent {

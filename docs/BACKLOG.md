@@ -133,7 +133,29 @@ hadn't had a busy state at all.
 
 ## Voice and sound
 
-### 14. Sound effects, and maybe singing — effects done (2026-10-04); vocal sounds need another way
+### 14. Sound effects, and maybe singing — effects done; vocal sounds need the voice itself
+
+**2026-10-05:** the synthesised vocal sounds (option 1 below) were listened to in the studio: the giggle
+and the gasp are far off, and none sound like the chosen voice. Taken out of the site (in git history:
+`client/src/voice/vocalSounds.ts`) until there's a way to make them in that voice. Instead, five more
+effects: rimshot (after a joke, with the womp), drumroll (before a reveal), ding (a good idea, a right
+answer), slide (a slide whistle going up) and uhoh (two falling notes, a small oops) - eleven in all.
+
+**How vocal sounds could match the chosen voice** - all made once per voice, offline on the dev box's
+GPU, cached as small clips the server hands out like speech clips, and listened to before anything ships:
+
+- **A speech model that can laugh, cloning the Kokoro voice** (try first): Dia (Nari Labs, Apache 2.0)
+  performs "(laughs)", "(gasps)", "(sighs)" and copies a voice from a short audio prompt; CosyVoice 2
+  does "[laughter]" and "[breath]" with zero-shot cloning. Prompted with a sentence Kokoro says in the
+  chosen voice, it should giggle in something close to it.
+- **Voice conversion of real recordings:** take good public-domain recordings of a giggle, a gasp, a
+  sigh, and convert each into the Kokoro voice with a voice-conversion model (Seed-VC, OpenVoice's tone
+  converter), again using a Kokoro sample as the target.
+- **Recordings, pitched per voice:** a female and a male set, shifted towards each voice's pitch - closer
+  than synthesis, still not the voice.
+
+**Next, when wanted:** a trial of the first in two or three voices, sent as clips to listen to.
+
 
 **Kokoro can't make vocal sounds (listened to 2026-10-04):** given "Hehehe!", "Haaah…" and the like it
 reads them out as words. The options now: (1) synthesised cartoon vocalisations - vowel-shaped blips

@@ -91,11 +91,14 @@ public sealed class ExpressionParserTests
     [InlineData("[sound:Sparkle]", SoundEffect.Sparkle)]
     [InlineData("[sound:ta-da]", SoundEffect.Tada)]
     [InlineData("[ sound : womp ]", SoundEffect.Womp)]
+    [InlineData("[sound:rim-shot]", SoundEffect.Rimshot)]
+    [InlineData("[sound:uh-oh]", SoundEffect.Uhoh)]
+    [InlineData("[sound:drumroll]", SoundEffect.Drumroll)]
     public void Sound_tags_are_understood(string tag, SoundEffect sound) =>
         Assert.Equal(new SoundToken(sound), ExpressionParser.TryParseTag(tag));
 
     [Theory]
-    [InlineData("Oh! [sound:drumroll] Here it is.")]
+    [InlineData("Oh! [sound:kazoo] Here it is.")]
     [InlineData("Oh! [sound:3] Here it is.")]
     public void A_sound_it_cannot_make_is_dropped_never_spoken(string text)
     {

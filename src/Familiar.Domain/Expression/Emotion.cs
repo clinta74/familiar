@@ -55,4 +55,19 @@ public enum SoundEffect
 
     /// <summary>A sad trombone: a gentle, comic "oh dear".</summary>
     Womp = 5,
+
+    /// <summary>"Ba-dum-tss": after a joke.</summary>
+    Rimshot = 6,
+
+    /// <summary>A snare roll and a hit: before a reveal.</summary>
+    Drumroll = 7,
+
+    /// <summary>A bright bell: a good idea, a right answer.</summary>
+    Ding = 8,
+
+    /// <summary>A slide whistle going up: up we go, getting excited.</summary>
+    Slide = 9,
+
+    /// <summary>Two little falling notes: a small oops.</summary>
+    Uhoh = 10,
 }

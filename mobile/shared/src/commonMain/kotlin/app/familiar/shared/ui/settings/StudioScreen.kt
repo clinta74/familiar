@@ -78,6 +78,7 @@ private val tryGestures = listOf(
 
 private val trySounds = listOf(
     SoundEffect.POP, SoundEffect.BOING, SoundEffect.SPARKLE, SoundEffect.TADA, SoundEffect.WHOOSH, SoundEffect.WOMP,
+    SoundEffect.RIMSHOT, SoundEffect.DRUMROLL, SoundEffect.DING, SoundEffect.SLIDE, SoundEffect.UHOH,
 )
 
 /** The most an upload may be; the server says the same. */
