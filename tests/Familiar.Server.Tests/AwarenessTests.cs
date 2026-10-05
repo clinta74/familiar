@@ -105,18 +105,20 @@ public sealed class MemoryTests(PostgresFixture postgres)
         Assert.Null((await db.Memories.FindAsync(added.Id))!.Embedding);
 
         // Back: the next pass fills it in, and an edit gets a fresh one.
+        // Whichever fills it in - this pass, or the save's own attempt starting late - it gets one.
         app.Embedder.Down = false;
-        var filled = 0;
-        for (var i = 0; i < 50 && filled == 0; i++)
+        float[]? embedded = null;
+        for (var i = 0; i < 50 && embedded is null; i++)
         {
-            // The save's own attempt (which found the model away) may still be finishing.
-            filled = await store.EmbedMissingAsync(default);
-            await Task.Delay(filled == 0 ? 50 : 0);
+            await store.EmbedMissingAsync(default);
+            db.ChangeTracker.Clear();
+            embedded = (await db.Memories.FindAsync(added.Id))!.Embedding;
+            if (embedded is null)
+            {
+                await Task.Delay(50);
+            }
         }
 
-        Assert.Equal(1, filled);
-        db.ChangeTracker.Clear();
-        var embedded = (await db.Memories.FindAsync(added.Id))!.Embedding;
         Assert.NotNull(embedded);
 
         // The edit embeds itself just after saving, in the background.
