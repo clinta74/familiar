@@ -92,6 +92,48 @@ public sealed class MemoryTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_memory_saved_in_settings_does_not_wait_for_its_embedding()
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync(), NoBackgroundPass);
+        var client = await SignedInAsync(app);
+        var store = app.Services.GetRequiredService<MemoryStore>();
+        await using var db = await app.Services.GetRequiredService<Microsoft.EntityFrameworkCore.IDbContextFactory<Familiar.Persistence.FamiliarDbContext>>().CreateDbContextAsync();
+
+        // The embedding model is away: the save still goes through, without one.
+        app.Embedder.Down = true;
+        var added = await (await client.PostAsJsonAsync("/api/memories", new MemoryRequest("They grow tomatoes"))).ReadAsync<MemoryView>();
+        Assert.Null((await db.Memories.FindAsync(added.Id))!.Embedding);
+
+        // Back: the next pass fills it in, and an edit gets a fresh one.
+        app.Embedder.Down = false;
+        var filled = 0;
+        for (var i = 0; i < 50 && filled == 0; i++)
+        {
+            // The save's own attempt (which found the model away) may still be finishing.
+            filled = await store.EmbedMissingAsync(default);
+            await Task.Delay(filled == 0 ? 50 : 0);
+        }
+
+        Assert.Equal(1, filled);
+        db.ChangeTracker.Clear();
+        var embedded = (await db.Memories.FindAsync(added.Id))!.Embedding;
+        Assert.NotNull(embedded);
+
+        // The edit embeds itself just after saving, in the background.
+        await client.PutAsJsonAsync($"/api/memories/{added.Id}", new MemoryRequest("They grow chillies"));
+        float[]? edited = null;
+        for (var i = 0; i < 50 && edited is null; i++)
+        {
+            await Task.Delay(100);
+            db.ChangeTracker.Clear();
+            edited = (await db.Memories.FindAsync(added.Id))!.Embedding;
+        }
+
+        Assert.NotNull(edited);
+        Assert.NotEqual(embedded, edited);
+    }
+
+    [Fact]
     public async Task Memories_can_be_read_corrected_and_deleted_and_are_private()
     {
         await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync(), NoBackgroundPass);

@@ -75,16 +75,17 @@ public sealed class MemoryExtractor(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!options.ExtractFromConversations)
-        {
-            return;
-        }
-
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                await PassAsync(stoppingToken);
+                // Memories saved without an embedding (in Settings, or while the model was away) get one.
+                await memories.EmbedMissingAsync(stoppingToken);
+                if (options.ExtractFromConversations)
+                {
+                    await PassAsync(stoppingToken);
+                }
+
                 await Task.Delay(TimeSpan.FromSeconds(Math.Max(1, options.PollSeconds)), clock, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)

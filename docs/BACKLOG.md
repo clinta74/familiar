@@ -107,7 +107,14 @@ on the NAS for slow turns first: if "first audio" accounts for the wait, it's st
 doesn't, time 5-6 in the clients, from the `audio` event arriving to the first sample played.
 
 
-### 12. Saving a memory is slow — reviewed; spinners on every save (2026-10-04)
+### 12. ~~Saving a memory is slow~~ — fixed (2026-10-05): saved first, embedded just after
+
+A memory added or edited in Settings is now saved at once and its embedding worked out straight
+after, in the background (`MemoryStore.EmbedMissingAsync`); the memory pass also fills in any still
+missing one (the model was away, the server restarted). Settings turns away word-for-word duplicates
+only - someone typing a memory means it - while memories picked up in conversation keep the check by
+meaning. So the Save button no longer waits on Ollama, however the NAS is doing. Earlier notes:
+
 
 Reported on the web's "What it remembers". **Why:** saving a memory waits for its embedding (the
 vector "forget …" and the duplicate check match by), one call to Ollama's embedding model before the

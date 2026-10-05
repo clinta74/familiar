@@ -40,11 +40,19 @@ public sealed class MemoryStore(IDbContextFactory<FamiliarDbContext> db, IEmbedd
             .ToListAsync(ct);
     }
 
+    private readonly SemaphoreSlim _backfilling = new(1, 1);
+
     /// <summary>
     /// Remembers something, unless it's already remembered (then null). Embedding failures don't lose
     /// the memory; it's stored without one and simply can't be matched by meaning.
     /// </summary>
-    public async Task<MemoryFact?> AddAsync(Guid accountId, string text, MemorySource source, Guid? sourceMessageId, CancellationToken ct)
+    /// <remarks>
+    /// With <c>embedLater</c> it's saved now and its embedding worked out just after: for a memory
+    /// typed in Settings, where the user is waiting on the Save button and has said exactly what they
+    /// mean - so only a word-for-word duplicate is turned away, not one that only means the same.
+    /// </remarks>
+    public async Task<MemoryFact?> AddAsync(
+        Guid accountId, string text, MemorySource source, Guid? sourceMessageId, CancellationToken ct, bool embedLater = false)
     {
         text = Normalise(text);
         if (text.Length == 0)
@@ -52,7 +60,7 @@ public sealed class MemoryStore(IDbContextFactory<FamiliarDbContext> db, IEmbedd
             return null;
         }
 
-        var embedding = await TryEmbedAsync(text, EmbeddingPurpose.Document, ct);
+        var embedding = embedLater ? null : await TryEmbedAsync(text, EmbeddingPurpose.Document, ct);
 
         await using var context = await db.CreateDbContextAsync(ct);
         var existing = await context.Memories.AsNoTracking().Where(m => m.AccountId == accountId).ToListAsync(ct);
@@ -86,9 +94,15 @@ public sealed class MemoryStore(IDbContextFactory<FamiliarDbContext> db, IEmbedd
         }
 
         await context.SaveChangesAsync(ct);
+        if (embedLater)
+        {
+            EmbedSoon();
+        }
+
         return memory;
     }
 
+    /// <summary>Changed in Settings: saved now, its embedding worked out just after.</summary>
     public async Task<MemoryFact?> UpdateAsync(Guid accountId, Guid id, string text, CancellationToken ct)
     {
         text = Normalise(text);
@@ -100,12 +114,69 @@ public sealed class MemoryStore(IDbContextFactory<FamiliarDbContext> db, IEmbedd
         }
 
         memory.Text = text;
-        memory.Embedding = await TryEmbedAsync(text, EmbeddingPurpose.Document, ct);
+        memory.Embedding = null;
         memory.Source = MemorySource.Settings;
         memory.UpdatedAt = clock.GetUtcNow();
         await context.SaveChangesAsync(ct);
+        EmbedSoon();
         return memory;
     }
+
+    /// <summary>
+    /// Works out the embeddings of memories saved without one: just after a save in Settings, and on
+    /// every memory pass, which catches any the model was too busy or away for. One run at a time.
+    /// Returns how many it embedded.
+    /// </summary>
+    public async Task<int> EmbedMissingAsync(CancellationToken ct)
+    {
+        if (!await _backfilling.WaitAsync(0, ct))
+        {
+            return 0;
+        }
+
+        try
+        {
+            await using var context = await db.CreateDbContextAsync(ct);
+            var missing = await context.Memories.AsNoTracking()
+                .Where(m => m.Embedding == null)
+                .OrderBy(m => m.UpdatedAt)
+                .Take(50)
+                .Select(m => new { m.Id, m.Text })
+                .ToListAsync(ct);
+
+            var done = 0;
+            foreach (var memory in missing)
+            {
+                if (await TryEmbedAsync(memory.Text, EmbeddingPurpose.Document, ct) is not { } embedding)
+                {
+                    break; // The model is away; the next pass tries again.
+                }
+
+                // Only if it still says what was embedded: an edit in the meantime gets its own.
+                done += await context.Memories
+                    .Where(m => m.Id == memory.Id && m.Text == memory.Text && m.Embedding == null)
+                    .ExecuteUpdateAsync(s => s.SetProperty(m => m.Embedding, embedding), ct);
+            }
+
+            return done;
+        }
+        finally
+        {
+            _backfilling.Release();
+        }
+    }
+
+    private void EmbedSoon() => _ = Task.Run(async () =>
+    {
+        try
+        {
+            await EmbedMissingAsync(CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            logger.EmbeddingFailed(exception.Message);
+        }
+    });
 
     public async Task<bool> DeleteAsync(Guid accountId, Guid id, CancellationToken ct)
     {

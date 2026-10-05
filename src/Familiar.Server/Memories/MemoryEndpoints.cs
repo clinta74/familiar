@@ -28,7 +28,7 @@ public static class MemoryEndpoints
                 return error;
             }
 
-            var memory = await store.AddAsync(http.User.AccountId()!.Value, request.Text!, MemorySource.Settings, null, ct);
+            var memory = await store.AddAsync(http.User.AccountId()!.Value, request.Text!, MemorySource.Settings, null, ct, embedLater: true);
             return memory is null
                 ? AuthEndpoints.Error(StatusCodes.Status409Conflict, "That's already remembered.")
                 : Results.Ok(MemoryView.From(memory));
