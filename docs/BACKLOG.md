@@ -309,7 +309,12 @@ What to change:
 - Test it on the real model with "what time is it?", "when's my timer done?", "when is my meeting?".
 
 
-### 17. Yawning on the 3D giraffe and otter: a strip down the chin — to look at
+### 17. ~~Yawning on the 3D giraffe and otter: a strip down the chin~~ — fixed (2026-10-05)
+
+Their mouths sit low on the face, and a wide yawn opened the painted mouth past the bottom of the
+surface it's painted on, where the texture wraps under the chin. The 3D face now keeps an open mouth
+inside that edge, opening it upwards instead as far as the nose allows (`Plush3D.paintMouth`); the
+gallery has yawn moments to check it (`moments=yawn,yawn-wide`). The other characters are unchanged.
 
 Reported 2026-10-05: when the giraffe or the otter (3D) yawns, the mouth shows artifacts that look like
 a strip running down the chin. The other characters yawn correctly.

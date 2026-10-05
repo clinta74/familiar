@@ -1234,9 +1234,25 @@ export abstract class Plush3D extends PlushCharacter {
     }
 
     const mw = layout.mouthW * face.mouthWidth;
-    const corner = layout.mouthY - face.mouthCurve * 4;
-    const upper = layout.mouthY + face.mouthCurve * 6;
-    const lower = upper + face.mouthOpen * layout.mouthDrop;
+    let corner = layout.mouthY - face.mouthCurve * 4;
+    let upper = layout.mouthY + face.mouthCurve * 6;
+    let lower = upper + face.mouthOpen * layout.mouthDrop;
+
+    // Never past the bottom of the surface it's painted on: there the texture wraps under the chin,
+    // and a wide yawn showed as a dark strip down it (the giraffe's and otter's mouths sit low). The
+    // mouth opens upwards instead, as far as the nose allows, and stops at the edge.
+    // The lower lip is a curve towards `lower`: its lowest point is halfway between the corners and it.
+    const [, cy, , ry] = paint.shape.svg;
+    const floor = cy + ry * 0.95;
+    const bottom = (corner + lower) / 2;
+    if (bottom > floor) {
+      const roof = philtrum ? philtrum[1] + 2 : layout.mouthY - layout.mouthDrop * 0.6;
+      const shift = Math.min(bottom - floor, Math.max(0, Math.min(corner, upper) - roof));
+      corner -= shift;
+      upper -= shift;
+      lower = Math.min(lower - shift, 2 * floor - corner);
+    }
+
     const mouth = new Path2D();
     mouth.moveTo(p.x(-mw), p.y(corner));
     mouth.quadraticCurveTo(p.x(0), p.y(upper), p.x(mw), p.y(corner));

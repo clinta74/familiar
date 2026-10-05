@@ -57,6 +57,8 @@ const MOMENTS: Moment[] = [
   { label: 'side', turn: 1.45 },
   { label: 'shake', gesture: 'shake', at: 0.5 },
   { label: 'excited', emotion: 'joy', gesture: 'excited', at: 0.5 },
+  { label: 'yawn', gesture: 'yawn', at: 0.45 },
+  { label: 'yawn-wide', gesture: 'yawn', at: 0.6 },
 ];
 
 const params = new URLSearchParams(location.search);
