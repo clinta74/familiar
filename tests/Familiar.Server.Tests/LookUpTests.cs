@@ -66,6 +66,9 @@ public sealed class LookUpUnitTests
         return (services.BuildServiceProvider().GetRequiredService<IHttpClientFactory>(), outside);
     }
 
+    private static Weather Weather(IHttpClientFactory http) =>
+        new(http, new MemoryCache(new MemoryCacheOptions()), Microsoft.Extensions.Logging.Abstractions.NullLogger<Weather>.Instance);
+
     private static ToolContext Context(string? home = null) =>
         new(Guid.NewGuid(), Guid.NewGuid(), TimeZoneInfo.Utc, DateTimeOffset.UtcNow, LookUps: true, HomePlace: home);
 
@@ -124,7 +127,7 @@ public sealed class LookUpUnitTests
     public async Task The_weather_uses_home_when_no_place_is_given_and_local_units()
     {
         var (http, outside) = Services();
-        var weather = new WeatherTool(http, new MemoryCache(new MemoryCacheOptions()));
+        var weather = new WeatherTool(Weather(http));
 
         var result = await weather.InvokeAsync(Context(home: "Portland, Maine"), new JsonObject { ["day"] = "tomorrow" }, default);
 
@@ -143,11 +146,30 @@ public sealed class LookUpUnitTests
     public async Task Without_a_place_or_a_home_it_asks()
     {
         var (http, outside) = Services();
-        var result = await new WeatherTool(http, new MemoryCache(new MemoryCacheOptions())).InvokeAsync(Context(), [], default);
+        var result = await new WeatherTool(Weather(http)).InvokeAsync(Context(), [], default);
 
         Assert.False(result.Ok);
         Assert.Contains("Ask which town", result.Data["error"]!.GetValue<string>(), StringComparison.Ordinal);
         Assert.Empty(outside.Asked);
+    }
+
+    [Fact]
+    public async Task The_greetings_weather_note_is_today_in_local_units_without_the_place()
+    {
+        var (http, _) = Services();
+
+        var note = await Weather(http).TodayNoteAsync("Portland, Oregon", default);
+
+        Assert.Equal("Weather where they live today: light rain, 44-55°F, 80% chance of rain; 51°F now.", note);
+    }
+
+    [Fact]
+    public async Task No_weather_note_when_the_place_cannot_be_found()
+    {
+        var (http, outside) = Services();
+        outside.Geocoding = "{}";
+
+        Assert.Null(await Weather(http).TodayNoteAsync("Nowhere", default));
     }
 
     [Theory]
@@ -200,6 +222,27 @@ public sealed class LookUpTests(PostgresFixture postgres)
 
             var saved = await (await client.GetAsync("/api/familiar")).ReadAsync<FamiliarView>();
             Assert.Equal((false, "Portland, Oregon"), (saved.LookUps, saved.HomePlace));
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task After_a_while_apart_the_familiar_knows_todays_weather_at_home(bool lookUps)
+    {
+        var (app, client, _) = await StartAsync(postgres, lookUps);
+        await using (app)
+        {
+            await using var stream = await SseClient.ConnectAsync(client);
+            await stream.ReadUntilAsync(EventTypes.Ready);
+
+            await SayAsync(client, "Morning!");
+            await stream.ReadUntilStateAsync(FamiliarState.Idle);
+
+            var prompt = string.Join(" ", app.Llm.LastPrompt!.Select(m => m.Content));
+            Assert.Equal(lookUps, prompt.Contains("Weather where they live today: light rain", StringComparison.Ordinal));
+            // Where they live goes to the weather service, never into the prompt.
+            Assert.DoesNotContain("Portland", prompt, StringComparison.Ordinal);
         }
     }
 

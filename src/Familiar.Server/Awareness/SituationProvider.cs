@@ -30,7 +30,8 @@ public sealed class SituationProvider(
     CalendarStore calendars,
     Scheduler scheduler,
     ConversationStore conversations,
-    MemoryStore memories)
+    MemoryStore memories,
+    LookUps.Weather weather)
 {
     /// <summary>How far ahead the calendar is looked at.</summary>
     internal static readonly TimeSpan Horizon = TimeSpan.FromHours(36);
@@ -44,7 +45,20 @@ public sealed class SituationProvider(
     /// <summary>A gap this long is worth mentioning ("You last talked 3 days ago").</summary>
     private static readonly TimeSpan NotableGap = TimeSpan.FromHours(6);
 
-    public async Task<Situation> ForAsync(Guid accountId, TimeZoneInfo zone, DateTimeOffset now, DateTimeOffset messagesBefore, CancellationToken ct)
+    /// <summary>After this long apart - the greeting's gap - today's weather is worth knowing.</summary>
+    internal static readonly TimeSpan WeatherGap = TimeSpan.FromHours(3);
+
+    /// <param name="accountId">Whose familiar.</param>
+    /// <param name="zone">Their time zone.</param>
+    /// <param name="now">The turn's time.</param>
+    /// <param name="messagesBefore">The message being answered, if any, so the gap is to the one before it.</param>
+    /// <param name="weatherAt">
+    /// Where they live, when they let it look things up: then after a while apart (a greeting, the
+    /// first thing said in a morning) the notes have today's weather there.
+    /// </param>
+    /// <param name="ct">Cancels it.</param>
+    public async Task<Situation> ForAsync(
+        Guid accountId, TimeZoneInfo zone, DateTimeOffset now, DateTimeOffset messagesBefore, CancellationToken ct, string? weatherAt = null)
     {
         var notes = new List<string>();
         var soon = false;
@@ -83,6 +97,12 @@ public sealed class SituationProvider(
         else if (since >= NotableGap)
         {
             notes.Add($"You last talked {Spoken.Ago(since.Value)} ago.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(weatherAt) && (since is null || since >= WeatherGap)
+            && await weather.TodayNoteAsync(weatherAt, ct) is { } forecast)
+        {
+            notes.Add(forecast);
         }
 
         var remembered = await memories.ListAsync(accountId, ct);

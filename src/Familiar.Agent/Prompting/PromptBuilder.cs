@@ -78,7 +78,8 @@ public static class PromptBuilder
     /// <summary>Asked to speak first, with nothing from the user: a greeting (PLAN.md §6.3).</summary>
     public const string GreetingCue =
         "[They've just opened the app and haven't said anything yet. Greet them in a sentence or two, the way a " +
-        "friend would after however long it's been. If something in the notes is coming up soon, mention it.]";
+        "friend would after however long it's been. If something in the notes is coming up soon, mention it. If " +
+        "today's weather is in the notes and worth knowing (rain, snow, a hot or cold day), mention that briefly too.]";
 
     public static IReadOnlyList<ChatMessage> Build(PromptContext context) => Assemble(context, context.UserText);
 

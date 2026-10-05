@@ -215,8 +215,13 @@ are allow-listed in the HTTP client itself (`LookUpHosts`), results are cleaned 
 cut short and labelled as reference text, at most two look-ups a reply, and after one anything that
 changes something asks first. The home town reaches only the weather tool, never the prompt. Tried on
 the real model: weather today, tomorrow and in Paris on Saturday, two definitions, all with the right
-tool; a joke, with none. **Next, if wanted:** Wikipedia summaries; the server adding the forecast to
-the greeting's notes.
+tool; a joke, with none.
+
+**Done too (2026-10-05): the forecast in the greeting.** With look-ups on and a home set, after three
+hours or more apart the server adds today's weather to the notes ("Weather where they live today:
+drizzle, 11-15°C, 70% chance of rain; 13°C now." - the town not named), cached and given at most three
+seconds, and the greeting may mention it when it's worth knowing. Tried on the real model: three
+hellos in Leeds on a drizzly day all mentioned the drizzle. **Next, if wanted:** Wikipedia summaries.
 
 
 Asked for 2026-10-04: definitions, facts and figures, the weather - without the web being a way to
@@ -273,6 +278,27 @@ each tool's description costs prompt tokens on every turn (item 5), so they shou
 
 **Decisions needed:** which of these to build, and in what order; whether it's on for every account or
 chosen per account (and who chooses - the admin, or each user); whether general search is wanted at all.
+
+
+### 16. Saying the time like a person — to do
+
+Asked for 2026-10-05: "It is currently twelve zero two in the afternoon" is how it answered "what
+time is it?". In casual conversation it should sound like a person - "just after twelve", "about ten
+past three" - and use relative times where they're natural: "a few minutes ago", "in about five
+minutes", "in a couple of hours".
+
+Where it comes from: the notes give the model the time as `HH:mm` (`PromptBuilder`, "Sunday
+afternoon, 5 October 2026, 12:02"), it writes digits back, and Kokoro reads "12:02" digit by digit.
+What to change:
+
+- **In the notes, the time in words as well**: "just after twelve noon", with the exact time kept for
+  when it matters (setting a reminder); and a line in the instructions: say times as people do -
+  roughly, and relative ("in about twenty minutes") when that's more natural - unless asked exactly.
+- **Relative times in the notes already**: timers say "5 minutes left"; calendar events and reminders
+  say the clock time - add "in about two hours" beside it.
+- **Before speaking** (`SpeechText`): turn any digit times left in a reply into words ("12:02" ->
+  "twelve oh two", "3:30pm" -> "half past three"), so even an exact time sounds natural.
+- Test it on the real model with "what time is it?", "when's my timer done?", "when is my meeting?".
 
 ---
 

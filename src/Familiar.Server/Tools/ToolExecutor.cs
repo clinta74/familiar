@@ -211,6 +211,7 @@ public static class ToolRegistration
             http.Timeout = TimeSpan.FromSeconds(8);
             http.DefaultRequestHeaders.UserAgent.ParseAdd("Familiar/1.0 (self-hosted household assistant)");
         }).AddHttpMessageHandler<LookUps.LookUpHosts>();
+        services.AddSingleton<LookUps.Weather>();
         services.AddSingleton<ITool, LookUps.WeatherTool>();
         services.AddSingleton<ITool, LookUps.DefineTool>();
         services.AddSingleton<IToolExecutor, ToolExecutor>();

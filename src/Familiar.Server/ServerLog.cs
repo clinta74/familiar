@@ -123,8 +123,11 @@ internal static partial class ServerLog
     [LoggerMessage(92, LogLevel.Information, "Memory pass for account {AccountId}: read {Messages} messages, stored {Stored} new memories")]
     public static partial void MemoriesExtracted(this ILogger logger, Guid accountId, int messages, int stored);
 
-    [LoggerMessage(94, LogLevel.Warning, "Embedding a memory took {ElapsedMs} ms; saving one waits for it. Is the embedding model staying loaded beside the chat model (ollama ps)?")]
+    [LoggerMessage(94, LogLevel.Warning, "Embedding a memory took {ElapsedMs} ms. Is the embedding model staying loaded beside the chat model (ollama ps)?")]
     public static partial void EmbeddingSlow(this ILogger logger, long elapsedMs);
+
+    [LoggerMessage(95, LogLevel.Information, "No weather for the greeting: {Reason}")]
+    public static partial void WeatherNoteFailed(this ILogger logger, string reason);
 
     [LoggerMessage(93, LogLevel.Error, "Couldn't greet account {AccountId}")]
     public static partial void GreetingFailed(this ILogger logger, Exception exception, Guid accountId);

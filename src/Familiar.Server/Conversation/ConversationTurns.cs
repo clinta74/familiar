@@ -400,7 +400,8 @@ public sealed class ConversationTurns(
             var now = clock.GetUtcNow();
             var conversationId = userMessage?.ConversationId ?? (await store.CurrentAsync(accountId, ct)).Id;
             var history = await store.HistoryAsync(conversationId, userMessage?.Id ?? Guid.Empty, llmOptions.HistoryMessages, ct);
-            var situation = await situations.ForAsync(accountId, request.Zone, now, userMessage?.CreatedAt ?? now, ct);
+            var situation = await situations.ForAsync(
+                accountId, request.Zone, now, userMessage?.CreatedAt ?? now, ct, profile.LookUps ? profile.HomePlace : null);
             var context = new PromptContext(
                 profile, username, history, userMessage?.Content ?? "", now, request.Zone, situation.Notes, situation.Memories,
                 Familiars.AppearanceView.Parse(profile.Appearance).Look());
