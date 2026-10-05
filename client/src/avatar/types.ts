@@ -34,5 +34,7 @@ export interface AvatarDriver {
   setLook?(look: PlushLook): void;
   /** Turns the whole character about its vertical axis (radians, 0 facing you), for 3D renderers. */
   setTurn?(radians: number): void;
+  /** Someone's about (a tap, a key, the page coming back): rouses it if it was dozing off. */
+  wake?(): void;
   dispose(): void;
 }

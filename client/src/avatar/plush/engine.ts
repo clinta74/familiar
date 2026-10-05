@@ -11,6 +11,10 @@ const SOFTENED = 0.4;
 const RELAX_MS = 45_000;
 /** How long a happy bounce takes to settle once the expression starts lingering. */
 const SETTLE_MS = 1500;
+/** Idle this long with nobody about and it starts to get drowsy... */
+const DROWSY_MS = 3 * 60_000;
+/** ...and by this long it has nodded off. */
+const ASLEEP_MS = 8 * 60_000;
 
 export const GESTURE_MS: Record<Gesture, number> = { nod: 900, shake: 900, tilt: 1600, wave: 1600, shrug: 1000, laugh: 1400, wink: 750, sigh: 1700, yawn: 2200, excited: 1300 };
 
@@ -55,6 +59,8 @@ export interface Pose {
   pawAngle: number;
   /** 1 open, dipping to 0 mid-blink. */
   blink: number;
+  /** How sleepy it is while idle with nobody about: 0 awake, 1 fast asleep (shown like resting). */
+  drowsy: number;
   /** How closed the right eye is for a wink. */
   wink: number;
   /** The gesture under way and how far through it (0-1), if any. */
@@ -77,6 +83,8 @@ export abstract class PlushCharacter implements AvatarDriver {
   private intensity = 0.5;
   private state: AvatarState = 'idle';
   private idleSince = performance.now();
+  /** The last sign of someone about (typing, a tap, the page opening); drowsiness counts from here. */
+  private stirredAt = performance.now();
   private mouth = 0;
   private voice = 0;
   private viseme: Viseme | null = null;
@@ -88,6 +96,8 @@ export abstract class PlushCharacter implements AvatarDriver {
   private yawnAt = performance.now() + 6000;
   private idleGaze = { x: 0, y: 0 };
   private last = performance.now();
+  private breathPhase = 0;
+  private breathAt = performance.now();
   private frame = 0;
 
   /** The character's SVG (or the 3D characters' canvas), removed on dispose. */
@@ -105,6 +115,7 @@ export abstract class PlushCharacter implements AvatarDriver {
 
   setState(state: AvatarState): void {
     if (state === 'idle' && this.state !== 'idle') this.idleSince = performance.now();
+    if (state !== this.state) this.wake();
     this.state = state;
   }
 
@@ -112,13 +123,35 @@ export abstract class PlushCharacter implements AvatarDriver {
     this.emotion = emotion;
     this.intensity = intensity;
     this.idleSince = performance.now();
+    this.wake();
   }
 
   playGesture(gesture: Gesture): void {
     this.gesture = { name: gesture, start: performance.now() };
+    this.wake();
+  }
+
+  /**
+   * Someone's about: it perks up if it was drifting off. Only the drowsiness starts again - the
+   * expression keeps wearing off as it was, so a tap doesn't set a happy bounce going again.
+   */
+  wake(): void {
+    const now = performance.now();
+    // Woken from a doze: a moment's blinking before it's all there, and no yawn straight away.
+    if (this.drowsiness(now) > 0.5) this.blinkAt = now + 150;
+    this.yawnAt = Math.max(this.yawnAt, now + 20_000);
+    this.stirredAt = now;
+  }
+
+  /** 0 awake to 1 asleep: only while idle, after a few minutes with nobody about. */
+  private drowsiness(now: number): number {
+    if (this.state !== 'idle') return 0;
+    const quiet = now - Math.max(this.idleSince, this.stirredAt);
+    return Math.min(1, Math.max(0, (quiet - DROWSY_MS) / (ASLEEP_MS - DROWSY_MS)));
   }
 
   setMouthOpen(level: number): void {
+    if (level > 0.05) this.stirredAt = performance.now();
     const l = Math.min(1, level);
     this.mouth = Math.max(this.mouth, l);
     this.voice = Math.max(this.voice, l);
@@ -176,13 +209,28 @@ export abstract class PlushCharacter implements AvatarDriver {
       target.earLift = -0.7;
     }
 
+    // Drifting off: heavy lids, ears and brows sinking, the odd yawn, then asleep like resting.
+    const drowsy = this.drowsiness(now);
+    if (drowsy > 0) {
+      const asleep = drowsy >= 1;
+      target.eyeOpen = Math.min(target.eyeOpen, asleep ? 0.05 : 0.95 - 0.55 * drowsy);
+      target.earLift = Math.min(target.earLift, -0.7 * drowsy);
+      target.browRaise = Math.min(target.browRaise, -0.2 * drowsy);
+      if (asleep) target.mouthCurve = 0.2;
+      if (!asleep && !this.gesture && now > this.yawnAt) {
+        this.gesture = { name: 'yawn', start: now }; // Not playGesture: its own yawn doesn't wake it.
+        this.yawnAt = now + 25_000 + Math.random() * 25_000;
+      }
+    }
+
     if (now > this.gazeAt) {
       this.idleGaze = Math.random() < 0.4 ? { x: 0, y: 0 } : { x: Math.random() * 1.4 - 0.7, y: Math.random() * 0.8 - 0.4 };
       this.gazeAt = now + 1800 + Math.random() * 3500;
     }
     if (emotion !== 'thinking' && emotion !== 'sad') {
-      target.gazeX += this.idleGaze.x;
-      target.gazeY += this.idleGaze.y;
+      // A drowsy familiar stops looking about and its gaze sinks.
+      target.gazeX += this.idleGaze.x * (1 - drowsy);
+      target.gazeY += this.idleGaze.y * (1 - drowsy) + 0.3 * drowsy;
     }
 
     // Laughing takes over the face: eyes squeezed into ^ ^, a big open grin, ears up.
@@ -259,18 +307,26 @@ export abstract class PlushCharacter implements AvatarDriver {
     const motion = this.reducedMotion ? 0.3 : 1;
     const t = now / 1000;
 
+    const drowsy = this.drowsiness(now);
+
+    // Sleepy blinks are slow and long.
     let blink = 1;
     if (now > this.blinkAt) {
       const into = now - this.blinkAt;
-      blink = into < 80 ? 1 - into / 80 : into < 170 ? (into - 80) / 90 : 1;
-      if (into >= 170) this.blinkAt = now + 2400 + Math.random() * 4200;
+      const slow = 1 + 3 * drowsy;
+      blink = into < 80 * slow ? 1 - into / (80 * slow) : into < 170 * slow ? (into - 80 * slow) / (90 * slow) : 1;
+      if (into >= 170 * slow) this.blinkAt = now + 2400 + Math.random() * 4200;
     }
 
-    const breath = Math.sin(t * Math.PI * 2 / 3.8) * motion;
-    let dy = breath * 2.5;
-    let squash = breath * 0.01;
+    // Asleep it breathes slower and deeper, and its head droops and lists to one side. The phase
+    // runs on its own clock so slowing down doesn't jump the breath.
+    this.breathPhase += ((Math.PI * 2) / (3.8 + 2.4 * drowsy)) * Math.max(0, Math.min(0.1, (now - this.breathAt) / 1000));
+    this.breathAt = now;
+    const breath = Math.sin(this.breathPhase) * motion;
+    let dy = breath * (2.5 + 1.5 * drowsy) + 6 * drowsy * motion;
+    let squash = breath * 0.01 * (1 + drowsy);
     let hop = 0;
-    let rotate = 0;
+    let rotate = -5 * drowsy * motion;
     let browBoost = 0;
     let earWiggle = 0;
     let pawLift: number | null = null;
@@ -292,7 +348,7 @@ export abstract class PlushCharacter implements AvatarDriver {
     // An occasional twitch keeps it alive while idle.
     if (now > this.earTwitchAt) {
       const into = now - this.earTwitchAt;
-      earWiggle += Math.sin((into / 300) * Math.PI) * 8 * motion;
+      earWiggle += Math.sin((into / 300) * Math.PI) * 8 * motion * (1 - drowsy);
       if (into > 300) this.earTwitchAt = now + 4000 + Math.random() * 7000;
     }
 
@@ -363,7 +419,7 @@ export abstract class PlushCharacter implements AvatarDriver {
       t, now, motion,
       state: this.state, emotion: this.emotion, intensity: this.intensity,
       face: this.face, mood: this.mood, voice: this.voice,
-      breath, hop, dy, squash, rotate, browBoost, earWiggle, pawLift, pawAngle, blink, wink, gesture,
+      breath, hop, dy, squash, rotate, browBoost, earWiggle, pawLift, pawAngle, blink, wink, gesture, drowsy,
     };
   }
 }

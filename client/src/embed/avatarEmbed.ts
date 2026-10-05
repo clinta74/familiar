@@ -30,6 +30,8 @@ export interface AvatarEmbed {
   turn(radians: number): void;
   /** A sound effect, made here (the app plays the voice natively; effects are synthesised). */
   sound(sound: SoundEffect): void;
+  /** Someone's about (typing, the app coming back): rouses it if it was dozing off. */
+  wake(): void;
 }
 
 const stage = document.getElementById('stage')!;
@@ -115,6 +117,9 @@ const embed: AvatarEmbed = {
     void effects.resume();
     playSoundEffect(effects, sound);
   },
+  wake() {
+    driver?.wake?.();
+  },
   turn(radians) {
     turned = radians;
     driver?.setTurn?.(radians);
@@ -135,6 +140,13 @@ declare global {
 }
 
 window.familiarAvatar = embed;
+
+// A tap on the character wakes it, and so does the app coming back to the front (the WebView's
+// page is hidden while the app is away). Typing already does, as it makes it listen.
+document.addEventListener('pointerdown', () => driver?.wake?.(), { passive: true });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') driver?.wake?.();
+});
 // Nothing is drawn until the app says how it looks (it remembers the last look, so that's quick):
 // not a stand-in llama that then swaps.
 

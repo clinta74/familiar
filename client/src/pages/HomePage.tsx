@@ -113,6 +113,26 @@ export function HomePage() {
     };
   }, [player]);
 
+  // Left alone for a few minutes it dozes off; anyone tapping, typing or coming back to the page
+  // wakes it (typing a message also makes it listen).
+  useEffect(() => {
+    const wake = () => avatar.current?.wake();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') wake();
+    };
+    const options = { capture: true, passive: true } as const;
+    document.addEventListener('pointerdown', wake, options);
+    document.addEventListener('keydown', wake, options);
+    window.addEventListener('focus', wake);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      document.removeEventListener('pointerdown', wake, options);
+      document.removeEventListener('keydown', wake, options);
+      window.removeEventListener('focus', wake);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
+
   /** What was said aloud while the page couldn't play it yet: kept, and offered with a button. */
   const unheard = useRef<Clip[]>([]);
   const [hasUnheard, setHasUnheard] = useState(false);

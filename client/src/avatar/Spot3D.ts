@@ -210,13 +210,13 @@ export class Spot3D extends Plush3D {
     u.uTime.value = pose.t;
 
     // Glossy (happy, surprised) to matte (sad); lit warm from within as the flat spot's core is.
-    const resting = pose.state === 'resting';
-    this.material.color.set(resting ? mix(colour, '#202028', 0.35) : colour);
+    const dim = pose.state === 'resting' ? 1 : pose.drowsy;
+    this.material.color.set(dim > 0 ? mix(colour, '#202028', 0.35 * dim) : colour);
     this.material.roughness = 0.72 - shape.gloss * 0.6;
     this.material.clearcoat = shape.gloss;
     this.material.sheenColor.set(centre);
     this.material.emissive.set(centre);
-    this.material.emissiveIntensity = (resting ? 0.02 : 0.12) + pose.mood.joy * 0.3 + flash * 0.25;
+    this.material.emissiveIntensity = (0.12 - 0.1 * dim) + pose.mood.joy * 0.3 + flash * 0.25;
 
     this.halo.material.color.set(glow);
     this.halo.material.opacity = haloOpacity * 0.75;

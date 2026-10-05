@@ -355,13 +355,17 @@ Reported 2026-10-05: when the giraffe or the otter (3D) yawns, the mouth shows a
 a strip running down the chin. The other characters yawn correctly.
 
 
-### 18. The avatar winds down when nothing's happening — bounce fixed (2026-10-05); sleepy to do
+### 18. The avatar winds down when nothing's happening — done (2026-10-05)
 
 Reported 2026-10-05: after a happy reply the avatar kept bouncing. **Fixed:** an expression lingers
 for 8 seconds, then softens and the bounce settles over a second and a half; after 45 seconds with
 nothing new the face is back to calm (`plush/engine.ts`, every built-in character, flat and 3D).
-**To do:** after a few minutes with nothing happening, a sleepy state - eyes drooping, the odd yawn,
-breathing slower - that it wakes from when someone types, talks, opens the page or a reply arrives.
+**Sleepy:** left idle with nobody about, from 3 minutes it grows drowsy - lids heavy, ears and gaze
+sinking, slow blinks, slower deeper breathing, the head drooping, the odd yawn - and by 8 minutes
+it's asleep: eyes shut and the drifting z (the spot dims and slows instead). Anything wakes it: a
+tap or key on the page, the page or app coming back to the front, typing (it listens), a reply,
+expression or gesture. Waking only restarts the drowsiness, not the last expression, so a tap
+doesn't set a happy bounce going again. The gallery has `drowsy` and `asleep` cells.
 
 ---
 

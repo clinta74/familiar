@@ -746,13 +746,13 @@ export abstract class Plush3D extends PlushCharacter {
     if (this.faceSpec) this.drawFace(face, pose);
     this.drawParts(pose);
 
-    // Thinking: three bubbles pulsing in turn. Resting: a drifting z.
+    // Thinking: three bubbles pulsing in turn. Resting or asleep: a drifting z.
     this.thinking.visible = pose.state === 'thinking';
     if (this.thinking.visible) {
       this.thinking.children.forEach((dot, i) => dot.scale.setScalar(0.85 + 0.25 * Math.max(0, Math.sin(pose.t * 4 - i * 0.9))));
       this.bubble.opacity = 0.9;
     }
-    const resting = pose.state === 'resting';
+    const resting = pose.state === 'resting' || pose.drowsy >= 1;
     this.sleep.visible = resting;
     if (resting) {
       this.sleep.material.opacity = 0.5 + 0.5 * Math.sin(pose.t * 2);

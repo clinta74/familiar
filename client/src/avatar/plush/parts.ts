@@ -236,7 +236,8 @@ export function drawOverlay(overlay: Overlay, pose: Pose) {
       dot.setAttribute('opacity', f(0.25 + 0.75 * Math.max(0, Math.sin(pose.t * 4 - i * 0.9)))));
   }
 
-  const resting = pose.state === 'resting';
+  // Resting (the model's away) or fast asleep: a drifting z.
+  const resting = pose.state === 'resting' || pose.drowsy >= 1;
   overlay.sleep.setAttribute('visibility', resting ? 'visible' : 'hidden');
   overlay.sleep.setAttribute('opacity', resting ? f(0.5 + 0.5 * Math.sin(pose.t * 2)) : '0');
   overlay.sleep.setAttribute('transform', `translate(0 ${f(resting ? -((pose.t * 6) % 12) : 0)})`);

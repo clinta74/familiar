@@ -21,6 +21,8 @@ interface Steppable extends AvatarDriver {
   earTwitchAt: number;
   gazeAt: number;
   yawnAt: number;
+  idleSince: number;
+  stirredAt: number;
   idleGaze: { x: number; y: number };
   gesture: { name: Gesture; start: number } | null;
   root: Element;
@@ -36,6 +38,8 @@ interface Moment {
   gaze?: [number, number];
   /** Turned round this far (radians): a 3D character from the side. */
   turn?: number;
+  /** Left alone this long (ms), for the drowsy and asleep faces. */
+  idleFor?: number;
 }
 
 const GESTURE_MS: Record<Gesture, number> = { nod: 900, shake: 900, tilt: 1600, wave: 1600, shrug: 1000, laugh: 1400, wink: 750, sigh: 1700, yawn: 2200, excited: 1300 };
@@ -59,6 +63,8 @@ const MOMENTS: Moment[] = [
   { label: 'excited', emotion: 'joy', gesture: 'excited', at: 0.5 },
   { label: 'yawn', gesture: 'yawn', at: 0.45 },
   { label: 'yawn-wide', gesture: 'yawn', at: 0.6 },
+  { label: 'drowsy', idleFor: 5.5 * 60_000 },
+  { label: 'asleep', idleFor: 10 * 60_000 },
 ];
 
 const params = new URLSearchParams(location.search);
@@ -82,6 +88,7 @@ function settle(avatar: Steppable, moment: Moment) {
   avatar.setTurn?.(moment.turn ?? 0);
   const t0 = performance.now();
   avatar.last = t0;
+  avatar.idleSince = avatar.stirredAt = t0 - (moment.idleFor ?? 0);
   const steps = 40;
   const start = moment.gesture ? steps - Math.round((GESTURE_MS[moment.gesture] * (moment.at ?? 0.5)) / 100) : -1;
   for (let i = 1; i <= steps; i++) {

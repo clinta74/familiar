@@ -209,6 +209,11 @@ export function spotFrame(pose: Pose, base: string, accent: string): SpotFrame {
     shape.glow *= 0.3;
     shape.speed *= 0.3;
     shape.size *= 0.95;
+  } else if (pose.drowsy > 0) {
+    // Drifting off: the same, coming on gradually.
+    shape.glow *= 1 - 0.7 * pose.drowsy;
+    shape.speed *= 1 - 0.7 * pose.drowsy;
+    shape.size *= 1 - 0.05 * pose.drowsy;
   }
 
   // Breathing: a slow swell.
@@ -268,7 +273,7 @@ export function spotFrame(pose: Pose, base: string, accent: string): SpotFrame {
   // Colour: the user's colour tinted by mood, lit from the top left, darker at the rim; the
   // halo in their accent colour, tinted the same way.
   const colour = spotColour(base, pose.mood);
-  const dim = pose.state === 'resting' ? 0.35 : 0;
+  const dim = pose.state === 'resting' ? 0.35 : 0.35 * pose.drowsy;
   const centre = mix(spotCore(colour, pose.mood.joy, 0.35 + shape.gloss * 0.2 + flash * 0.3), '#202028', dim);
   const rim = mix(mix(colour, lightness(colour) > 0.5 ? '#3a3040' : '#000000', 0.25), '#202028', dim);
 
