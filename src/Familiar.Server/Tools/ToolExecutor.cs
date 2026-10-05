@@ -209,11 +209,15 @@ public static class ToolRegistration
         services.AddHttpClient(nameof(LookUps), http =>
         {
             http.Timeout = TimeSpan.FromSeconds(8);
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("Familiar/1.0 (self-hosted household assistant)");
+            // Wikimedia asks every client to say who it is and where to find out more; a generic
+            // agent is rate-limited (429). The project, not the user: nothing personal goes out.
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("Familiar/1.0 (https://github.com/clinta74/familiar; self-hosted household assistant)");
         }).AddHttpMessageHandler<LookUps.LookUpHosts>();
         services.AddSingleton<LookUps.Weather>();
         services.AddSingleton<ITool, LookUps.WeatherTool>();
         services.AddSingleton<ITool, LookUps.DefineTool>();
+        services.AddSingleton<ITool, LookUps.LookUpTool>();
+        services.AddSingleton<ITool, LookUps.HolidaysTool>();
         services.AddSingleton<IToolExecutor, ToolExecutor>();
         return services;
     }

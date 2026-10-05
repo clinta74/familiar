@@ -15,6 +15,9 @@ public sealed class LookUpHosts : DelegatingHandler
         "geocoding-api.open-meteo.com",
         "api.open-meteo.com",
         "en.wiktionary.org",
+        "en.wikipedia.org",
+        "www.wikidata.org",
+        "date.nager.at",
     };
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

@@ -12,7 +12,6 @@ namespace Familiar.Server.LookUps;
 /// </summary>
 public sealed partial class WeatherTool(Weather weather) : ITool
 {
-
     public ToolDefinition Definition { get; } = new(
         "get_weather",
         "The weather now and the forecast for up to a week ahead. Use when the user asks about the weather or what to wear.",

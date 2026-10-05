@@ -64,7 +64,8 @@ public sealed class Weather(IHttpClientFactory http, IMemoryCache cache, ILogger
         }
     }
 
-    public sealed record Location(string Name, string Label, double Latitude, double Longitude, string CountryCode);
+    /// <summary>A place found by name; its region is the state, province or nation ("Michigan", "England"), if given.</summary>
+    public sealed record Location(string Name, string Label, double Latitude, double Longitude, string CountryCode, string Region = "");
 
     /// <summary>"Portland, Oregon": search for Portland, prefer the one whose region or country says Oregon.</summary>
     public async Task<Location?> GeocodeAsync(string place, CancellationToken ct) =>
@@ -92,7 +93,8 @@ public sealed class Weather(IHttpClientFactory http, IMemoryCache cache, ILogger
             var name = LookUpText.Clean(Text(best, "name"), 60);
             var label = string.Join(", ", new[] { name, LookUpText.Clean(Text(best, "admin1"), 60), LookUpText.Clean(Text(best, "country"), 60) }
                 .Where(s => s.Length > 0).Distinct());
-            return new Location(name, label, best["latitude"]!.GetValue<double>(), best["longitude"]!.GetValue<double>(), Text(best, "country_code"));
+            return new Location(name, label, best["latitude"]!.GetValue<double>(), best["longitude"]!.GetValue<double>(), Text(best, "country_code"),
+                LookUpText.Clean(Text(best, "admin1"), 60));
         });
 
     public async Task<JsonObject> ForecastAsync(Location at, bool imperial, CancellationToken ct) =>

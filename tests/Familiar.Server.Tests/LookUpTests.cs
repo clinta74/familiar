@@ -41,14 +41,76 @@ internal sealed class OutsideServices : HttpMessageHandler
          "fr":[{"partOfSpeech":"Nom","language":"French","definitions":[{"definition":"pétrichor"}]}]}
         """;
 
+    /// <summary>Wikipedia answers "busy" (429) when set.</summary>
+    public bool WikipediaBusy { get; set; }
+
+    private const string BridgeSummary = """
+        {"type":"standard","title":"Gordie Howe International Bridge","description":"Bridge between Detroit and Windsor",
+         "extract":"The Gordie Howe International Bridge is a cable-stayed bridge across the Detroit River.",
+         "timestamp":"2026-10-05T01:07:27Z","wikibase_item":"Q5266001"}
+        """;
+
+    private const string OfficeSummary = """
+        {"type":"standard","title":"Prime Minister of Canada","extract":"The prime minister of Canada is the head of government of Canada.",
+         "timestamp":"2026-09-26T10:00:00Z","wikibase_item":"Q839078"}
+        """;
+
+    private const string BridgeClaims = """
+        {"entities":{"Q5266001":{"claims":{
+          "P31":[{"rank":"normal","mainsnak":{"snaktype":"value","datavalue":{"type":"wikibase-entityid","value":{"id":"Q12280"}}}}],
+          "P1619":[{"rank":"normal","mainsnak":{"snaktype":"value","datavalue":{"type":"time","value":{"time":"+2026-07-27T00:00:00Z","precision":11}}}}],
+          "P571":[{"rank":"normal","mainsnak":{"snaktype":"value","datavalue":{"type":"time","value":{"time":"+2018-06-00T00:00:00Z","precision":10}}}}],
+          "P2043":[{"rank":"normal","mainsnak":{"snaktype":"value","datavalue":{"type":"quantity","value":{"amount":"+2500","unit":"http://www.wikidata.org/entity/Q11573"}}}}],
+          "P18":[{"rank":"normal","mainsnak":{"snaktype":"value","datavalue":{"type":"string","value":"Bridge.jpg"}}}]}}}}
+        """;
+
+    private const string OfficeClaims = """
+        {"entities":{"Q839078":{"claims":{
+          "P1308":[
+            {"rank":"normal","qualifiers":{"P582":[{}]},"mainsnak":{"snaktype":"value","datavalue":{"type":"wikibase-entityid","value":{"id":"Q3099714"}}}},
+            {"rank":"normal","mainsnak":{"snaktype":"value","datavalue":{"type":"wikibase-entityid","value":{"id":"Q16154012"}}}}]}}}}
+        """;
+
+    private const string Labels = """
+        {"entities":{"Q12280":{"labels":{"en":{"value":"bridge"}}},"Q11573":{"labels":{"en":{"value":"metre"}}},
+          "Q3099714":{"labels":{"en":{"value":"Justin Trudeau"}}},"Q16154012":{"labels":{"en":{"value":"Mark Carney"}}}}}
+        """;
+
+    private const string Countries = """[{"countryCode":"GB","name":"United Kingdom"},{"countryCode":"US","name":"United States"}]""";
+
+    private const string UsHolidays = """
+        [{"date":"2026-10-12","name":"Columbus Day","global":false,"counties":["US-CA"]},
+         {"date":"2026-10-13","name":"A Maine day","global":false,"counties":["US-ME"]},
+         {"date":"2026-11-26","name":"Thanksgiving Day","global":true,"counties":null}]
+        """;
+
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        Asked.Add(request.RequestUri!);
-        var (status, body) = request.RequestUri!.Host switch
+        var uri = request.RequestUri!;
+        Asked.Add(uri);
+        var query = Uri.UnescapeDataString(uri.Query);
+        var (status, body) = uri.Host switch
         {
             "geocoding-api.open-meteo.com" => (HttpStatusCode.OK, Geocoding),
             "api.open-meteo.com" => (HttpStatusCode.OK, Forecast),
-            "en.wiktionary.org" when request.RequestUri.AbsolutePath.EndsWith("/petrichor", StringComparison.Ordinal) => (HttpStatusCode.OK, Definition),
+            "en.wiktionary.org" when uri.AbsolutePath.EndsWith("/petrichor", StringComparison.Ordinal) => (HttpStatusCode.OK, Definition),
+            "en.wikipedia.org" when WikipediaBusy => (HttpStatusCode.TooManyRequests, "{}"),
+            "en.wikipedia.org" when uri.AbsolutePath.EndsWith("/search/page", StringComparison.Ordinal) =>
+                (HttpStatusCode.OK, query.Contains("prime minister", StringComparison.OrdinalIgnoreCase)
+                    ? """{"pages":[{"key":"Prime_Minister_of_Canada"}]}"""
+                    : query.Contains("mercury", StringComparison.OrdinalIgnoreCase)
+                        ? """{"pages":[{"key":"Mercury"}]}"""
+                        : """{"pages":[{"key":"Gordie_Howe_International_Bridge"}]}"""),
+            "en.wikipedia.org" when uri.AbsolutePath.EndsWith("/Prime_Minister_of_Canada", StringComparison.Ordinal) => (HttpStatusCode.OK, OfficeSummary),
+            "en.wikipedia.org" when uri.AbsolutePath.EndsWith("/Mercury", StringComparison.Ordinal) =>
+                (HttpStatusCode.OK, """{"type":"disambiguation","title":"Mercury","extract":"Mercury may refer to:"}"""),
+            "en.wikipedia.org" => (HttpStatusCode.OK, BridgeSummary),
+            "www.wikidata.org" when query.Contains("props=labels", StringComparison.Ordinal) => (HttpStatusCode.OK, Labels),
+            "www.wikidata.org" when query.Contains("Q839078", StringComparison.Ordinal) => (HttpStatusCode.OK, OfficeClaims),
+            "www.wikidata.org" => (HttpStatusCode.OK, BridgeClaims),
+            "date.nager.at" when uri.AbsolutePath.EndsWith("/AvailableCountries", StringComparison.Ordinal) => (HttpStatusCode.OK, Countries),
+            "date.nager.at" when uri.AbsolutePath.EndsWith("/2026/US", StringComparison.Ordinal) => (HttpStatusCode.OK, UsHolidays),
+            "date.nager.at" => (HttpStatusCode.OK, "[]"),
             _ => (HttpStatusCode.NotFound, "{}"),
         };
         return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") });
@@ -170,6 +232,110 @@ public sealed class LookUpUnitTests
         outside.Geocoding = "{}";
 
         Assert.Null(await Weather(http).TodayNoteAsync("Nowhere", default));
+    }
+
+    private static MemoryCache Cache() => new(new MemoryCacheOptions());
+
+    [Fact]
+    public async Task A_look_up_is_the_article_and_its_key_dated_facts()
+    {
+        var (http, _) = Services();
+
+        var result = await new LookUpTool(http, Cache()).InvokeAsync(Context(), new JsonObject { ["topic"] = "new bridge from Canada to Michigan" }, default);
+
+        Assert.True(result.Ok);
+        Assert.Equal("Gordie Howe International Bridge", result.Data["title"]!.GetValue<string>());
+        Assert.Equal("5 October 2026", result.Data["as_of"]!.GetValue<string>());
+        var facts = result.Data["facts"]!;
+        Assert.Equal("27 July 2026", facts["officially opened"]!.GetValue<string>());
+        Assert.Equal("June 2018", facts["founded or begun"]!.GetValue<string>());
+        Assert.Equal("2,500 metre", facts["length"]!.GetValue<string>());
+        Assert.Equal("bridge", facts["is a"]!.GetValue<string>());
+        Assert.Equal(4, facts.AsObject().Count); // The image (P18) isn't one of them.
+        Assert.Equal("Wikipedia and Wikidata", result.Data["source"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task An_office_is_held_by_whoever_holds_it_now()
+    {
+        var (http, _) = Services();
+
+        var result = await new LookUpTool(http, Cache()).InvokeAsync(Context(), new JsonObject { ["topic"] = "Prime Minister of Canada" }, default);
+
+        Assert.Equal("Mark Carney", result.Data["facts"]!["held now by"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task An_ambiguous_topic_asks_which()
+    {
+        var (http, _) = Services();
+
+        var result = await new LookUpTool(http, Cache()).InvokeAsync(Context(), new JsonObject { ["topic"] = "Mercury" }, default);
+
+        Assert.False(result.Ok);
+        Assert.Contains("which one", result.Data["error"]!.GetValue<string>(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_busy_wikipedia_is_said_so_not_an_error()
+    {
+        var (http, outside) = Services();
+        outside.WikipediaBusy = true;
+
+        var result = await new LookUpTool(http, Cache()).InvokeAsync(Context(), new JsonObject { ["topic"] = "Mount Everest" }, default);
+
+        Assert.False(result.Ok);
+        Assert.Equal("Wikipedia busy", result.Summary);
+    }
+
+    [Theory]
+    [InlineData("+2026-07-27T00:00:00Z", 11, "27 July 2026")]
+    [InlineData("+2018-06-00T00:00:00Z", 10, "June 2018")]
+    [InlineData("+1969-00-00T00:00:00Z", 9, "1969")]
+    [InlineData("-0480-00-00T00:00:00Z", 9, "480 BC")]
+    [InlineData("+1500-00-00T00:00:00Z", 7, "the 15th century")]
+    public void Wikidata_dates_are_said_to_their_precision(string time, int precision, string expected) =>
+        Assert.Equal(expected, LookUpTool.Date(time, precision));
+
+    [Fact]
+    public async Task Holidays_are_kept_to_the_region_where_they_live()
+    {
+        var (http, _) = Services();
+        var holidays = new HolidaysTool(http, Cache(), Weather(http));
+
+        var result = await holidays.InvokeAsync(Context(home: "Portland, Maine") with { Now = new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero) }, [], default);
+
+        Assert.True(result.Ok);
+        Assert.Equal(("United States", "Maine"), (result.Data["country"]!.GetValue<string>(), result.Data["their_region"]!.GetValue<string>()));
+        var names = result.Data["coming_up"]!.AsArray().Select(h => h!["name"]!.GetValue<string>()).ToList();
+        Assert.Equal(["A Maine day", "Thanksgiving Day"], names); // Not California's Columbus Day.
+    }
+
+    [Theory]
+    [InlineData("2026-11-26", true)]
+    [InlineData("2026-10-12", false)]
+    public async Task A_day_is_a_holiday_if_it_is_one_where_they_live(string day, bool expected)
+    {
+        var (http, _) = Services();
+        var holidays = new HolidaysTool(http, Cache(), Weather(http));
+
+        var result = await holidays.InvokeAsync(
+            Context(home: "Portland, Maine") with { Now = new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero) },
+            new JsonObject { ["day"] = day },
+            default);
+
+        Assert.Equal(expected, result.Data["is_a_public_holiday"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public async Task Holidays_need_a_country()
+    {
+        var (http, _) = Services();
+
+        var result = await new HolidaysTool(http, Cache(), Weather(http)).InvokeAsync(Context(), [], default);
+
+        Assert.False(result.Ok);
+        Assert.Contains("which country", result.Data["error"]!.GetValue<string>(), StringComparison.Ordinal);
     }
 
     [Theory]

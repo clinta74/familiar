@@ -107,7 +107,10 @@ fun FamiliarSettingsScreen(session: FamiliarSession, onBack: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Look things up", style = MaterialTheme.typography.bodyLarge)
-                        Muted("The weather (Open-Meteo) and what words mean (Wiktionary). Only those; what you ask goes to them, nothing else about you.")
+                        Muted(
+                            "The weather (Open-Meteo), what words mean (Wiktionary), facts and figures (Wikipedia, Wikidata) and public " +
+                                "holidays (Nager.Date). Only those; what you ask goes to them, nothing else about you.",
+                        )
                     }
                     Switch(checked = lookUps, onCheckedChange = { update(current.copy(lookUps = it)) })
                 }
