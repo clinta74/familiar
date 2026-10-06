@@ -28,6 +28,9 @@ services:
               capabilities: [gpu]
     environment:
       OLLAMA_FLASH_ATTENTION: "1"
+      # Half the memory the context reserves (needs flash attention): headroom on a 12 GB card so
+      # Whisper, loading when someone first talks, isn't out of memory.
+      OLLAMA_KV_CACHE_TYPE: q8_0
 
   stt:
     image: ghcr.io/speaches-ai/speaches:${STT_GPU_TAG:-latest-cuda}
