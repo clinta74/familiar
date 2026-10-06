@@ -45,8 +45,14 @@ public sealed class SituationProvider(
     /// <summary>A gap this long is worth mentioning ("You last talked 3 days ago").</summary>
     private static readonly TimeSpan NotableGap = TimeSpan.FromHours(6);
 
-    /// <summary>After this long apart - the greeting's gap - today's weather is worth knowing.</summary>
-    internal static readonly TimeSpan WeatherGap = TimeSpan.FromHours(3);
+    /// <summary>
+    /// After this long apart - the greeting's gap - it's catching up: what's on the calendar and
+    /// today's weather are worth knowing.
+    /// </summary>
+    internal static readonly TimeSpan CatchUpGap = TimeSpan.FromHours(3);
+
+    /// <summary>Something starting within this is about to happen: worth a word even mid-conversation.</summary>
+    internal static readonly TimeSpan Imminent = TimeSpan.FromMinutes(30);
 
     /// <param name="accountId">Whose familiar.</param>
     /// <param name="zone">Their time zone.</param>
@@ -63,33 +69,42 @@ public sealed class SituationProvider(
         var notes = new List<string>();
         var soon = false;
 
+        TimeSpan? since = await conversations.LastMessageAtAsync(accountId, messagesBefore, ct) is { } last ? now - last : null;
+        var catchingUp = since is null || since >= CatchUpGap;
+        DateTimeOffset? lastSpoke = since is { } gap ? now - gap : null;
+
+        // The notes come with every message and a model reads them as news: told about the same
+        // appointment each turn, it brought it up each turn. So the calendar and reminders are in them
+        // when catching up after a while apart, and once more when something is about to start;
+        // otherwise list_events answers questions about the calendar.
         var events = await calendars.BetweenAsync(accountId, now, now + Horizon, ct);
+        soon |= events.Any(e => !e.AllDay && e.StartsAt - now < Soon);
         var upcoming = events
-            .Where(e => !e.AllDay || e.StartsAt.UtcDateTime.Date <= TimeZoneInfo.ConvertTime(now, zone).Date.AddDays(1))
+            .Where(e => catchingUp
+                ? !e.AllDay || e.StartsAt.UtcDateTime.Date <= TimeZoneInfo.ConvertTime(now, zone).Date.AddDays(1)
+                : !e.AllDay && JustImminent(e.StartsAt, now, lastSpoke))
             .Take(3)
             .Select(e => $"{e.Title}, {Spoken.EventWhen(e, zone, now)}")
             .ToList();
         if (upcoming.Count > 0)
         {
-            notes.Add($"On their calendar: {string.Join("; ", upcoming)}.");
-            soon |= events.Any(e => !e.AllDay && e.StartsAt - now < Soon);
+            notes.Add(catchingUp ? $"On their calendar: {string.Join("; ", upcoming)}." : $"Starting soon on their calendar: {string.Join("; ", upcoming)}.");
         }
 
         var pending = await scheduler.PendingAsync(accountId, null, ct);
         var running = pending
-            .Where(j => j.Kind == JobKind.Timer || j.DueAt - now < Soon)
+            .Where(j => j.Kind == JobKind.Timer || (catchingUp ? j.DueAt - now < Soon : JustImminent(j.DueAt, now, lastSpoke)))
             .Take(4)
             .Select(j => j.Kind == JobKind.Timer
                 ? $"{(j.Label.Length > 0 ? j.Label + " timer" : "a timer")}, {Spoken.Remaining(j.DueAt - now)} left"
                 : $"a reminder to {j.Label.TrimEnd('.')} {Spoken.When(j.DueAt, zone, now)}")
             .ToList();
+        soon |= pending.Any(j => j.Kind == JobKind.Reminder && j.DueAt - now < Soon);
         if (running.Count > 0)
         {
             notes.Add($"Running: {string.Join("; ", running)}.");
-            soon |= pending.Any(j => j.Kind == JobKind.Reminder && j.DueAt - now < Soon);
         }
 
-        TimeSpan? since = await conversations.LastMessageAtAsync(accountId, messagesBefore, ct) is { } last ? now - last : null;
         if (since is null)
         {
             notes.Add("This is the first time you've talked.");
@@ -99,7 +114,7 @@ public sealed class SituationProvider(
             notes.Add($"You last talked {Spoken.Ago(since.Value)} ago.");
         }
 
-        if (!string.IsNullOrWhiteSpace(weatherAt) && (since is null || since >= WeatherGap)
+        if (!string.IsNullOrWhiteSpace(weatherAt) && catchingUp
             && await weather.TodayNoteAsync(weatherAt, ct) is { } forecast)
         {
             notes.Add(forecast);
@@ -110,4 +125,11 @@ public sealed class SituationProvider(
 
         return new Situation(notes, memoryLines, since, soon);
     }
+
+    /// <summary>
+    /// Whether something at <paramref name="at"/> has come within <see cref="Imminent"/> since they
+    /// last spoke: true for one turn, not every turn until it starts.
+    /// </summary>
+    internal static bool JustImminent(DateTimeOffset at, DateTimeOffset now, DateTimeOffset? lastSpoke) =>
+        at - now <= Imminent && (lastSpoke is null || at - lastSpoke.Value > Imminent);
 }

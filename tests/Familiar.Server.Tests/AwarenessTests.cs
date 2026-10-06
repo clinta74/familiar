@@ -5,6 +5,7 @@ using Familiar.Agent.Llm;
 using Familiar.Agent.Prompting;
 using Familiar.Domain.Calendars;
 using Familiar.Domain.Familiars;
+using Familiar.Server.Awareness;
 using Familiar.Server.Calendars;
 using Familiar.Server.Conversation;
 using Familiar.Server.Familiars;
@@ -199,13 +200,31 @@ public sealed class AwarenessTests(PostgresFixture postgres)
         await stream.ReadUntilAsync(EventTypes.Ready);
         await client.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("pasta timer please", "America/Chicago"));
         await stream.ReadUntilStateAsync(FamiliarState.Idle);
+        var first = app.Llm.LastPrompt!.Last(m => m.Role == ChatRole.User).Content;
+        Assert.Contains("On their calendar: Dentist, in 30 minutes", first, StringComparison.Ordinal);
+
         await client.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("anything else today?", "America/Chicago"));
         await stream.ReadUntilStateAsync(FamiliarState.Idle);
 
+        // Mid-conversation the calendar isn't news, so it isn't in every message; the timer is.
         var last = app.Llm.LastPrompt![^1].Content;
-        Assert.Contains("On their calendar: Dentist, in 30 minutes", last, StringComparison.Ordinal);
+        Assert.DoesNotContain("Dentist", last, StringComparison.Ordinal);
         Assert.Contains("Running: pasta timer, 10 minutes left", last, StringComparison.Ordinal);
         Assert.DoesNotContain("first time", last, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(40, 45, false)] // Not yet within half an hour.
+    [InlineData(25, 35, true)] // Came within it since they last spoke: mentioned once...
+    [InlineData(20, 25, false)] // ...and not again.
+    [InlineData(20, null, true)]
+    public void Something_about_to_start_is_noted_once(int startsIn, int? startedInWhenLastSpoke, bool expected)
+    {
+        var now = new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero);
+        var at = now.AddMinutes(startsIn);
+        DateTimeOffset? lastSpoke = startedInWhenLastSpoke is { } m ? at.AddMinutes(-m) : null;
+
+        Assert.Equal(expected, SituationProvider.JustImminent(at, now, lastSpoke));
     }
 
     [Fact]

@@ -355,7 +355,7 @@ Reported 2026-10-05: when the giraffe or the otter (3D) yawns, the mouth shows a
 a strip running down the chin. The other characters yawn correctly.
 
 
-### 18. The avatar winds down when nothing's happening — done (2026-10-05)
+### 18. ~~The avatar winds down when nothing's happening~~ — done (2026-10-05)
 
 Reported 2026-10-05: after a happy reply the avatar kept bouncing. **Fixed:** an expression lingers
 for 8 seconds, then softens and the bounce settles over a second and a half; after 45 seconds with
@@ -367,6 +367,16 @@ tap or key on the page, the page or app coming back to the front, typing (it lis
 expression or gesture. Waking only restarts the drowsiness, not the last expression, so a tap
 doesn't set a happy bounce going again. The gallery has `drowsy` and `asleep` cells.
 
+
+### 19. ~~Calendar reminders in nearly every reply~~ — fixed (2026-10-05)
+
+Reported 2026-10-05: with one appointment on the calendar, the familiar brought it up in most
+replies. The cause: every message carried a note listing the next 36 hours of the calendar, and
+the model read it as news each time. **Fixed** (`Awareness/SituationProvider.cs`): the calendar and
+pending reminders are in the notes only when catching up (a greeting, or the first message after
+3 hours apart), and once more on the first message after something comes within 30 minutes of
+starting ("Starting soon on their calendar: …"). Otherwise `list_events` answers questions about the
+calendar, and the prompt says so; running timers are still noted each turn.
 ---
 
 ## Avatars

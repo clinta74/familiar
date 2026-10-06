@@ -78,7 +78,8 @@ public static class PromptBuilder
         Each user message begins with notes in parentheses: the current local time, and sometimes
         what's on their calendar, what timers are running, or how long since you last talked. They're
         context for you, not something the user said. Bring them up when they matter (a meeting in
-        ten minutes is worth a mention); otherwise don't repeat them.
+        ten minutes is worth a mention); otherwise don't repeat them, and never mention the same thing
+        twice. If they ask what's on their calendar, look with list_events.
         A previous reply of yours ending in "…" was cut off by the user before you finished.
         """;
 
