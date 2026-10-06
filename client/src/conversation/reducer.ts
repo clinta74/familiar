@@ -89,6 +89,18 @@ function fromView(view: MessageView): ChatMessage {
   };
 }
 
+/**
+ * What the stream delivered that the history snapshot doesn't have yet, to keep after it. Not
+ * everything it lacks: reloaded after a while away (a resync), the newest messages have moved the
+ * window on, and what dropped out of it is older - kept, it landed at the bottom out of order.
+ * Message ids are time-ordered (UUID v7), so they say which is which.
+ */
+function newerThan(history: MessageView[], messages: ChatMessage[]): ChatMessage[] {
+  const known = new Set(history.map((m) => m.id));
+  const oldest = history[0]?.id;
+  return messages.filter((m) => !known.has(m.id) && (oldest === undefined ? m.streaming : m.id > oldest));
+}
+
 /** The reply's bubble, created if the tool ran before it said anything (the usual order). */
 function withChip(state: ConversationState, replyId: string, update: (chips: ToolChip[]) => ToolChip[]): ConversationState {
   const exists = state.messages.some((m) => m.id === replyId);
@@ -120,12 +132,8 @@ export function conversationReducer(state: ConversationState, action: Conversati
         state: action.ready.modelAvailable ? state.state : 'resting',
       };
 
-    case 'history': {
-      // Keep anything the stream delivered that the history snapshot didn't include yet.
-      const known = new Set(action.messages.map((m) => m.id));
-      const live = state.messages.filter((m) => !known.has(m.id));
-      return { ...state, messages: [...action.messages.map(fromView), ...live] };
-    }
+    case 'history':
+      return { ...state, messages: [...action.messages.map(fromView), ...newerThan(action.messages, state.messages)] };
 
     case 'state':
       return {

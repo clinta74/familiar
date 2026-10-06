@@ -377,6 +377,14 @@ pending reminders are in the notes only when catching up (a greeting, or the fir
 3 hours apart), and once more on the first message after something comes within 30 minutes of
 starting ("Starting soon on their calendar: …"). Otherwise `list_events` answers questions about the
 calendar, and the prompt says so; running timers are still noted each turn.
+
+### 20. ~~Old messages at the bottom of the chat after the app comes back~~ — fixed (2026-10-05)
+
+Reported 2026-10-05. Coming back after a while, the app (and the web page, on a resync) reloads the
+newest 50 messages and kept whatever it already had that they didn't include, after them - meant for
+a reply still streaming in. But when new messages had arrived meanwhile, the oldest ones it was
+showing had dropped out of the 50, and they were put at the bottom. **Fixed** in both reducers:
+only what's newer than the reloaded window is kept (message ids are UUID v7, so they sort by time).
 ---
 
 ## Avatars

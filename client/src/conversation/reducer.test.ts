@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { MessageView } from './events';
 import { conversationReducer, initialConversation, type ConversationAction, type ConversationState } from './reducer';
 
+// Ids sort by time, as the server's UUID v7 ids do: u1 is older than u2.
 const user = (id: string, text: string): MessageView => ({
   id,
   role: 'user',
@@ -49,6 +50,14 @@ describe('conversationReducer', () => {
       { type: 'history', messages: [user('u1', 'Old')] },
     );
     expect(state.messages.map((m) => m.text)).toEqual(['Old', 'Live']);
+  });
+
+  it('drops what a reload has moved past, rather than putting it at the bottom', () => {
+    const state = run(
+      { type: 'history', messages: [user('u1', 'First'), user('u2', 'Second')] },
+      { type: 'history', messages: [user('u2', 'Second'), user('u3', 'Third')] },
+    );
+    expect(state.messages.map((m) => m.text)).toEqual(['Second', 'Third']);
   });
 
   it('marks the model unavailable while resting and available again once it speaks', () => {

@@ -44,9 +44,16 @@ private fun MessageView.toChat() = ChatMessage(
  * already applied, and history loaded at startup can overlap the stream.
  */
 object ConversationReducer {
+    /**
+     * The history snapshot, then what the stream delivered that it doesn't have yet. Not everything
+     * it lacks: reloaded after a while away (a resync), the newest messages have moved the window
+     * on, and what dropped out of it is older - kept, it landed at the bottom out of order. Message
+     * ids are time-ordered (UUID v7), so they say which is which.
+     */
     fun history(state: ConversationState, messages: List<MessageView>): ConversationState {
         val known = messages.map { it.id }.toSet()
-        val live = state.messages.filter { it.id !in known }
+        val oldest = messages.firstOrNull()?.id
+        val live = state.messages.filter { it.id !in known && if (oldest == null) it.streaming else it.id > oldest }
         return state.copy(messages = messages.map { it.toChat() } + live)
     }
 

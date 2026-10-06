@@ -82,6 +82,15 @@ class ReducerTests {
     }
 
     @Test
+    fun a_reload_drops_what_it_has_moved_past_rather_than_putting_it_at_the_bottom() {
+        // Ids sort by time, as the server's UUID v7 ids do.
+        fun view(id: String) = MessageView(id, "user", id, interrupted = false, createdAt = AT)
+        val before = ConversationReducer.history(ConversationState(), listOf(view("a1"), view("a2")))
+        val after = ConversationReducer.history(before, listOf(view("a2"), view("a3")))
+        assertEquals(listOf("a2", "a3"), after.messages.map { it.id })
+    }
+
+    @Test
     fun ready_opens_the_connection_and_resting_shows_when_the_model_is_away() {
         val ready = ServerEvent.parse("ready", """{"familiar":{"name":"Pip","expressiveness":0.8},"modelAvailable":false,"speechAvailable":false}""")
         val state = run(ready)
