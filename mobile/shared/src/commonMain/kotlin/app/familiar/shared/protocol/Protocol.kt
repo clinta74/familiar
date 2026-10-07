@@ -56,6 +56,9 @@ sealed interface ServerEvent {
     data class Jobs(val jobs: List<JobView>) : ServerEvent
     data object Cleared : ServerEvent
     data object Resync : ServerEvent
+
+    /** The server's keep-alive ping: nothing to show, but the stream is alive. */
+    data object Heartbeat : ServerEvent
     data class Other(val type: String) : ServerEvent
 
     companion object {

@@ -480,3 +480,14 @@ background gave one notification; back in front it was gone, the stream reconnec
 got its reply. With the app asleep or closed only a push wakes it - ntfy: set up on the NAS the same
 day behind the proxy at its own host (deploy/TRUENAS.md, "Push to phones"), and confirmed on the Fold
 with v0.3.6 - an announcement with the app closed came through, and a timer rang.
+
+**Refined (2026-10-07): "reconnecting…" on every unlock, and sometimes stuck there.** Android cuts a
+locked app's network after about ten seconds, so the stream does need making again on unlock - but
+now: the server's pings reach the app (they were hidden), and coming back with the stream still
+heard from in the last 20 seconds doesn't reconnect at all (`resume`); a reconnect on purpose doesn't
+say "reconnecting…" unless it takes over 3 seconds; while the app's away (and hands-free is off) it
+doesn't keep retrying with no network - those attempts hung and came back as stray connections - but
+waits to be back in front; and an attempt that's heard nothing in 10 seconds (the server says
+"ready" at once) is given up and a fresh one made, rather than waiting out the 45-second read timeout
+on a connection the network dropped while the phone was locked. On the emulator: locked 40 seconds,
+one new connection on unlock, no "reconnecting…", and a message straight after got its reply.

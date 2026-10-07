@@ -84,7 +84,8 @@ class FamiliarApi(
 ) {
     private val http = (client ?: HttpClient()).config {
         install(ContentNegotiation) { json(FamiliarJson) }
-        install(SSE)
+        // The server's ": ping" comments too: they're how the app knows the stream is still alive.
+        install(SSE) { showCommentEvents() }
         install(HttpTimeout) {
             connectTimeoutMillis = 10_000
             // The stream stays open indefinitely; the server pings every 15 s, so a dead
@@ -335,7 +336,8 @@ class FamiliarApi(
                 request = { lastEventId?.let { header("Last-Event-ID", it) } },
             ) {
                 incoming.collect { event ->
-                    emit(StreamEvent(event.id, ServerEvent.parse(event.event, event.data)))
+                    val ping = event.event == null && event.data == null
+                    emit(StreamEvent(event.id, if (ping) ServerEvent.Heartbeat else ServerEvent.parse(event.event, event.data)))
                 }
             }
         } catch (exception: io.ktor.client.plugins.sse.SSEClientException) {

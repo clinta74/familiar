@@ -139,6 +139,9 @@ class FamiliarSession(
     private var once = false
 
     init {
+        // Hands-free keeps the app running in the background, and needs the stream; otherwise there's
+        // no point reconnecting until the app's back in front.
+        controller.holdWhileAway = { awaySince != null && !_handsFreeOn.value }
         controller.speak = _voiceOn.value && player != null
         controller.onEvent = { event ->
             avatar.handle(event, audible = player?.isPlaying == true)
@@ -181,8 +184,9 @@ class FamiliarSession(
 
     /**
      * The app went into the background ([visible] false) or came back. Back after more than a few
-     * seconds - or with the connection down - it reconnects at once: the old connection may be dead
-     * without anything having noticed (docs/MOBILE.md).
+     * seconds - or with the connection down - it checks the stream: if it's gone quiet it reconnects
+     * at once, since it may have died without anything having noticed; if it's still hearing the
+     * server, it carries on ([ConversationController.resume]).
      */
     fun foreground(visible: Boolean) {
         if (!visible) {
@@ -193,7 +197,7 @@ class FamiliarSession(
         awaySince = null
         shownAway.forEach { alarms?.dismissMessage(it) }
         shownAway.clear()
-        if (Clock.System.now() - away > 5.seconds || controller.state.value.connection != Connection.Open) controller.reconnect()
+        if (Clock.System.now() - away > 5.seconds || controller.state.value.connection != Connection.Open) controller.resume()
     }
 
     /** Connects (once); the look is read as soon as the stream is ready. */

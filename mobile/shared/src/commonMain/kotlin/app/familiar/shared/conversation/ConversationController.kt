@@ -14,6 +14,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +33,7 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 /**
@@ -74,6 +76,18 @@ class ConversationController(
 
     /** Ask for a reconnect straight away, skipping any wait between attempts. */
     private val kicks = Channel<Unit>(Channel.CONFLATED)
+
+    /** The current attempt was ended on purpose ([reconnect]): straight on to the next, quietly. */
+    private var kicked = false
+
+    /** When the stream last said anything, a ping included. */
+    private var lastHeard: Instant? = null
+
+    /**
+     * Whether to hold off reconnecting until [resume]: the app is in the background, where Android
+     * soon cuts its network - an attempt then hangs, and is a stray connection when it's let go.
+     */
+    var holdWhileAway: () -> Boolean = { false }
     private var calendarSync: Job? = null
     private var lastEventId: String? = null
 
@@ -91,13 +105,34 @@ class ConversationController(
                 // Each attempt runs on its own, so a reconnect can cancel it without ending the loop.
                 val ended = CompletableDeferred<Exception?>()
                 val attempt = scope.launch {
+                    // A reconnect on purpose doesn't say "reconnecting…" unless it's taking a while.
+                    val slow = launch {
+                        delay(QUIET_RECONNECT)
+                        _state.update { if (it.connection == Connection.Open) it.copy(connection = Connection.Reconnecting) else it }
+                    }
+                    // The server says "ready" as soon as a connection opens. An attempt that's heard
+                    // nothing at all by now is stuck - after the phone's been locked, on a connection
+                    // the network has silently dropped - and would wait out the 45-second read
+                    // timeout: give it up and make a fresh one.
+                    val self = coroutineContext.job
+                    val stuck = launch {
+                        delay(STUCK)
+                        if (lastHeard == null) self.cancel()
+                    }
                     ended.complete(
                         try {
                             connectionId = null
+                            lastHeard = null
                             api.events(currentTimeZoneId(), lastEventId, capabilities(), speak).collect { (id, event) ->
                                 if (id != null) lastEventId = id
+                                lastHeard = clock.now()
                                 backoff = 1_000L
+                                if (event is ServerEvent.Ready || event is ServerEvent.Heartbeat) {
+                                    slow.cancel()
+                                    stuck.cancel()
+                                }
                                 when (event) {
+                                    ServerEvent.Heartbeat -> return@collect
                                     ServerEvent.Resync -> loadHistory()
                                     is ServerEvent.ToolInvoke -> answer(event.event)
                                     is ServerEvent.Ready -> {
@@ -127,8 +162,19 @@ class ConversationController(
                     onSignedOut()
                     return@launch
                 }
+                lastHeard = null
+                if (kicked) {
+                    kicked = false
+                    backoff = 1_000L
+                    continue
+                }
 
                 _state.update { it.copy(connection = Connection.Reconnecting) }
+                if (holdWhileAway()) {
+                    kicks.receive()
+                    backoff = 1_000L
+                    continue
+                }
                 // A kick (the app back in front) skips the wait and starts the backing-off again.
                 backoff = if (withTimeoutOrNull(backoff) { kicks.receive() } != null) 1_000L else (backoff * 2).coerceAtMost(15_000L)
             }
@@ -144,8 +190,20 @@ class ConversationController(
      */
     fun reconnect() {
         if (stream == null) return
+        kicked = connection?.isActive == true
         kicks.trySend(Unit)
         connection?.cancel()
+    }
+
+    /**
+     * Back in front: reconnects only if the stream has gone quiet. The server pings every 15 seconds,
+     * so a stream that's said something in the last [ALIVE] is still there; one that hasn't may have
+     * been dropped while the phone was locked without either end noticing.
+     */
+    fun resume() {
+        val heard = lastHeard
+        if (state.value.connection == Connection.Open && heard != null && clock.now() - heard < ALIVE) return
+        reconnect()
     }
 
     fun stop() {
@@ -306,6 +364,15 @@ class ConversationController(
     }
 
     private companion object {
+        /** A stream that's said something this recently is alive (the server pings every 15 s). */
+        val ALIVE = 20.seconds
+
+        /** How long a reconnect on purpose may take before it says "reconnecting…". */
+        const val QUIET_RECONNECT = 3_000L
+
+        /** How long a connection may go without a word before it's given up as stuck. */
+        const val STUCK = 10_000L
+
         const val CALENDAR_ADD = "calendar.add"
         val SYNC_EVERY = 15.minutes
 
