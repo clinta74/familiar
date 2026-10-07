@@ -439,8 +439,9 @@ announcement and the familiar saying it as one, under the push's id so a push do
 timers and reminders are left to the phone's alarms; nothing while hands-free is on. They're cleared
 on coming back. Tried on the emulator against the dev server: an announcement with the app in the
 background gave one notification; back in front it was gone, the stream reconnected and a message
-got its reply. With the app asleep or closed only a push wakes it - ntfy, off on the NAS until
-`NTFY_BASE_URL` and `Push__UnifiedPushServer` are set (deploy/TRUENAS.md, "Push to phones").
+got its reply. With the app asleep or closed only a push wakes it - ntfy: set up on the NAS the same
+day behind the proxy at its own host (deploy/TRUENAS.md, "Push to phones"), and confirmed on the Fold
+with v0.3.6 - an announcement with the app closed came through, and a timer rang.
 ---
 
 ## Avatars
