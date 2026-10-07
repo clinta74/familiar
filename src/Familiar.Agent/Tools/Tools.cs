@@ -16,7 +16,11 @@ public sealed record ToolCall(string Id, string Name, JsonObject Arguments);
 /// <param name="Now">When the turn started.</param>
 /// <param name="LookUps">The user lets it look things up outside (the weather, a dictionary).</param>
 /// <param name="HomePlace">Where the user lives, for the weather when they don't say where.</param>
-public sealed record ToolContext(Guid AccountId, Guid ReplyId, TimeZoneInfo Zone, DateTimeOffset Now, bool LookUps = false, string? HomePlace = null)
+/// <param name="From">
+/// Where the message came from: the phone's device id, "browser", or null (a greeting, a hook) - so
+/// "where am I" asks that device.
+/// </param>
+public sealed record ToolContext(Guid AccountId, Guid ReplyId, TimeZoneInfo Zone, DateTimeOffset Now, bool LookUps = false, string? HomePlace = null, string? From = null)
 {
     /// <summary>What this reply's tools have done so far.</summary>
     public ToolTurn Turn { get; } = new();

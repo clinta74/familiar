@@ -497,7 +497,10 @@ data class ReadyEvent(
     val modelAvailable: Boolean,
     /** Speech-to-text and text-to-speech both answer. */
     val speechAvailable: Boolean,
-    /** For a phone that listed capabilities: its connection, which tool.invoke events address. */
+    /**
+     * For a phone that listed capabilities, or a browser offering where it is: its connection,
+     * which tool.invoke events address.
+     */
     val connectionId: String? = null,
 )
 

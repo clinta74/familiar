@@ -76,14 +76,18 @@ public static class ConversationEndpoints
     {
         var accountId = http.User.AccountId()!.Value;
 
-        // A phone says what it can do for the familiar while it's connected (PLAN.md §6.1).
-        // Browsers don't: device-side tools are for the phone apps.
+        // A phone says what it can do for the familiar while it's connected (PLAN.md §6.1); a browser
+        // may offer where it is, and nothing else (BACKLOG item 24).
         DeviceSession? device = null;
         IDisposable? registration = null;
+        var offered = (capabilities ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (http.User.DeviceId() is { } deviceId)
         {
-            (device, registration) = devices.Connect(accountId, deviceId,
-                (capabilities ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            (device, registration) = devices.Connect(accountId, deviceId, offered);
+        }
+        else if (offered.Any(DeviceCapabilities.Browser.Contains))
+        {
+            (device, registration) = devices.Connect(accountId, null, offered);
         }
 
         using var connected = registration;
@@ -173,6 +177,9 @@ public static class ConversationEndpoints
         return TypedResults.Ok(messages.Select(MessageView.From).ToList());
     }
 
+    /// <summary>Where a request came from: the phone's device id, or a browser.</summary>
+    private static string From(HttpContext http) => http.User.DeviceId()?.ToString() ?? DeviceCapabilities.FromBrowser;
+
     private static async Task<IResult> SendAsync(
         SendMessageRequest request, HttpContext http, ConversationTurns turns, TimeProvider clock, CancellationToken ct)
     {
@@ -182,7 +189,7 @@ public static class ConversationEndpoints
             return AuthEndpoints.Error(StatusCodes.Status400BadRequest, $"Messages are 1-{MaxMessageLength} characters.");
         }
 
-        var turn = new TurnRequest(Zone(request.TimeZone), request.Speak ?? false, clock.GetTimestamp());
+        var turn = new TurnRequest(Zone(request.TimeZone), request.Speak ?? false, clock.GetTimestamp(), From: From(http));
         var message = await turns.SubmitAsync(http.User.AccountId()!.Value, text, turn, ct);
         return TypedResults.Accepted((string?)null, MessageView.From(message));
     }
@@ -213,7 +220,7 @@ public static class ConversationEndpoints
 
         try
         {
-            var message = await turns.SubmitSpokenAsync(http.User.AccountId()!.Value, buffer.ToArray(), contentType, Zone(timeZone), ct);
+            var message = await turns.SubmitSpokenAsync(http.User.AccountId()!.Value, buffer.ToArray(), contentType, Zone(timeZone), ct, From(http));
             return message is null
                 ? TypedResults.NoContent()
                 : TypedResults.Accepted((string?)null, MessageView.From(message));

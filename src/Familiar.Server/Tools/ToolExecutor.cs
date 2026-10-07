@@ -95,13 +95,14 @@ public sealed class ToolExecutor(
 
     /// <summary>
     /// The built-in tools - the look-ups only for a user who's turned them on, the phone's only while
-    /// a phone that can do them is connected - then their MCP tools.
+    /// a phone that can do them is connected (or a browser can say where it is, with look-ups on) -
+    /// then their MCP tools.
     /// </summary>
     public async Task<IReadOnlyList<ToolDefinition>> DefinitionsAsync(ToolContext context, CancellationToken ct) =>
     [
         .. _tools.Values
             .Where(t => t.Definition.Risk != ToolRisk.LookUp || context.LookUps)
-            .Where(t => t is not Devices.IPhoneTool phone || devices.Find(context.AccountId, phone.Capability) is not null)
+            .Where(t => t is not Devices.IPhoneTool phone || devices.Find(context.AccountId, phone.Capability, context.From, browsers: context.LookUps) is not null)
             .Select(t => t.Definition),
         .. (await mcp.ToolsForAsync(context.AccountId, ct)).Select(t => t.Definition),
     ];

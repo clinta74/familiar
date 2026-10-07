@@ -150,6 +150,31 @@ public sealed class LookUpUnitTests
     private static ToolContext Context(string? home = null) =>
         new(Guid.NewGuid(), Guid.NewGuid(), TimeZoneInfo.Utc, DateTimeOffset.UtcNow, LookUps: true, HomePlace: home);
 
+    [Theory]
+    [InlineData("42.51,-83.08", true)]
+    [InlineData("53.82, -1.58", true)]
+    [InlineData("-33.87,151.21", true)]
+    [InlineData("95,10", false)]
+    [InlineData("Leeds", false)]
+    [InlineData("1,2,3", false)]
+    public void Coordinates_from_a_browser_are_a_place(string text, bool expected) =>
+        Assert.Equal(expected, LookUps.Weather.Coordinates(text) is not null);
+
+    [Fact]
+    public async Task The_weather_at_coordinates_is_where_you_are_in_your_units()
+    {
+        var (http, outside) = Services();
+        var context = Context() with { Zone = TimeZoneInfo.FindSystemTimeZoneById("America/Detroit") };
+
+        var result = await new WeatherTool(Weather(http)).InvokeAsync(context, new JsonObject { ["place"] = "42.51,-83.08" }, default);
+
+        Assert.True(result.Ok);
+        Assert.Equal("where you are", result.Data["place"]!.GetValue<string>());
+        Assert.Equal("°F", result.Data["units"]!["temperature"]!.GetValue<string>()); // A US time zone, no home set.
+        Assert.DoesNotContain(outside.Asked, u => u.Host == "geocoding-api.open-meteo.com");
+        Assert.Contains(outside.Asked, u => u.Host == "api.open-meteo.com" && u.Query.Contains("latitude=42.51", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task Air_quality_is_the_days_worst_in_words_with_the_uv()
     {

@@ -64,6 +64,44 @@ public sealed class Weather(IHttpClientFactory http, IMemoryCache cache, ILogger
         }
     }
 
+    /// <summary>
+    /// A place by name, or by coordinates as a browser gives them ("42.51,-83.08", BACKLOG item 24).
+    /// Coordinates have no name and no country, so they're "where you are", in the units of the
+    /// country they live in (or, with no home set, their time zone's).
+    /// </summary>
+    public async Task<Location?> FindAsync(string place, Agent.Tools.ToolContext context, CancellationToken ct)
+    {
+        if (Coordinates(place) is not { } at)
+        {
+            return await GeocodeAsync(place, ct);
+        }
+
+        var home = string.IsNullOrWhiteSpace(context.HomePlace) ? null : await GeocodeAsync(context.HomePlace, ct);
+        var country = home?.CountryCode ?? (UsZone(context.Zone.Id) ? "US" : "");
+        return new Location("where you are", "where you are", at.Latitude, at.Longitude, country);
+    }
+
+    /// <summary>"42.51,-83.08" (or with a space) as a latitude and longitude; null if it isn't one.</summary>
+    public static (double Latitude, double Longitude)? Coordinates(string text)
+    {
+        var parts = text.Split(',', StringSplitOptions.TrimEntries);
+        return parts.Length == 2
+            && double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var latitude)
+            && double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var longitude)
+            && Math.Abs(latitude) <= 90 && Math.Abs(longitude) <= 180
+                ? (latitude, longitude)
+                : null;
+    }
+
+    /// <summary>The United States' time zones, for units when there's nothing better to go on.</summary>
+    private static bool UsZone(string zone) =>
+        zone is "America/New_York" or "America/Detroit" or "America/Chicago" or "America/Denver" or "America/Phoenix"
+            or "America/Los_Angeles" or "America/Anchorage" or "America/Juneau" or "America/Boise" or "America/Menominee"
+            or "Pacific/Honolulu" or "US/Eastern" or "US/Central" or "US/Mountain" or "US/Pacific"
+        || zone.StartsWith("America/Indiana/", StringComparison.Ordinal)
+        || zone.StartsWith("America/Kentucky/", StringComparison.Ordinal)
+        || zone.StartsWith("America/North_Dakota/", StringComparison.Ordinal);
+
     /// <summary>A place found by name; its region is the state, province or nation ("Michigan", "England"), if given.</summary>
     public sealed record Location(string Name, string Label, double Latitude, double Longitude, string CountryCode, string Region = "");
 

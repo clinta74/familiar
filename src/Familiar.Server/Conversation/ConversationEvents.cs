@@ -46,7 +46,7 @@ public enum FamiliarState
 /// <param name="Familiar">Its name and expressiveness.</param>
 /// <param name="ModelAvailable">The model server answers.</param>
 /// <param name="SpeechAvailable">Speech-to-text and text-to-speech both answer.</param>
-/// <param name="ConnectionId">For a phone that listed capabilities: its connection, which <c>tool.invoke</c> events address.</param>
+/// <param name="ConnectionId">For a phone that listed capabilities, or a browser offering where it is: its connection, which <c>tool.invoke</c> events address.</param>
 public sealed record ReadyEvent(FamiliarSummary Familiar, bool ModelAvailable, bool SpeechAvailable, string? ConnectionId = null);
 
 public sealed record FamiliarSummary(string Name, double Expressiveness);

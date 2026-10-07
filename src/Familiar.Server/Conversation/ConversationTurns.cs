@@ -16,7 +16,8 @@ namespace Familiar.Server.Conversation;
 /// <param name="Speak">Synthesise the reply (PLAN.md §3.2).</param>
 /// <param name="ReceivedAt">When the user finished speaking or typing - the start of the latency clock.</param>
 /// <param name="TranscribeMs">For a spoken message, how long speech-to-text took.</param>
-public sealed record TurnRequest(TimeZoneInfo Zone, bool Speak, long ReceivedAt, long? TranscribeMs = null);
+/// <param name="From">Where the message came from (ToolContext.From).</param>
+public sealed record TurnRequest(TimeZoneInfo Zone, bool Speak, long ReceivedAt, long? TranscribeMs = null, string? From = null);
 
 /// <summary>
 /// Starts, runs and interrupts turns. One turn at a time per account: a new message interrupts the
@@ -77,7 +78,7 @@ public sealed class ConversationTurns(
     /// is always spoken. Null when there were no words in it.
     /// </summary>
     /// <exception cref="SpeechUnavailableException">Speech-to-text can't be used.</exception>
-    public async Task<Message?> SubmitSpokenAsync(Guid accountId, byte[] audio, string contentType, TimeZoneInfo zone, CancellationToken ct)
+    public async Task<Message?> SubmitSpokenAsync(Guid accountId, byte[] audio, string contentType, TimeZoneInfo zone, CancellationToken ct, string? from = null)
     {
         var receivedAt = clock.GetTimestamp();
         var channel = hub.For(accountId);
@@ -120,7 +121,7 @@ public sealed class ConversationTurns(
             return null;
         }
 
-        return await SubmitAsync(accountId, text, new TurnRequest(zone, Speak: true, receivedAt, transcribeMs), ct);
+        return await SubmitAsync(accountId, text, new TurnRequest(zone, Speak: true, receivedAt, transcribeMs, from), ct);
     }
 
     /// <summary>
@@ -470,7 +471,7 @@ public sealed class ConversationTurns(
             }
 
             var runner = scope.ServiceProvider.GetRequiredService<TurnRunner>();
-            var toolContext = new ToolContext(accountId, replyId, request.Zone, clock.GetUtcNow(), profile.LookUps, profile.HomePlace);
+            var toolContext = new ToolContext(accountId, replyId, request.Zone, clock.GetUtcNow(), profile.LookUps, profile.HomePlace, request.From);
             // A greeting gets no tools: it's a hello, not a chance to start doing things.
             var result = userMessage is null
                 ? await runner.RunAsync(prompt, Emit, ct)

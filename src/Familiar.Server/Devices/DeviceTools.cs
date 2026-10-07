@@ -23,6 +23,12 @@ public static class DeviceCapabilities
     public const string Location = "location.read";
 
     public static readonly IReadOnlySet<string> Known = new HashSet<string>(StringComparer.Ordinal) { CalendarWrite, Text, Call, Navigate, Location };
+
+    /// <summary>What a browser may offer: where it is (BACKLOG item 24), and nothing else.</summary>
+    public static readonly IReadOnlySet<string> Browser = new HashSet<string>(StringComparer.Ordinal) { Location };
+
+    /// <summary>Where a message came from when it was a browser, not a phone (ToolContext.From).</summary>
+    public const string FromBrowser = "browser";
 }
 
 /// <summary>A tool call for one particular phone to carry out.</summary>
@@ -44,11 +50,14 @@ public sealed record ToolInvokeEvent(string CallId, string ConnectionId, string 
 /// <param name="Error">Why not, when it didn't.</param>
 public sealed record ToolResultRequest(string? CallId, bool Ok, JsonObject? Result = null, string? Error = null);
 
-/// <summary>What a phone answered.</summary>
+/// <summary>What the device answered.</summary>
 public sealed record DeviceToolResult(bool Ok, JsonObject Result, string? Error);
 
-/// <summary>A phone with the app open, and what it said it can do.</summary>
-public sealed record DeviceSession(string ConnectionId, Guid AccountId, Guid DeviceId, IReadOnlySet<string> Capabilities, DateTimeOffset ConnectedAt);
+/// <summary>A phone with the app open - or a browser tab, with no device - and what it said it can do.</summary>
+public sealed record DeviceSession(string ConnectionId, Guid AccountId, Guid? DeviceId, IReadOnlySet<string> Capabilities, DateTimeOffset ConnectedAt)
+{
+    public bool IsBrowser => DeviceId is null;
+}
 
 /// <summary>
 /// Device-side tools (PLAN.md §6.1): some things only the phone can do - write to its calendars,
@@ -67,29 +76,42 @@ public sealed class DeviceTools(ConversationHub hub, TimeProvider clock, IConfig
     private readonly ConcurrentDictionary<string, DeviceSession> _sessions = new();
     private readonly ConcurrentDictionary<(Guid Account, string CallId), TaskCompletionSource<DeviceToolResult>> _pending = new();
 
-    /// <summary>A phone opened the stream. Dispose the result when it closes.</summary>
-    public (DeviceSession Session, IDisposable Registration) Connect(Guid accountId, Guid deviceId, IEnumerable<string> capabilities)
+    /// <summary>A phone (or, with no device, a browser) opened the stream. Dispose the result when it closes.</summary>
+    public (DeviceSession Session, IDisposable Registration) Connect(Guid accountId, Guid? deviceId, IEnumerable<string> capabilities)
     {
+        var allowed = deviceId is null ? DeviceCapabilities.Browser : DeviceCapabilities.Known;
         var session = new DeviceSession(
             Guid.NewGuid().ToString("N"),
             accountId,
             deviceId,
-            capabilities.Where(DeviceCapabilities.Known.Contains).ToHashSet(StringComparer.Ordinal),
+            capabilities.Where(allowed.Contains).ToHashSet(StringComparer.Ordinal),
             clock.GetUtcNow());
         _sessions[session.ConnectionId] = session;
         return (session, new Disconnect(() => _sessions.TryRemove(session.ConnectionId, out _)));
     }
 
-    /// <summary>The account's most recently connected phone that can do this, if any.</summary>
-    public DeviceSession? Find(Guid accountId, string capability) =>
-        _sessions.Values
-            .Where(s => s.AccountId == accountId && s.Capabilities.Contains(capability))
-            .MaxBy(s => s.ConnectedAt);
-
-    /// <summary>Asks a connected phone to do something. Null if none can, or it didn't answer in time.</summary>
-    public async Task<DeviceToolResult?> InvokeAsync(Guid accountId, string capability, string tool, JsonObject arguments, CancellationToken ct)
+    /// <summary>
+    /// The connected device that should do this: the one the message came from (<paramref name="from"/>:
+    /// its device id, or <see cref="DeviceCapabilities.FromBrowser"/>) if it can, otherwise the most
+    /// recently connected one that can; browsers only when <paramref name="browsers"/> allows. Null if
+    /// none can.
+    /// </summary>
+    public DeviceSession? Find(Guid accountId, string capability, string? from = null, bool browsers = true)
     {
-        if (Find(accountId, capability) is not { } session)
+        var able = _sessions.Values
+            .Where(s => s.AccountId == accountId && s.Capabilities.Contains(capability) && (browsers || !s.IsBrowser))
+            .ToList();
+        var mine = from == DeviceCapabilities.FromBrowser
+            ? able.Where(s => s.IsBrowser)
+            : able.Where(s => s.DeviceId?.ToString() == from);
+        return mine.MaxBy(s => s.ConnectedAt) ?? able.MaxBy(s => s.ConnectedAt);
+    }
+
+    /// <summary>Asks a connected device to do something (see <see cref="Find"/>). Null if none can, or it didn't answer in time.</summary>
+    public async Task<DeviceToolResult?> InvokeAsync(
+        Guid accountId, string capability, string tool, JsonObject arguments, CancellationToken ct, string? from = null, bool browsers = true)
+    {
+        if (Find(accountId, capability, from, browsers) is not { } session)
         {
             return null;
         }

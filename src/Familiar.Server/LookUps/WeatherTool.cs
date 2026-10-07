@@ -32,12 +32,12 @@ public sealed partial class WeatherTool(Weather weather) : ITool
                 "You don't know where the user is. Ask which town; they can also set where they live in Settings, under Your familiar.");
         }
 
-        if (!IsPlace(place))
+        if (Weather.Coordinates(place) is null && !IsPlace(place))
         {
             return ToolResult.Failure("That doesn't look like a place. Ask the user for a town or city.");
         }
 
-        var found = await weather.GeocodeAsync(place, ct);
+        var found = await weather.FindAsync(place, context, ct);
         if (found is null)
         {
             return ToolResult.Failure($"Couldn't find a place called \"{place}\". Ask the user to say it another way.", $"Weather: no {place}");

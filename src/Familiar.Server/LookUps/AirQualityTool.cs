@@ -39,12 +39,12 @@ public sealed class AirQualityTool(Weather weather, IHttpClientFactory http, IMe
                 "You don't know where the user is. Ask which town; they can also set where they live in Settings, under Your familiar.");
         }
 
-        if (!WeatherTool.IsPlace(place))
+        if (Weather.Coordinates(place) is null && !WeatherTool.IsPlace(place))
         {
             return ToolResult.Failure("That doesn't look like a place. Ask the user for a town or city.");
         }
 
-        var found = await weather.GeocodeAsync(place, ct);
+        var found = await weather.FindAsync(place, context, ct);
         if (found is null)
         {
             return ToolResult.Failure($"Couldn't find a place called \"{place}\". Ask the user to say it another way.", $"Air: no {place}");

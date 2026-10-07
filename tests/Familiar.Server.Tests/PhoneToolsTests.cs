@@ -88,4 +88,58 @@ public sealed class PhoneToolsTests(PostgresFixture postgres)
 
         Assert.Contains("Sam Kim, Sam Patel", app.Llm.LastPrompt!.Single(m => m.Role == ChatRole.Tool).Content, StringComparison.Ordinal);
     }
+
+    private static async Task LookUpsAsync(HttpClient browser, bool on)
+    {
+        var profile = await (await browser.GetAsync("/api/familiar")).ReadAsync<Familiars.FamiliarView>();
+        (await browser.PutAsJsonAsync("/api/familiar", profile with { LookUps = on, Proactive = false })).EnsureSuccessStatusCode();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_browser_can_say_where_it_is_with_look_ups_on(bool lookUps)
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        app.Llm.Fragments = ["[neutral:0.3] Okay."];
+        var (browser, _) = await SignedInAsync(app);
+        await LookUpsAsync(browser, lookUps);
+
+        // A browser may offer where it is, and nothing a phone does.
+        await using var stream = await SseClient.ConnectAsync(browser, capabilities: "location.read,phone.text");
+        Assert.NotNull((await stream.ReadUntilAsync(EventTypes.Ready))[^1].Payload<ReadyEvent>().ConnectionId);
+        await browser.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("hello", "UTC"));
+        await stream.ReadUntilStateAsync(FamiliarState.Idle);
+
+        Assert.Equal(lookUps, Offered(app).Contains("where_am_i"));
+        Assert.DoesNotContain("send_text", Offered(app));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Where_am_i_asks_the_device_the_message_came_from(bool fromPhone)
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        app.Llm.ThenCall("where_am_i", "{}").ThenSay("[neutral:0.4] Got it.");
+        var (browser, phone) = await SignedInAsync(app);
+        await LookUpsAsync(browser, true);
+
+        await using var tab = await SseClient.ConnectAsync(browser, capabilities: "location.read");
+        var tabConnection = (await tab.ReadUntilAsync(EventTypes.Ready))[^1].Payload<ReadyEvent>().ConnectionId;
+        await using var phoneStream = await SseClient.ConnectAsync(phone, capabilities: "location.read");
+        var phoneConnection = (await phoneStream.ReadUntilAsync(EventTypes.Ready))[^1].Payload<ReadyEvent>().ConnectionId;
+
+        await (fromPhone ? phone : browser).PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("where am I?", "UTC"));
+
+        // Every stream of the account hears it; it names the one that should answer.
+        var invoke = (await tab.ReadUntilAsync(EventTypes.ToolInvoke))[^1].Payload<ToolInvokeEvent>();
+        Assert.Equal(fromPhone ? phoneConnection : tabConnection, invoke.ConnectionId);
+        Assert.Equal(fromPhone, invoke.DeviceId is not null);
+        await (fromPhone ? phone : browser).PostAsJsonAsync("/api/conversation/tool-result",
+            new ToolResultRequest(invoke.CallId, true, fromPhone ? new JsonObject { ["place"] = "Headingley" } : new JsonObject { ["coordinates"] = "53.82,-1.58" }));
+        await tab.ReadUntilStateAsync(FamiliarState.Idle);
+
+        Assert.Contains(fromPhone ? "Headingley" : "53.82,-1.58", app.Llm.LastPrompt!.Single(m => m.Role == ChatRole.Tool).Content, StringComparison.Ordinal);
+    }
 }

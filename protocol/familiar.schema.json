@@ -1455,7 +1455,7 @@
           "type": "boolean"
         },
         "connectionId": {
-          "description": "For a phone that listed capabilities: its connection, which tool.invoke events address.",
+          "description": "For a phone that listed capabilities, or a browser offering where it is: its connection, which tool.invoke events address.",
           "type": [
             "string",
             "null"

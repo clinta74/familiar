@@ -356,6 +356,23 @@ wait, so the familiar heard nothing back. Now a position from the last ten minut
 seconds taken (fused on a phone with Google's location service, GPS on the emulator), and naming the
 place gets 5 (`AndroidPhone.locate`). On the emulator: about 5 seconds from a cold GPS.
 
+### 24. ~~Location on the website too~~ — done (2026-10-07)
+
+Asked for 2026-10-07: "where am I" and "the weather here" from the web page, as the app does.
+**Done:** a browser tab may offer `location.read` on its stream (only that - nothing a phone does) and
+answers `tool.invoke` for its own connection (`client/src/conversation/browserLocation.ts`). The
+browser has no geocoder, so - decided - it answers with coordinates rounded to two places (about a
+kilometre), which go to the server and no further: `get_weather` and `air_quality` take
+"53.82,-1.58" as a place ("where you are"), in the units of the country the user lives in, or with
+no home set, their time zone's. It follows the "Look things up" switch, as decided: a browser's
+location counts only with it on. "Where am I" now asks the device the message came from (a phone, or
+a browser), then the most recently connected one that can (`DeviceTools.Find`, `ToolContext.From`).
+The browser's answer tells the familiar not to read the coordinates out and to pass them themselves
+to the weather tools - left to itself it guessed a town from them. Tried on the dev box with the real
+model and a stubbed position: "where am I" answered from the browser in 0.2 seconds ("the area of
+Leeds"), and "what's the weather where I am?" called `where_am_i` then `get_weather` with the
+coordinates, in °F for a US time zone.
+
 ---
 
 ## Avatars

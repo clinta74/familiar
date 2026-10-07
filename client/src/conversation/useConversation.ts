@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { Emotion, Gesture } from '../avatar/types';
+import { answerLocation, canLocate, LOCATION } from './browserLocation';
 import { conversationApi } from './conversationApi';
 import type {
   AudioEvent,
@@ -22,6 +23,7 @@ import type {
   ToolFinishedEvent,
   ToolStartedEvent,
 } from './events';
+import type { ToolInvokeEvent } from '../protocol/generated';
 import { conversationReducer, initialConversation } from './reducer';
 
 /** Things the avatar reacts to that don't belong in conversation state. */
@@ -70,11 +72,29 @@ export function useConversation(handlers: ConversationHandlers, options: { speak
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       speak: String(options.speakGreeting ?? false),
     });
+    // Where it is, for "where am I" and the weather here (only used with look-ups on).
+    if (canLocate()) query.set('capabilities', LOCATION);
     const source = new EventSource(`/api/conversation/stream?${query.toString()}`);
     const on = <T,>(type: string, handle: (payload: T) => void) =>
       source.addEventListener(type, (event) => handle(JSON.parse((event as MessageEvent<string>).data) as T));
 
-    on<ReadyEvent>('ready', (ready) => dispatch({ type: 'ready', ready }));
+    // This connection's id: the server's requests for it (`tool.invoke`) name it.
+    let connection: string | null = null;
+    const answered = new Set<string>();
+    on<ReadyEvent>('ready', (ready) => {
+      connection = ready.connectionId ?? null;
+      dispatch({ type: 'ready', ready });
+    });
+    on<ToolInvokeEvent>('tool.invoke', (invoke) => {
+      // For this tab only, once (a reconnect replays events), and not once the server's stopped waiting.
+      if (invoke.deviceId || invoke.connectionId !== connection || answered.has(invoke.callId)) return;
+      if (Date.parse(invoke.expiresAt) < Date.now()) return;
+      answered.add(invoke.callId);
+      const answer = invoke.tool === LOCATION
+        ? answerLocation(invoke)
+        : Promise.resolve({ callId: invoke.callId, ok: false, error: "A web browser can't do that." });
+      void answer.then((result) => conversationApi.toolResult(result)).catch(() => undefined);
+    });
     on<StateEvent>('state', ({ state }) => dispatch({ type: 'state', state }));
     on<MessageView>('message', (message) => dispatch({ type: 'message', message }));
     on<ReplyStartEvent>('reply.start', ({ id }) => {

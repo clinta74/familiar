@@ -30,7 +30,9 @@ public abstract class PhoneTool(DeviceTools devices) : ITool, IPhoneTool
     /// <summary>Asks the phone; its answer, or why there isn't one, for the model.</summary>
     protected async Task<ToolResult> AskPhoneAsync(ToolContext context, JsonObject arguments, Func<JsonObject, string> summary, CancellationToken ct)
     {
-        var answer = await devices.InvokeAsync(context.AccountId, Capability, Capability, arguments, ct);
+        // The device the message came from, if it can; a browser only with look-ups on (it gives
+        // coordinates, which are only of use to the weather tools).
+        var answer = await devices.InvokeAsync(context.AccountId, Capability, Capability, arguments, ct, context.From, browsers: context.LookUps);
         if (answer is null)
         {
             return ToolResult.Failure(
@@ -144,13 +146,14 @@ public sealed class WhereAmITool(DeviceTools devices) : PhoneTool(devices)
 
     public override ToolDefinition Definition { get; } = new(
         "where_am_i",
-        "Where the user's phone is right now: the town or area, roughly. Use for \"where am I?\", or when they ask about " +
-        "the weather or anything else \"here\" while they're out - then pass the town to that tool.",
+        "Where the user is right now, roughly: the town or area from their phone, or coordinates from their browser. Use for " +
+        "\"where am I?\", or when they ask about the weather or anything else \"here\" - then pass the place (or the " +
+        "coordinates, as they are) to that tool.",
         ToolSchema.Object(),
         ToolRisk.Read);
 
     public override string Describe(JsonObject arguments) => "Check where the phone is";
 
     public override Task<ToolResult> InvokeAsync(ToolContext context, JsonObject arguments, CancellationToken ct) =>
-        AskPhoneAsync(context, [], r => $"Location: {Said(r, "place") ?? "found"}", ct);
+        AskPhoneAsync(context, [], r => $"Location: {Said(r, "place") ?? (r["coordinates"] is null ? "found" : "from the browser")}", ct);
 }
