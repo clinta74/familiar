@@ -94,8 +94,9 @@ export function FamiliarSettings() {
         <span>
           Look things up
           <span className="muted">
-            {' '}— the weather (Open-Meteo), what words mean (Wiktionary), facts and figures (Wikipedia, Wikidata) and public
-            holidays (Nager.Date). Only those; what you ask goes to them, nothing else about you.
+            {' '}— the weather, air quality and pollen (Open-Meteo), what words mean (Wiktionary), facts and figures (Wikipedia,
+            Wikidata), public holidays (Nager.Date) and exchange rates (Frankfurter). Only those; what you ask goes to them,
+            nothing else about you. Sums and unit conversions are worked out here either way.
           </span>
         </span>
       </label>

@@ -41,6 +41,19 @@ internal sealed class OutsideServices : HttpMessageHandler
          "fr":[{"partOfSpeech":"Nom","language":"French","definitions":[{"definition":"pétrichor"}]}]}
         """;
 
+    /// <summary>Open-Meteo's air quality: two days, hourly (two hours a day is enough here).</summary>
+    public string AirQuality { get; set; } = """
+        {"current":{"us_aqi":48,"european_aqi":30},
+         "hourly":{"time":["2026-10-05T09:00","2026-10-05T15:00","2026-10-06T09:00","2026-10-06T15:00"],
+           "us_aqi":[40,112,30,35],"european_aqi":[25,45,20,22],"uv_index":[2.1,6.4,1.0,2.0],
+           "alder_pollen":[null,null,null,null],"birch_pollen":[null,null,null,null],"grass_pollen":[null,null,null,null],
+           "mugwort_pollen":[null,null,null,null],"olive_pollen":[null,null,null,null],"ragweed_pollen":[null,null,null,null]}}
+        """;
+
+    private const string Currencies = """{"EUR":"Euro","GBP":"British Pound","JPY":"Japanese Yen","USD":"United States Dollar"}""";
+
+    private const string DollarRates = """{"amount":1.0,"base":"USD","date":"2026-10-05","rates":{"EUR":0.88739,"GBP":0.75322,"JPY":148.21}}""";
+
     /// <summary>Wikipedia answers "busy" (429) when set.</summary>
     public bool WikipediaBusy { get; set; }
 
@@ -111,6 +124,9 @@ internal sealed class OutsideServices : HttpMessageHandler
             "date.nager.at" when uri.AbsolutePath.EndsWith("/AvailableCountries", StringComparison.Ordinal) => (HttpStatusCode.OK, Countries),
             "date.nager.at" when uri.AbsolutePath.EndsWith("/2026/US", StringComparison.Ordinal) => (HttpStatusCode.OK, UsHolidays),
             "date.nager.at" => (HttpStatusCode.OK, "[]"),
+            "air-quality-api.open-meteo.com" => (HttpStatusCode.OK, AirQuality),
+            "api.frankfurter.dev" when uri.AbsolutePath.EndsWith("/currencies", StringComparison.Ordinal) => (HttpStatusCode.OK, Currencies),
+            "api.frankfurter.dev" when query.Contains("base=USD", StringComparison.Ordinal) => (HttpStatusCode.OK, DollarRates),
             _ => (HttpStatusCode.NotFound, "{}"),
         };
         return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") });
@@ -133,6 +149,67 @@ public sealed class LookUpUnitTests
 
     private static ToolContext Context(string? home = null) =>
         new(Guid.NewGuid(), Guid.NewGuid(), TimeZoneInfo.Utc, DateTimeOffset.UtcNow, LookUps: true, HomePlace: home);
+
+    [Fact]
+    public async Task Air_quality_is_the_days_worst_in_words_with_the_uv()
+    {
+        var (http, _) = Services();
+        var air = new AirQualityTool(Weather(http), http, Cache());
+
+        var result = await air.InvokeAsync(Context(home: "Portland, Maine"), [], default);
+
+        Assert.True(result.Ok);
+        var quality = result.Data["air_quality"]!;
+        Assert.Equal((112.0, "unhealthy for sensitive groups", "US AQI", 48.0),
+            (quality["worst"]!.GetValue<double>(), quality["level"]!.GetValue<string>(), quality["scale"]!.GetValue<string>(), quality["now"]!.GetValue<double>()));
+        Assert.Equal("high", result.Data["uv_index"]!["level"]!.GetValue<string>());
+        Assert.Contains("Europe only", result.Data["pollen"]!.GetValue<string>(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Pollen_in_europe_comes_as_levels_and_tomorrow_has_no_now()
+    {
+        var (http, outside) = Services();
+        outside.Geocoding = """{"results":[{"name":"Leeds","latitude":53.8,"longitude":-1.55,"country_code":"GB","country":"United Kingdom","admin1":"England"}]}""";
+        outside.AirQuality = outside.AirQuality.Replace("\"grass_pollen\":[null,null,null,null]", "\"grass_pollen\":[5,12,60,80]", StringComparison.Ordinal)
+            .Replace("\"birch_pollen\":[null,null,null,null]", "\"birch_pollen\":[0,0,0,0]", StringComparison.Ordinal);
+        var air = new AirQualityTool(Weather(http), http, Cache());
+
+        var result = await air.InvokeAsync(Context(home: "Leeds"), new JsonObject { ["day"] = "tomorrow" }, default);
+
+        Assert.Equal("European AQI", result.Data["air_quality"]!["scale"]!.GetValue<string>());
+        Assert.Null(result.Data["air_quality"]!["now"]);
+        var pollen = result.Data["pollen"]!.AsObject();
+        Assert.Equal("high", pollen["grass"]!.GetValue<string>());
+        Assert.False(pollen.ContainsKey("birch")); // None at all isn't worth saying.
+    }
+
+    [Theory]
+    [InlineData("USD", "GBP", 100, 75.32)]
+    [InlineData("dollars", "yen", 10, 1482)]
+    [InlineData("usd", "euros", 1, 0.89)]
+    public async Task Currencies_by_code_or_name_convert_at_the_days_rate(string from, string to, double amount, double expected)
+    {
+        var (http, _) = Services();
+
+        var result = await new ExchangeRateTool(http, Cache()).InvokeAsync(
+            Context(), new JsonObject { ["from"] = from, ["to"] = to, ["amount"] = amount }, default);
+
+        Assert.True(result.Ok);
+        Assert.Equal(expected, result.Data["converted"]!.GetValue<double>());
+        Assert.Equal("5 October 2026", result.Data["rate_set_on"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task An_unknown_currency_is_said_so()
+    {
+        var (http, _) = Services();
+
+        var result = await new ExchangeRateTool(http, Cache()).InvokeAsync(Context(), new JsonObject { ["from"] = "doubloons", ["to"] = "USD" }, default);
+
+        Assert.False(result.Ok);
+        Assert.Contains("doubloons", result.Data["error"]!.GetValue<string>(), StringComparison.Ordinal);
+    }
 
     [Theory]
     [InlineData("<b>Bold</b> &amp; plain", 100, "Bold & plain")]

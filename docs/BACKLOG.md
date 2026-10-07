@@ -227,7 +227,7 @@ volume and on/off switch separate from the voice; whether singing is worth a rob
 
 ## What it can do
 
-### 15. Look things up safely — weather and definitions done (2026-10-04)
+### 15. ~~Look things up safely~~ — done (2026-10-04 to 2026-10-06)
 
 **Done:** `get_weather` (Open-Meteo; the place asked about, or "where you live" from Settings; today
 or up to a week ahead; °F and mph in the US) and `define` (Wiktionary's English senses), in
@@ -257,6 +257,17 @@ holidays elsewhere are left out (Scotland's St Andrew's Day isn't Leeds'). Wikim
 client that doesn't say who it is: the user agent names the project. Tried on the real model: the
 bridge "officially opened back in July", Mark Carney as prime minister, Christmas Day as Leeds' next
 bank holiday, Columbus Day as Detroit's.
+
+**Done too (2026-10-06): air quality, exchange rates, sums and units.** `air_quality` - Open-Meteo's
+air-quality forecast: the day's worst index in words (the US AQI in the US, the European one
+elsewhere), the UV index, and pollen by kind in Europe (it has none elsewhere, and says so).
+`exchange_rate` - Frankfurter, the ECB's daily reference rates for about 30 currencies, by code or
+name ("quid", "yen"). Both are look-ups like the rest (allow-listed hosts, off unless turned on).
+`calculate` and `convert_units` (`src/Familiar.Server/Maths/`) are worked out on the server - a small
+parser, nothing executed, and exact unit factors (US cups and pints unless it says UK) - so they're
+offered whether or not look-ups are on. Tried on the real model: pollen, 20 quid in dollars, a tip
+split four ways, cups to millilitres, sun cream tomorrow (weather and UV), 350°F - each with the
+right tool. The general search (SearXNG) stays "only if needed".
 
 
 Asked for 2026-10-04: definitions, facts and figures, the weather - without the web being a way to
@@ -385,6 +396,36 @@ newest 50 messages and kept whatever it already had that they didn't include, af
 a reply still streaming in. But when new messages had arrived meanwhile, the oldest ones it was
 showing had dropped out of the 50, and they were put at the bottom. **Fixed** in both reducers:
 only what's newer than the reloaded window is kept (message ids are UUID v7, so they sort by time).
+
+### 21. Phone services: texts, contacts, calls, location, navigation
+
+Asked for 2026-10-06: "text Sam I'm running late", "call Mum", "where am I", "take me to the
+station" - things only the phone can do. **The way in exists:** device tools (PLAN.md §6.1,
+`Devices/DeviceTools.cs`). A phone says what it can do when it opens the stream, the server sends
+a `tool.invoke` to that phone, and the phone answers; `calendar.add` works this way today. Each of
+these would be a new capability, offered only while a phone that has it is connected (the web page
+can't).
+
+Design to settle first:
+
+- **Hand off, don't act:** the phone opens the Messages app with the text written, the dialler
+  with the number in, Maps with the destination (Android intents: `sms:`, `tel:`, `geo:` /
+  navigation). The user taps Send or Call. No `SEND_SMS` or `CALL_PHONE` permissions (Google treats
+  those as sensitive), and the familiar can't text or ring anyone by itself. Sending directly, after
+  a confirmation chip, could come later for hands-free use.
+- **Contacts stay on the phone:** "Mum" is matched to a contact on the phone (`READ_CONTACTS`); the
+  server and the model get the name and whether it was found, never the address book or the number.
+  More than one match ("Sam K or Sam P?") comes back as names to ask about.
+- **Location only when asked:** coarse location (`ACCESS_COARSE_LOCATION`) for one question, such
+  as the weather here, the nearest chemist or "where am I", used for that reply and not stored. Never
+  in the notes or the memories.
+- **Risk:** sending, calling and navigating are `WriteExternal`, so they confirm first (and after a
+  look-up, as now). Reading a contact or the location is `Read`, with Android's own permission
+  prompt the first time.
+- **Hands-free:** the app is already the phone's assistant (a voice interaction service), so "Hey
+  Familiar, text Sam…" from the lock screen is the natural home - Android shows the handed-off app
+  over the lock screen once it's unlocked.
+
 ---
 
 ## Avatars

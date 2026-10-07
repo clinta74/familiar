@@ -32,7 +32,7 @@ public sealed partial class WeatherTool(Weather weather) : ITool
                 "You don't know where the user is. Ask which town; they can also set where they live in Settings, under Your familiar.");
         }
 
-        if (!Place().IsMatch(place))
+        if (!IsPlace(place))
         {
             return ToolResult.Failure("That doesn't look like a place. Ask the user for a town or city.");
         }
@@ -125,6 +125,8 @@ public sealed partial class WeatherTool(Weather weather) : ITool
     }
 
     /// <summary>A place name: letters, digits, spaces and a little punctuation; no addresses or links.</summary>
+    internal static bool IsPlace(string text) => Place().IsMatch(text);
+
     [GeneratedRegex(@"^[\p{L}\p{M}0-9][\p{L}\p{M}0-9 ,.'-]{0,79}$")]
     private static partial Regex Place();
 }

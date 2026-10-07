@@ -18,6 +18,8 @@ public sealed class LookUpHosts : DelegatingHandler
         "en.wikipedia.org",
         "www.wikidata.org",
         "date.nager.at",
+        "air-quality-api.open-meteo.com",
+        "api.frankfurter.dev",
     };
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

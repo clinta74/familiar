@@ -218,6 +218,12 @@ public static class ToolRegistration
         services.AddSingleton<ITool, LookUps.DefineTool>();
         services.AddSingleton<ITool, LookUps.LookUpTool>();
         services.AddSingleton<ITool, LookUps.HolidaysTool>();
+        services.AddSingleton<ITool, LookUps.AirQualityTool>();
+        services.AddSingleton<ITool, LookUps.ExchangeRateTool>();
+
+        // Worked out here, not looked up: offered whether or not look-ups are on.
+        services.AddSingleton<ITool, Maths.CalculateTool>();
+        services.AddSingleton<ITool, Maths.ConvertUnitsTool>();
         services.AddSingleton<IToolExecutor, ToolExecutor>();
         return services;
     }

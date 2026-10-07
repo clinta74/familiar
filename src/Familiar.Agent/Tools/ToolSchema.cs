@@ -30,6 +30,8 @@ public static class ToolSchema
 
     public static JsonObject Integer(string description) => new() { ["type"] = "integer", ["description"] = description };
 
+    public static JsonObject Number(string description) => new() { ["type"] = "number", ["description"] = description };
+
     public static JsonObject Boolean(string description) => new() { ["type"] = "boolean", ["description"] = description };
 
     public static JsonObject Enum(string description, params string[] values) => new()
@@ -58,7 +60,8 @@ public static class ToolArgs
 
     public static double? Number(JsonObject arguments, string name) => arguments[name] switch
     {
-        JsonValue v when v.GetValueKind() == JsonValueKind.Number => v.GetValue<double>(),
+        // Through the text: a value built in code from an int won't give itself up as a double.
+        JsonValue v when v.GetValueKind() == JsonValueKind.Number => double.Parse(v.ToJsonString(), NumberStyles.Float, CultureInfo.InvariantCulture),
         JsonValue v when v.GetValueKind() == JsonValueKind.String
             && double.TryParse(v.GetValue<string>(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) => parsed,
         _ => null,
