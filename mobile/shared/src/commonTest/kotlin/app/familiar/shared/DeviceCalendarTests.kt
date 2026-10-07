@@ -135,9 +135,10 @@ class DeviceCalendarTests {
         }
 
         assertEquals("calendar.write", capabilities.value)
-        assertEquals(listOf("Dentist x1 2026-10-03T10:00:00Z", "Dentist x2 2026-10-03T10:00:00Z"), calendar.added.value)
+        // Each is carried out on its own, so they can finish in either order.
+        assertEquals(setOf("Dentist x1 2026-10-03T10:00:00Z", "Dentist x2 2026-10-03T10:00:00Z"), calendar.added.value.toSet())
         assertEquals(2, results.value.size)
-        val result = results.value.first()
+        val result = results.value.single { """"callId":"x1"""" in it }
         assertTrue(""""callId":"x1"""" in result && """"ok":true""" in result && "sam@gmail.com" in result, result)
         assertTrue("School run" in uploads.value.first(), uploads.value.first())
     }
