@@ -264,10 +264,10 @@ mode.
 - Verified: on an emulator, a timer asked for in the chat became an exact alarm clock and, in
   airplane mode with the app in the background, rang ("Pip: time's up - Your tea timer is done.")
   until Dismiss; and against a real ntfy, setting and cancelling a timer each put a content-free
-  message on the phone's topic, the server's VAPID header accepted. Not yet: the ntfy Android app
-  as the distributor (not on the emulator) - so registration and waking by push are untested on a
-  device - and a reboot restoring alarms (backlog item 8, the phone). The real model set "wake me
-  up in 2 minutes" as a 2-minute timer, which rings anyway.
+  message on the phone's topic, the server's VAPID header accepted. Since then, on the Fold
+  (2026-10-06): the ntfy app as the distributor, an announcement pushed with Familiar closed, and a
+  timer ringing. Not yet: a restart restoring alarms (BACKLOG.md, "To check on the Fold"). The real
+  model set "wake me up in 2 minutes" as a 2-minute timer, which rings anyway.
 
 **M4: the phone's assistant (2026-10-03).** Long-press home opens Familiar listening.
 - *The assistant role:* a voice interaction service (with the session and recognition services
