@@ -397,35 +397,37 @@ a reply still streaming in. But when new messages had arrived meanwhile, the old
 showing had dropped out of the 50, and they were put at the bottom. **Fixed** in both reducers:
 only what's newer than the reloaded window is kept (message ids are UUID v7, so they sort by time).
 
-### 21. Phone services: texts, contacts, calls, location, navigation
+### 21. ~~Phone services: texts, contacts, calls, location, navigation~~ — done (2026-10-06)
 
 Asked for 2026-10-06: "text Sam I'm running late", "call Mum", "where am I", "take me to the
-station" - things only the phone can do. **The way in exists:** device tools (PLAN.md §6.1,
-`Devices/DeviceTools.cs`). A phone says what it can do when it opens the stream, the server sends
-a `tool.invoke` to that phone, and the phone answers; `calendar.add` works this way today. Each of
-these would be a new capability, offered only while a phone that has it is connected (the web page
-can't).
+station" - things only the phone can do. **Done** as device tools (PLAN.md §6.1), like `calendar.add`:
+`send_text`, `call`, `navigate` and `where_am_i` (`src/Familiar.Server/Devices/PhoneTools.cs`), each
+offered only while a phone that can do it has the app open (the web page alone can't).
 
-Design to settle first:
+- **Hand off, don't act:** Messages opens with the text written (Google Messages reads it from
+  `smsto:…?body=`, others from `sms_body`: both are set), the dialler with the number in, Google Maps
+  (or the browser) with directions; the user taps Send or Call. No `SEND_SMS` or `CALL_PHONE`.
+  When Familiar isn't on screen - Android won't open another app from the background - it's a
+  notification to tap instead, and the familiar is told so.
+- **Contacts stay on the phone** (`PhoneActions`, `AndroidPhone`): the name is matched there, an
+  exact name winning over ones that start the same, the mobile number preferred; the server and the
+  model get the contact's name, never the number or the address book. Two people who match come back
+  as names to ask about; a number said outright needs no contacts.
+- **Location only when asked:** coarse, named by the phone's own geocoder ("Headingley, England"),
+  used for that reply, never stored.
+- **Risk:** `WriteOwn`, not `WriteExternal` as first planned: nothing is sent without the user's own
+  tap, so a confirmation first would be a second "are you sure". After a look-up they ask first, as
+  everything that changes something does. `where_am_i` is `Read`. Contacts and location are asked
+  for (Android's prompt) the first time, when the app is on screen to ask.
+- **Found on the way:** coming back from the background a phone can briefly have two connections,
+  one stuck from while it had no network, and the server sent `tool.invoke` to whichever was newest
+  - sometimes the stuck one ("phone didn't answer"). `tool.invoke` now names the device, and the phone
+  acts on it on whichever connection it arrives (calendar adds too).
 
-- **Hand off, don't act:** the phone opens the Messages app with the text written, the dialler
-  with the number in, Maps with the destination (Android intents: `sms:`, `tel:`, `geo:` /
-  navigation). The user taps Send or Call. No `SEND_SMS` or `CALL_PHONE` permissions (Google treats
-  those as sensitive), and the familiar can't text or ring anyone by itself. Sending directly, after
-  a confirmation chip, could come later for hands-free use.
-- **Contacts stay on the phone:** "Mum" is matched to a contact on the phone (`READ_CONTACTS`); the
-  server and the model get the name and whether it was found, never the address book or the number.
-  More than one match ("Sam K or Sam P?") comes back as names to ask about.
-- **Location only when asked:** coarse location (`ACCESS_COARSE_LOCATION`) for one question, such
-  as the weather here, the nearest chemist or "where am I", used for that reply and not stored. Never
-  in the notes or the memories.
-- **Risk:** sending, calling and navigating are `WriteExternal`, so they confirm first (and after a
-  look-up, as now). Reading a contact or the location is `Read`, with Android's own permission
-  prompt the first time.
-- **Hands-free:** the app is already the phone's assistant (a voice interaction service), so "Hey
-  Familiar, text Sam…" from the lock screen is the natural home - Android shows the handed-off app
-  over the lock screen once it's unlocked.
-
+Tried on the emulator against the dev server and the real model, with a made-up contact: "text Sam
+I'm running late" opened Messages to Sam Kim with the text written; "call Sam" the dialler with his
+number; walking directions to Leeds station opened Maps; "where am I" said Headingley; and with the
+app in the background, a text came up as a notification that opened Messages ready to send.
 
 ### 22. ~~The app losing its connection in the background; notifications while it's away~~ — fixed (2026-10-06)
 

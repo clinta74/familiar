@@ -6,7 +6,9 @@ import app.familiar.shared.avatar.AvatarController
 import app.familiar.shared.conversation.Connection
 import app.familiar.shared.conversation.ConversationController
 import app.familiar.shared.platform.DeviceAlarms
+import app.familiar.shared.phone.PhoneActions
 import app.familiar.shared.platform.DeviceCalendar
+import app.familiar.shared.platform.DevicePhone
 import app.familiar.shared.platform.SecureStore
 import app.familiar.shared.protocol.ServerEvent
 import app.familiar.shared.voice.HandsFree
@@ -49,6 +51,8 @@ class FamiliarSession(
     handsFreeAudio: HandsFreeAudio?,
     /** The phone's alarms, kept in step with the timers and reminders. */
     private val alarms: DeviceAlarms? = null,
+    /** Its contacts, messages, dialler, maps and location, for the familiar to hand off to. */
+    phone: DevicePhone? = null,
 ) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     val api = FamiliarApi(signedIn.server, signedIn.token)
@@ -61,7 +65,11 @@ class FamiliarSession(
      */
     val ended: StateFlow<Boolean> = _ended.asStateFlow()
 
-    val controller = ConversationController(api, scope, { _ended.value = true }, calendar)
+    val controller = ConversationController(
+        api, scope, { _ended.value = true }, calendar,
+        phone = phone?.let(::PhoneActions),
+        deviceId = signedIn.deviceId.ifEmpty { null },
+    )
     val avatar = AvatarController().also { avatar ->
         store.read(lookKey(signedIn.username))
             ?.let { runCatching { Json.parseToJsonElement(it) as? JsonObject }.getOrNull() }

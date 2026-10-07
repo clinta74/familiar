@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import app.familiar.shared.auth.Session
 import app.familiar.shared.platform.DeviceAlarms
 import app.familiar.shared.platform.DeviceCalendar
+import app.familiar.shared.platform.DevicePhone
 import app.familiar.shared.platform.FilePicker
 import app.familiar.shared.platform.SecureStore
 import app.familiar.shared.session.FamiliarSession
@@ -46,6 +47,7 @@ fun FamiliarApp(
     microphone: Microphone? = null,
     handsFree: HandsFreeAudio? = null,
     alarms: DeviceAlarms? = null,
+    phone: DevicePhone? = null,
     /** The system's file chooser, for uploading a VRM model in the studio. */
     files: FilePicker? = null,
     /** Signed in (or still signed in, on opening): the platform registers for push. */
@@ -69,7 +71,7 @@ fun FamiliarApp(
             )
         } else {
             val session = remember(current) {
-                FamiliarSessions.open(current) { FamiliarSession(current, store, calendar, speechAudio, microphone, handsFree, alarms) }
+                FamiliarSessions.open(current) { FamiliarSession(current, store, calendar, speechAudio, microphone, handsFree, alarms, phone) }
             }
             val ended by session.ended.collectAsState()
             LaunchedEffect(session) { onSession() }

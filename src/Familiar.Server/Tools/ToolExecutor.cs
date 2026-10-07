@@ -81,6 +81,7 @@ public sealed class ToolExecutor(
     IDbContextFactory<FamiliarDbContext> db,
     Hooks.WebhookDispatcher webhooks,
     Hooks.McpTools mcp,
+    Devices.DeviceTools devices,
     TimeProvider clock,
     ILogger<ToolExecutor> logger) : IToolExecutor
 {
@@ -92,10 +93,16 @@ public sealed class ToolExecutor(
     /// <summary>The built-in tools, the same for everyone.</summary>
     public IReadOnlyList<ToolDefinition> BuiltIn => [.. _tools.Values.Select(t => t.Definition)];
 
-    /// <summary>The built-in tools, the look-ups only for a user who's turned them on, then their MCP tools.</summary>
+    /// <summary>
+    /// The built-in tools - the look-ups only for a user who's turned them on, the phone's only while
+    /// a phone that can do them is connected - then their MCP tools.
+    /// </summary>
     public async Task<IReadOnlyList<ToolDefinition>> DefinitionsAsync(ToolContext context, CancellationToken ct) =>
     [
-        .. BuiltIn.Where(d => d.Risk != ToolRisk.LookUp || context.LookUps),
+        .. _tools.Values
+            .Where(t => t.Definition.Risk != ToolRisk.LookUp || context.LookUps)
+            .Where(t => t is not Devices.IPhoneTool phone || devices.Find(context.AccountId, phone.Capability) is not null)
+            .Select(t => t.Definition),
         .. (await mcp.ToolsForAsync(context.AccountId, ct)).Select(t => t.Definition),
     ];
 
@@ -220,6 +227,12 @@ public static class ToolRegistration
         services.AddSingleton<ITool, LookUps.HolidaysTool>();
         services.AddSingleton<ITool, LookUps.AirQualityTool>();
         services.AddSingleton<ITool, LookUps.ExchangeRateTool>();
+
+        // Done by the phone, while one that can is connected (BACKLOG item 21).
+        services.AddSingleton<ITool, Devices.SendTextTool>();
+        services.AddSingleton<ITool, Devices.CallTool>();
+        services.AddSingleton<ITool, Devices.NavigateTool>();
+        services.AddSingleton<ITool, Devices.WhereAmITool>();
 
         // Worked out here, not looked up: offered whether or not look-ups are on.
         services.AddSingleton<ITool, Maths.CalculateTool>();

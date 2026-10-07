@@ -87,7 +87,7 @@ public sealed class DeviceCalendarTests(PostgresFixture postgres)
     {
         await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
         app.Llm.ThenCall("create_event", """{"title": "Dentist", "day": "tomorrow", "time": "10:00"}""").ThenSay("[joy:0.5] Done.");
-        var (browser, phone, _) = await SignedInAsync(app);
+        var (browser, phone, deviceId) = await SignedInAsync(app);
 
         await using var phoneStream = await SseClient.ConnectAsync(phone, capabilities: "calendar.write,teleport");
         var connection = (await phoneStream.ReadUntilAsync(EventTypes.Ready))[^1].Payload<ReadyEvent>().ConnectionId;
@@ -97,7 +97,7 @@ public sealed class DeviceCalendarTests(PostgresFixture postgres)
 
         // The phone is asked, and answers.
         var invoke = (await phoneStream.ReadUntilAsync(EventTypes.ToolInvoke))[^1].Payload<ToolInvokeEvent>();
-        Assert.Equal(("calendar.add", connection), (invoke.Tool, invoke.ConnectionId));
+        Assert.Equal(("calendar.add", connection, deviceId), (invoke.Tool, invoke.ConnectionId, invoke.DeviceId));
         Assert.Equal("Dentist", invoke.Arguments["title"]!.GetValue<string>());
         Assert.Equal(DateTimeOffset.UtcNow.Date.AddDays(1).AddHours(10), DateTimeOffset.Parse(invoke.Arguments["startsAt"]!.GetValue<string>(), System.Globalization.CultureInfo.InvariantCulture).UtcDateTime);
 

@@ -10,16 +10,33 @@ public static class DeviceCapabilities
     /// <summary>Add events to the phone's own calendars - and so to Google, Outlook, whatever it syncs.</summary>
     public const string CalendarWrite = "calendar.write";
 
-    public static readonly IReadOnlySet<string> Known = new HashSet<string>(StringComparer.Ordinal) { CalendarWrite };
+    /// <summary>Open the phone's messages app with a text written to a contact (BACKLOG item 21).</summary>
+    public const string Text = "phone.text";
+
+    /// <summary>Open the dialler with a contact's number in.</summary>
+    public const string Call = "phone.call";
+
+    /// <summary>Open maps with directions.</summary>
+    public const string Navigate = "maps.navigate";
+
+    /// <summary>Say roughly where the phone is: the town.</summary>
+    public const string Location = "location.read";
+
+    public static readonly IReadOnlySet<string> Known = new HashSet<string>(StringComparer.Ordinal) { CalendarWrite, Text, Call, Navigate, Location };
 }
 
 /// <summary>A tool call for one particular phone to carry out.</summary>
 /// <param name="CallId">Answer with this.</param>
-/// <param name="ConnectionId">Which connection should act; every other device ignores it.</param>
+/// <param name="ConnectionId">The connection it was meant for. Older apps act only on this.</param>
 /// <param name="Tool">What to do, e.g. "calendar.add".</param>
 /// <param name="Arguments">Its arguments.</param>
 /// <param name="ExpiresAt">After this, don't: the server has stopped waiting (a replayed invoke must not run twice).</param>
-public sealed record ToolInvokeEvent(string CallId, string ConnectionId, string Tool, JsonObject Arguments, DateTimeOffset ExpiresAt);
+/// <param name="DeviceId">
+/// Which phone should act, on whichever connection it has: every other device ignores it. A phone
+/// coming back from the background can briefly have two (one stuck while it had no network), and
+/// the newest isn't always the live one.
+/// </param>
+public sealed record ToolInvokeEvent(string CallId, string ConnectionId, string Tool, JsonObject Arguments, DateTimeOffset ExpiresAt, Guid? DeviceId = null);
 
 /// <param name="CallId">The tool.invoke being answered.</param>
 /// <param name="Ok">Whether it worked.</param>
@@ -83,7 +100,7 @@ public sealed class DeviceTools(ConversationHub hub, TimeProvider clock, IConfig
         try
         {
             hub.For(accountId).Publish(EventTypes.ToolInvoke,
-                new ToolInvokeEvent(callId, session.ConnectionId, tool, arguments, clock.GetUtcNow() + Timeout));
+                new ToolInvokeEvent(callId, session.ConnectionId, tool, arguments, clock.GetUtcNow() + Timeout, session.DeviceId));
             return await answer.Task.WaitAsync(Timeout, clock, ct);
         }
         catch (TimeoutException)

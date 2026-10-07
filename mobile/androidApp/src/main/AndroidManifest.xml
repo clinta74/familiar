@@ -18,6 +18,12 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- Texts and calls to a contact by name, matched on the phone; asked the first time (BACKLOG
+         item 21). Messages and the dialler are opened for the user to send or call: no SEND_SMS
+         or CALL_PHONE. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- "Where am I", and the weather here: roughly, the town; asked the first time. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:allowBackup="false"

@@ -71,6 +71,34 @@ interface DeviceAlarms {
     fun dismissMessage(id: String) = Unit
 }
 
+/**
+ * The phone's contacts, messages, dialler, maps and location (BACKLOG item 21). It hands off rather
+ * than acting: the user taps Send or Call. A failure throws with a message for the familiar to pass on.
+ */
+interface DevicePhone {
+    /** Contacts whose names match [name], with their numbers; null when contacts can't be read (not allowed). */
+    suspend fun contacts(name: String): List<PhoneContact>?
+
+    /**
+     * Opens Messages, the dialler or Maps ready to go - or, when the app isn't on screen (Android won't
+     * open another app from the background), puts that in a notification to tap.
+     */
+    fun handOff(handOff: HandOff): HandedOff
+
+    /** Roughly where the phone is, as a place ("Headingley, Leeds"). */
+    suspend fun place(): String
+}
+
+data class PhoneContact(val name: String, val number: String, val mobile: Boolean)
+
+sealed interface HandOff {
+    data class Text(val to: String, val number: String, val message: String) : HandOff
+    data class Call(val to: String, val number: String) : HandOff
+    data class Navigate(val destination: String, val mode: String) : HandOff
+}
+
+enum class HandedOff { Opened, Notified }
+
 /** A store in memory, for previews and tests. */
 class InMemoryStore : SecureStore {
     private val values = mutableMapOf<String, String>()

@@ -61,8 +61,9 @@ class DeviceCalendarTests {
         }
     }
 
-    private fun invoke(callId: String, connection: String, expires: String = "2099-01-01T00:00:00Z") =
-        """{"callId":"$callId","connectionId":"$connection","tool":"calendar.add","arguments":{"title":"Dentist $callId","startsAt":"2026-10-03T10:00:00Z","endsAt":"2026-10-03T11:00:00Z","allDay":false,"timeZone":"Europe/London"},"expiresAt":"$expires"}"""
+    private fun invoke(callId: String, connection: String, expires: String = "2099-01-01T00:00:00Z", device: String? = null) =
+        """{"callId":"$callId","connectionId":"$connection","tool":"calendar.add","arguments":{"title":"Dentist $callId","startsAt":"2026-10-03T10:00:00Z","endsAt":"2026-10-03T11:00:00Z","allDay":false,"timeZone":"Europe/London"},"expiresAt":"$expires"""" +
+            (if (device != null) ""","deviceId":"$device"}""" else "}")
 
     @OptIn(io.ktor.utils.io.InternalAPI::class)
     @Test
@@ -73,6 +74,9 @@ class DeviceCalendarTests {
             "tool.invoke" to invoke("late", "c1", expires = "2020-01-01T00:00:00Z"),
             "tool.invoke" to invoke("x1", "c1"),
             "tool.invoke" to invoke("x1", "c1"),
+            // Addressed to this phone: acted on, even though it names a connection that's gone.
+            "tool.invoke" to invoke("x2", "c0", device = "D1"),
+            "tool.invoke" to invoke("other", "c1", device = "d2"),
         ).mapIndexed { i, (type, data) -> "event: $type\nid: ${i + 1}\ndata: $data\n\n" }.joinToString("")
 
         val capabilities = MutableStateFlow<String?>(null)
@@ -112,6 +116,7 @@ class DeviceCalendarTests {
             scope,
             onSignedOut = { signedOut.value = true },
             calendar = calendar,
+            deviceId = "d1",
         )
 
         try {
@@ -119,7 +124,7 @@ class DeviceCalendarTests {
             withContext(Dispatchers.Default) {
                 withTimeout(10_000) {
                     signedOut.first { it }
-                    results.first { it.isNotEmpty() }
+                    results.first { it.size >= 2 }
                     // Once on start, once more after adding.
                     uploads.first { it.size >= 2 }
                     delay(200)
@@ -130,8 +135,9 @@ class DeviceCalendarTests {
         }
 
         assertEquals("calendar.write", capabilities.value)
-        assertEquals(listOf("Dentist x1 2026-10-03T10:00:00Z"), calendar.added.value)
-        val result = results.value.single()
+        assertEquals(listOf("Dentist x1 2026-10-03T10:00:00Z", "Dentist x2 2026-10-03T10:00:00Z"), calendar.added.value)
+        assertEquals(2, results.value.size)
+        val result = results.value.first()
         assertTrue(""""callId":"x1"""" in result && """"ok":true""" in result && "sam@gmail.com" in result, result)
         assertTrue("School run" in uploads.value.first(), uploads.value.first())
     }

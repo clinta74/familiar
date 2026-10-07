@@ -643,7 +643,7 @@ data class ToolFinishedEvent(
 data class ToolInvokeEvent(
     /** Answer with this. */
     val callId: String,
-    /** Which connection should act; every other device ignores it. */
+    /** The connection it was meant for. Older apps act only on this. */
     val connectionId: String,
     /** What to do, e.g. "calendar.add". */
     val tool: String,
@@ -651,6 +651,12 @@ data class ToolInvokeEvent(
     val arguments: JsonObject,
     /** After this, don't: the server has stopped waiting (a replayed invoke must not run twice). */
     val expiresAt: String,
+    /**
+     * Which phone should act, on whichever connection it has: every other device ignores it. A
+     * phone coming back from the background can briefly have two (one stuck while it had no
+     * network), and the newest isn't always the live one.
+     */
+    val deviceId: String? = null,
 )
 
 @Serializable

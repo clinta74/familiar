@@ -525,7 +525,7 @@ export interface ToolFinishedEvent {
 export interface ToolInvokeEvent {
   /** Answer with this. */
   callId: string;
-  /** Which connection should act; every other device ignores it. */
+  /** The connection it was meant for. Older apps act only on this. */
   connectionId: string;
   /** What to do, e.g. "calendar.add". */
   tool: string;
@@ -533,6 +533,12 @@ export interface ToolInvokeEvent {
   arguments: Record<string, unknown>;
   /** After this, don't: the server has stopped waiting (a replayed invoke must not run twice). */
   expiresAt: string;
+  /**
+   * Which phone should act, on whichever connection it has: every other device ignores it. A phone
+   * coming back from the background can briefly have two (one stuck while it had no network), and
+   * the newest isn't always the live one.
+   */
+  deviceId?: string | null;
 }
 
 export interface ToolResultRequest {

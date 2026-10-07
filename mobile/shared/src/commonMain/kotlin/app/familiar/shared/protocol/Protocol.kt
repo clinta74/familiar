@@ -22,6 +22,12 @@ data class ErrorBody(val error: String? = null, val title: String? = null)
 /** What phones can do for the familiar, as the server names them. */
 object Capabilities {
     const val CALENDAR_WRITE = "calendar.write"
+
+    /** Texts, calls, directions and where the phone is (BACKLOG item 21); the tool has the same name. */
+    const val PHONE_TEXT = "phone.text"
+    const val PHONE_CALL = "phone.call"
+    const val MAPS_NAVIGATE = "maps.navigate"
+    const val LOCATION_READ = "location.read"
 }
 
 /** A timer, not a reminder. */

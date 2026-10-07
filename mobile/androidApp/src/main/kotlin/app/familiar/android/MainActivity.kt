@@ -82,6 +82,7 @@ class MainActivity : ComponentActivity() {
                 AppServices.microphone,
                 AppServices.handsFree,
                 AppServices.alarms,
+                AppServices.phone,
                 files,
                 onSession = {
                     askForNotifications()
@@ -128,10 +129,12 @@ class MainActivity : ComponentActivity() {
     // says comes up as notifications.
     override fun onStart() {
         super.onStart()
+        AppServices.inFront = true
         FamiliarSessions.current?.foreground(true)
     }
 
     override fun onStop() {
+        AppServices.inFront = false
         FamiliarSessions.current?.foreground(false)
         super.onStop()
     }
@@ -195,6 +198,12 @@ object AppServices {
         private set
     lateinit var alarms: PhoneAlarms
         private set
+    lateinit var phone: AndroidPhone
+        private set
+
+    /** The chat is on screen: other apps can be opened from here, and permissions asked. */
+    @Volatile
+    var inFront = false
 
     fun init(context: Context) {
         if (::store.isInitialized) return
@@ -208,6 +217,7 @@ object AppServices {
         }
         speech = AndroidSpeechAudio(context)
         alarms = PhoneAlarms(context)
+        phone = AndroidPhone(context) { Permissions.ask(*it) }
         microphone = AndroidMicrophone(context) { Permissions.ask(Manifest.permission.RECORD_AUDIO) }
         handsFree = AndroidHandsFree(
             context,

@@ -2,6 +2,7 @@ package app.familiar.shared.conversation
 
 import app.familiar.shared.api.ApiException
 import app.familiar.shared.api.FamiliarApi
+import app.familiar.shared.phone.PhoneActions
 import app.familiar.shared.platform.DeviceCalendar
 import app.familiar.shared.platform.currentTimeZoneId
 import app.familiar.shared.protocol.Capabilities
@@ -47,6 +48,10 @@ class ConversationController(
     private val onSignedOut: () -> Unit,
     private val calendar: DeviceCalendar? = null,
     private val clock: Clock = Clock.System,
+    /** Texts, calls, directions and where it is, when the phone can (BACKLOG item 21). */
+    private val phone: PhoneActions? = null,
+    /** This phone, for the `tool.invoke`s meant for it. */
+    private val deviceId: String? = null,
 ) {
     /** Replies are spoken (the server makes `audio` clips): the voice is on and there's a speaker. */
     var speak = false
@@ -176,7 +181,7 @@ class ConversationController(
     }
 
     private fun capabilities(): Set<String> =
-        if (calendar?.canWrite() == true) setOf(Capabilities.CALENDAR_WRITE) else emptySet()
+        (if (calendar?.canWrite() == true) setOf(Capabilities.CALENDAR_WRITE) else emptySet()) + phone?.capabilities.orEmpty()
 
     private fun startCalendarSync() {
         if (calendarSync != null || calendar?.canRead() != true) return
@@ -201,7 +206,11 @@ class ConversationController(
 
     /** Does what the server asked of this phone, once, if it's still wanted, and says how it went. */
     private fun answer(invoke: ToolInvokeEvent) {
-        if (invoke.connectionId != connectionId || invoke.callId in answered) return
+        // Meant for this phone, on whichever connection it came: back from the background there can
+        // briefly be two, and the server may have picked the one that's stuck. Older servers say
+        // only the connection.
+        val mine = if (invoke.deviceId != null) invoke.deviceId.equals(deviceId, ignoreCase = true) else invoke.connectionId == connectionId
+        if (!mine || invoke.callId in answered) return
         val expires = runCatching { Instant.parse(invoke.expiresAt) }.getOrNull()
         if (expires != null && expires < clock.now()) return
         answered.addLast(invoke.callId)
@@ -237,6 +246,7 @@ class ConversationController(
             )
             buildJsonObject { put("calendar", name) }
         }
+        in phone?.capabilities.orEmpty() -> phone!!.perform(invoke.tool, invoke.arguments)
         else -> throw IllegalArgumentException("This phone can't do ${invoke.tool}.")
     }
 
