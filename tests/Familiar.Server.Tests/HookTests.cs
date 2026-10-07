@@ -57,6 +57,12 @@ public sealed class HookTests(PostgresFixture postgres)
         var notify = events.Single(e => e.Type == EventTypes.Notify).Payload<NotifyEvent>();
         Assert.Equal((NotifyKinds.Announcement, "Home Assistant"), (notify.Kind, notify.Label));
         Assert.Equal("The washing machine has finished.", events[^1].Payload<ReplyEndEvent>().Text);
+        // Spoken too - synthesis runs alongside, so it may finish just after the text does.
+        for (var i = 0; i < 50 && !app.Tts.Requests.Any(r => r.Text.Contains("washing machine", StringComparison.Ordinal)); i++)
+        {
+            await Task.Delay(100);
+        }
+
         Assert.Contains(app.Tts.Requests, r => r.Text.Contains("washing machine", StringComparison.Ordinal));
 
         // For the service worker, with the sender named.
