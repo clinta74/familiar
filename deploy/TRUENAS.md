@@ -140,22 +140,29 @@ as notifications. When Android has put the app to sleep or it's closed, only a p
 announcements (a hook's "speak"), timers and reminders. Push goes through the `ntfy` service in the
 YAML, and is off until it has an address.
 
-1. In the YAML, give both settings the same value - the address the **phone** reaches ntfy at
-   (the NAS's IP or hostname as the phone sees it, on the LAN or over the VPN; port 2586 is
-   published):
+1. In the YAML, give both settings the same value - the address the **phone** reaches ntfy at.
+   Behind a reverse proxy (Nginx Proxy Manager), ntfy needs **a hostname of its own**, e.g.
+   `push.example.net` forwarding to the NAS on port 2586 with websockets on and a certificate: it
+   can't run under a path like `/push` on Familiar's host (it builds the phones' push addresses from
+   its base URL, and doesn't support a path in it).
 
    ```yaml
      ntfy:
        environment:
-         NTFY_BASE_URL: http://<nas-address>:2586
+         NTFY_BASE_URL: https://push.example.net
+         NTFY_BEHIND_PROXY: 'true'
      server:
        environment:
-         Push__UnifiedPushServer: http://<nas-address>:2586
+         Push__UnifiedPushServer: https://push.example.net
    ```
 
-   They must match exactly (scheme, host and port): ntfy builds each phone's push address from
-   `NTFY_BASE_URL`, and the server only pushes to that host. Not `localhost` - that's the phone
-   itself.
+   Without a proxy it's `http://<nas-address>:2586` for both, and `NTFY_BEHIND_PROXY` stays
+   `'false'`. Either way the two must match exactly (scheme, host and port): ntfy builds each phone's
+   push address from `NTFY_BASE_URL`, and the server only pushes to that host. Not `localhost` -
+   that's the phone itself. The server container must be able to reach the address too.
+
+   To check the proxy: `https://push.example.net/v1/health` says `{"healthy":true}`, and
+   `/v1/config` shows the `base_url` once the app has restarted with it.
 2. Update the app so the containers restart.
 3. On the phone: install the ntfy app and set its default server (Settings, Default server) to the
    same address. Then open Familiar; it registers with ntfy by itself.
