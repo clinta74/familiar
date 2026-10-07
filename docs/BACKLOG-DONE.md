@@ -349,6 +349,13 @@ I'm running late" opened Messages to Sam Kim with the text written; "call Sam" t
 number; walking directions to Leeds station opened Maps; "where am I" said Headingley; and with the
 app in the background, a text came up as a notification that opened Messages ready to send.
 
+**Fixed after (2026-10-07): "where am I" slow on the Fold.** It asked the network provider for a
+fresh fix, which took its full 30 seconds and returned nothing, then GPS - past the server's 15-second
+wait, so the familiar heard nothing back. Now a position from the last ten minutes is used as it is
+(a town needs no fresh fix); otherwise every provider is asked at once and the first answer within 6
+seconds taken (fused on a phone with Google's location service, GPS on the emulator), and naming the
+place gets 5 (`AndroidPhone.locate`). On the emulator: about 5 seconds from a cold GPS.
+
 ---
 
 ## Avatars

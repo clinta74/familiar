@@ -15,12 +15,17 @@ import android.location.Location
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
+import android.os.CancellationSignal
+import android.os.SystemClock
 import android.provider.ContactsContract
 import app.familiar.shared.platform.DevicePhone
 import app.familiar.shared.platform.HandOff
 import app.familiar.shared.platform.HandedOff
 import app.familiar.shared.platform.PhoneContact
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -112,21 +117,43 @@ class AndroidPhone(context: Context, private val ask: suspend (Array<String>) ->
 
     private fun granted(permission: String) = context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
 
+    /**
+     * Where the phone is, quickly: the server waits 15 seconds for the whole answer. A town needs no
+     * fresh fix, so a position from the last few minutes is used as it is; otherwise every provider is
+     * asked at once and the first answer taken - on the Fold the fused one answers in a second or two,
+     * where the network provider alone took its full 30 seconds and returned nothing (2026-10-07);
+     * failing that, the last position there is, however old.
+     */
     @Suppress("MissingPermission") // Checked in place().
     private suspend fun locate(): Location? {
         val manager = context.getSystemService(LocationManager::class.java)
-        val providers = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER).filter { runCatching { manager.isProviderEnabled(it) }.getOrDefault(false) }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            for (provider in providers) {
-                val fresh = withTimeoutOrNull(8_000) {
-                    suspendCancellableCoroutine { done ->
-                        manager.getCurrentLocation(provider, null, context.mainExecutor, Consumer { done.resume(it) })
+        val fused = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) LocationManager.FUSED_PROVIDER else null
+        val providers = listOfNotNull(fused, LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
+            .filter { runCatching { manager.isProviderEnabled(it) }.getOrDefault(false) }
+        val known = providers.mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }.maxByOrNull { it.elapsedRealtimeNanos }
+        val age = known?.let { (SystemClock.elapsedRealtimeNanos() - it.elapsedRealtimeNanos) / 1_000_000 }
+        if (known != null && age != null && age < RECENT_MS) return known
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && providers.isNotEmpty()) {
+            // Every provider at once, the first answer wins: fused is quickest on a phone with Google's
+            // location service, GPS where that's all there is (an emulator, or outdoors).
+            val first = CompletableDeferred<Location>()
+            val fresh = coroutineScope {
+                val asks = providers.map { provider ->
+                    launch {
+                        val location = suspendCancellableCoroutine { done ->
+                            val signal = CancellationSignal()
+                            done.invokeOnCancellation { signal.cancel() }
+                            manager.getCurrentLocation(provider, signal, context.mainExecutor, Consumer { done.resume(it) })
+                        }
+                        if (location != null) first.complete(location)
                     }
                 }
-                if (fresh != null) return fresh
+                withTimeoutOrNull(FIX_MS) { first.await() }.also { asks.forEach { it.cancel() } }
             }
+            if (fresh != null) return fresh
         }
-        return providers.mapNotNull { manager.getLastKnownLocation(it) }.maxByOrNull { it.time }
+        return known
     }
 
     /** "Headingley, Leeds, England": the phone's own geocoder, so the coordinates don't leave it. */
@@ -134,7 +161,7 @@ class AndroidPhone(context: Context, private val ask: suspend (Array<String>) ->
         if (!Geocoder.isPresent()) return null
         val geocoder = Geocoder(context, Locale.getDefault())
         val address: Address? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            withTimeoutOrNull(8_000) {
+            withTimeoutOrNull(NAME_MS) {
                 suspendCancellableCoroutine { done ->
                     geocoder.getFromLocation(location.latitude, location.longitude, 1, object : Geocoder.GeocodeListener {
                         override fun onGeocode(addresses: MutableList<Address>) = done.resume(addresses.firstOrNull())
@@ -175,6 +202,13 @@ class AndroidPhone(context: Context, private val ask: suspend (Array<String>) ->
 
     private companion object {
         const val CHANNEL = "handoff"
+
+        /** A position this recent is good enough for the town it's in. */
+        const val RECENT_MS = 10 * 60_000L
+
+        /** The most to wait for a fresh fix, and then for its name: well inside the server's 15 s. */
+        const val FIX_MS = 6_000L
+        const val NAME_MS = 5_000L
 
         fun travelMode(mode: String) = when (mode) {
             "walking" -> "walking"

@@ -4,7 +4,7 @@ Work that's agreed but not finished, in the order it'll be done. Bigger designs 
 [PLAN.md](PLAN.md) and [MOBILE.md](MOBILE.md). When an item ships, move it to
 [BACKLOG-DONE.md](BACKLOG-DONE.md) under the same number - code comments cite items by number
 ("BACKLOG item 21") - and say what was built and how it was checked. New items take the next
-number: **24**.
+number: **25**.
 
 ---
 
@@ -24,6 +24,29 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone.
 - **Alarms after a restart** (MOBILE.md, M3): a timer or reminder set, the phone restarted, and it
   still rings.
 - **The home-screen widget** (`NextUpWidget`).
+
+---
+
+## What it can do
+
+### 24. Location on the website too
+
+Asked for 2026-10-07: "where am I" and "the weather here" from the web page, as the app does (item
+21's `where_am_i`). The browser can say where it is (the Geolocation API: asked once per site, and
+only over HTTPS, which the proxy gives), but three things differ from the phone:
+
+- **Who answers.** Device tools go to a signed-in phone (`DeviceTools`, keyed by device); a browser's
+  stream has no device (`ConversationEndpoints`: "Browsers don't"). It needs a way to address one
+  browser tab - its connection - and to answer `tool.invoke` from the page.
+- **Naming the place.** The phone names it with its own geocoder, so no coordinates leave it; a
+  browser has none. Either the server names it (a reverse-geocoding service - Nominatim, OpenStreetMap's
+  - added to the look-up hosts, so the coordinates go to the server and to it), or the page sends only
+  coordinates and the weather tool takes them as they are (Open-Meteo forecasts by coordinates).
+- **Which to ask** when the phone and a browser are both open: probably whichever the message came
+  from.
+
+**Decisions needed:** naming by the server (Nominatim) or coordinates only; and whether it needs the
+"Look things up" switch on, as the outside services do.
 
 ---
 
