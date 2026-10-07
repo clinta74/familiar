@@ -11,7 +11,6 @@ const deg = Math.PI / 180;
 export const otterModel: ModelSpec = {
   url: modelUrl,
   label: 'Your familiar, a plush otter',
-  frame: { cx: 0.12, cy: -0.3, halfWidth: 1.3, halfHeight: 1.95 },
   neckPivotY: 58,
   bubbles: [64, -84],
   face: {

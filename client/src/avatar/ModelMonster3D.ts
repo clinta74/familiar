@@ -18,7 +18,6 @@ const LAYOUT: FaceLayout = {
 export const monsterModel: ModelSpec = {
   url: modelUrl,
   label: 'Your familiar, a fuzzy monster',
-  frame: { cx: 0, cy: -0.3, halfWidth: 1.2, halfHeight: 1.95 },
   neckPivotY: 70,
   bubbles: [66, -96],
   face: {

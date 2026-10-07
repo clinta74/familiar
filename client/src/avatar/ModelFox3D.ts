@@ -38,7 +38,6 @@ function paintFace(p: Painter, palette: Record<string, string>) {
 export const foxModel: ModelSpec = {
   url: modelUrl,
   label: 'Your familiar, a plush fox',
-  frame: { cx: 0.12, cy: -0.3, halfWidth: 1.32, halfHeight: 1.95 },
   neckPivotY: 56,
   bubbles: [62, -80],
   face: {

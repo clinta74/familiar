@@ -26,7 +26,6 @@ const deg = Math.PI / 180;
 export const hedgehogModel: ModelSpec = {
   url: modelUrl,
   label: 'Your familiar, a plush hedgehog',
-  frame: { cx: 0, cy: -0.62, halfWidth: 1.4, halfHeight: 1.62 },
   neckPivotY: SHIFT + PIVOT_Y * SCALE,
   bubbles: [72, -36],
   head: { y: PIVOT_Y * S * SCALE, scale: SCALE, rock: true },

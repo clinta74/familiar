@@ -11,7 +11,6 @@ const deg = Math.PI / 180;
 export const giraffeModel: ModelSpec = {
   url: modelUrl,
   label: 'Your familiar, a plush giraffe',
-  frame: { cx: 0, cy: -0.26, halfWidth: 1.2, halfHeight: 2.02 },
   // The head tilts on the top of the neck.
   neckPivotY: -24,
   bubbles: [72, -126],

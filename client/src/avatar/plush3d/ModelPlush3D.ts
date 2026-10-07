@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import type { PlushLook, Pose } from '../plush/engine';
-import { Plush3D, S, uvScale, type Anchors, type Coat, type FaceSpec, type Frame, type FurOptions } from './Plush3D';
+import { Plush3D, S, uvScale, type Anchors, type Coat, type FaceSpec, type FurOptions } from './Plush3D';
 
 /** Fur options a spec can give a mesh; `bristle: true` ties it to the character's live bristle. */
 export type ModelFur = Omit<FurOptions, 'bristle'> & { bristle?: boolean };
@@ -18,7 +18,6 @@ export type ModelFur = Omit<FurOptions, 'bristle'> & { bristle?: boolean };
 export interface ModelSpec {
   url: string;
   label: string;
-  frame: Frame;
   /** Where the head pivots on the neck, in the 2D drawing's units (as Plush3D takes it). */
   neckPivotY: number;
   bubbles?: [number, number];
@@ -76,7 +75,7 @@ export class ModelPlush3D extends Plush3D {
   }
 
   private constructor(container: HTMLElement, look: PlushLook | undefined, spec: ModelSpec, scene: THREE.Object3D) {
-    super(container, spec.label, spec.frame, spec.neckPivotY, spec.bubbles);
+    super(container, spec.label, spec.neckPivotY, spec.bubbles);
     this.spec = spec;
     if (spec.arms) this.armRest = spec.arms;
 

@@ -117,7 +117,7 @@ export class Spot3D extends Plush3D {
   private lastT = 0;
 
   constructor(container: HTMLElement, look?: PlushLook) {
-    super(container, 'Your familiar, a spot of colour', { cx: 0, cy: -0.9, halfWidth: 1.2, halfHeight: 1.45 }, 100, [72, 2]);
+    super(container, 'Your familiar, a spot of colour', 100, [72, 2]);
 
     this.material = new THREE.MeshPhysicalMaterial({ roughness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.08, sheen: 0.4 });
     this.material.onBeforeCompile = (shader) => {

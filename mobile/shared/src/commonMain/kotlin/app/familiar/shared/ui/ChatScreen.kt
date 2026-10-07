@@ -1,5 +1,9 @@
 package app.familiar.shared.ui
 
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.distinctUntilChanged
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -122,12 +126,24 @@ fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyLi
     // opening, reloaded after a reconnect) jumps straight to its latest message.
     val lastText = state.messages.lastOrNull()?.text
     var shown by remember { mutableStateOf(0) }
+    // To the end of the latest message, not its start: a long reply's last lines are what's new.
     LaunchedEffect(state.messages.size, lastText) {
         val count = state.messages.size
         if (count > 0) {
             if (count - shown > 2) list.scrollToItem(count - 1) else list.animateScrollToItem(count - 1)
+            list.scrollBy(END)
         }
         shown = count
+    }
+    // The list shrinking (the keyboard coming up) keeps the end in view too.
+    LaunchedEffect(list) {
+        snapshotFlow { list.layoutInfo.viewportSize.height }.distinctUntilChanged().drop(1).collect {
+            val count = list.layoutInfo.totalItemsCount
+            if (count > 0) {
+                list.scrollToItem(count - 1)
+                list.scrollBy(END)
+            }
+        }
     }
 
     val busy = state.state == "thinking" || state.state == "speaking" || audible
@@ -315,7 +331,9 @@ fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyLi
                         Column(Modifier.weight(1f).fillMaxHeight(), content = conversation)
                     }
                 } else {
-                    val stage = maxHeight * 0.4f
+                    // Short - the keyboard's up, or a small phone - the character gives up some room so
+                    // the messages can still be read. It's framed to fit whatever it gets.
+                    val stage = maxHeight * if (maxHeight < 480.dp) 0.28f else 0.4f
                     Column(Modifier.fillMaxSize()) {
                         AvatarView(avatar, loadModel, Modifier.fillMaxWidth().height(stage))
                         conversation()
@@ -375,3 +393,6 @@ private fun Chip(chip: ToolChip) {
         modifier = Modifier.border(1.dp, colors.outline, RoundedCornerShape(50)).padding(horizontal = 9.dp, vertical = 2.dp),
     )
 }
+
+/** Further than any message is long: scrolling stops at the end. */
+private const val END = 100_000f

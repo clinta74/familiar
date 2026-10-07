@@ -444,6 +444,20 @@ background gave one notification; back in front it was gone, the stream reconnec
 got its reply. With the app asleep or closed only a push wakes it - ntfy: set up on the NAS the same
 day behind the proxy at its own host (deploy/TRUENAS.md, "Push to phones"), and confirmed on the Fold
 with v0.3.6 - an announcement with the app closed came through, and a timer rang.
+
+### 23. ~~The avatar's feet cut off in the app, and the reply hard to read~~ — fixed (2026-10-07)
+
+Reported 2026-10-07 with screenshots of the 3D otter: its feet ran off the bottom of its area, with
+empty space above its head, and with the keyboard up the reply had a few lines' room. **Cause:**
+each 3D character had a hand-set frame for the camera, with room above the head for the thought
+bubbles and its lower edge at or above the feet; a tall stage (the web) hid it with spare width, the
+phone's short, wide one fitted the frame exactly. **Fixed:** the frame is measured from the character
+once it's built (`Plush3D.measure`) - all of it, the feet and their shadow, a little headroom - and
+the thought bubbles and the "z" come down beside the head rather than high above it; the hand-set
+frames are gone. In the app, when the space is short (the keyboard's up) the character takes 28% of
+the height rather than 40%, and the chat keeps the end of the latest message in view, the keyboard
+coming up included (it used to line up the start of a long reply). Checked: every 3D character at the
+phone's size, the keyboard-up size and the web's; and on the emulator with the otter, both ways.
 ---
 
 ## Avatars

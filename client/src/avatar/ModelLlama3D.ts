@@ -19,7 +19,6 @@ const LAYOUT: FaceLayout = {
 export const llamaModel: ModelSpec = {
   url: modelUrl,
   label: 'Your familiar, a plush llama',
-  frame: { cx: 0, cy: -0.3, halfWidth: 1.15, halfHeight: 1.95 },
   neckPivotY: 60,
   // The head sits up on a long neck (tools/models/llama.py).
   head: { y: 60 * S + 0.24, scale: 1 },

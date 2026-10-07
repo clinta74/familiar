@@ -20,6 +20,8 @@ export const v = (x: number, y: number, z = 0) => new THREE.Vector3(x * S, -y * 
 export const GROUND = -2.22;
 
 const FOV = 22;
+/** How far the thought bubbles may rise above the top of the character. */
+const BUBBLE_HEADROOM = 0.3;
 /** Texture size for the embroidered face and snout. Front-projected, so this is a front view. */
 const TEX = 256;
 /** Layers of fur over each furry shape: more is softer and costs more. */
@@ -421,7 +423,8 @@ export abstract class Plush3D extends PlushCharacter {
   private readonly camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 50);
   private readonly resize: ResizeObserver;
   private readonly container: HTMLElement;
-  private readonly frameSpec: Frame;
+  /** What the camera fits into the stage: measured once the character is built. */
+  private frameSpec: Frame = { cx: 0, cy: 0, halfWidth: 1, halfHeight: 1 };
 
   private readonly fuzz = fuzzTexture();
   private readonly strands = strandTexture();
@@ -483,10 +486,9 @@ export abstract class Plush3D extends PlushCharacter {
   }
   private painted = { blush: -1, mouth: '' };
 
-  protected constructor(container: HTMLElement, label: string, frame: Frame, neckPivotY: number, bubbles: [number, number] = [60, -84]) {
+  protected constructor(container: HTMLElement, label: string, neckPivotY: number, bubbles: [number, number] = [60, -84]) {
     super();
     this.container = container;
-    this.frameSpec = frame;
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
@@ -548,6 +550,7 @@ export abstract class Plush3D extends PlushCharacter {
 
   /** Call last in the subclass's constructor, once everything is built. */
   protected finish(look: PlushLook | undefined, defaults: PlushLook) {
+    this.frameSpec = this.measure();
     this.fit();
     this.setLook(look ?? defaults);
     this.start();
@@ -825,6 +828,33 @@ export abstract class Plush3D extends PlushCharacter {
   }
 
   // --- building ------------------------------------------------------------------------------
+
+  /**
+   * The frame from the character itself, once it's built: all of it, the feet and the shadow under
+   * them included, a little headroom, and the thought bubbles and the "z" - brought down to sit
+   * beside the head if they'd stand far above it, since in a short, wide stage (the phone's chat)
+   * headroom is what there's least of. Hand-set frames left the feet off there and a band of
+   * empty space above.
+   */
+  private measure(): Frame {
+    const body = new THREE.Box3().setFromObject(this.toy);
+    const above = new THREE.Box3().setFromObject(this.thinking).max.y - (body.max.y + BUBBLE_HEADROOM);
+    if (above > 0) {
+      this.thinking.position.y -= above;
+      this.sleep.position.y -= above;
+      this.sleep.userData.y -= above;
+    }
+    const all = body.union(new THREE.Box3().setFromObject(this.thinking)).union(new THREE.Box3().setFromObject(this.sleep));
+    // More below than above: the feet are nearest the camera, which looks down a little, so they
+    // reach further down the picture than their height says; and the shadow is under them.
+    const [top, bottom, side] = [0.15, 0.32, 0.15];
+    return {
+      cx: (all.min.x + all.max.x) / 2,
+      cy: (all.min.y - bottom + all.max.y + top) / 2,
+      halfWidth: (all.max.x - all.min.x) / 2 + side,
+      halfHeight: (all.max.y + top - (all.min.y - bottom)) / 2,
+    };
+  }
 
   /** Fits the frame into the stage, whatever its shape. */
   private fit() {
