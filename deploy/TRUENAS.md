@@ -161,8 +161,8 @@ YAML, and is off until it has an address.
    push address from `NTFY_BASE_URL`, and the server only pushes to that host. Not `localhost` -
    that's the phone itself. The server container must be able to reach the address too.
 
-   To check the proxy: `https://push.example.net/v1/health` says `{"healthy":true}`, and
-   `/v1/config` shows the `base_url` once the app has restarted with it.
+   To check the proxy: `https://push.example.net/v1/health` says `{"healthy":true}`. (`/v1/config`
+   always shows an empty `base_url` - that's for ntfy's web page - so it doesn't show the setting.)
 2. Update the app so the containers restart.
 3. On the phone: install the ntfy app and set its default server (Settings, Default server) to the
    same address. Then open Familiar; it registers with ntfy by itself.
