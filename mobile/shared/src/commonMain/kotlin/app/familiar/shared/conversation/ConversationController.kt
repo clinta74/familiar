@@ -10,14 +10,17 @@ import app.familiar.shared.protocol.ServerEvent
 import app.familiar.shared.protocol.ToolInvokeEvent
 import app.familiar.shared.protocol.ToolResultRequest
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
@@ -60,6 +63,12 @@ class ConversationController(
     val calendarOn: StateFlow<Boolean> = _calendarOn.asStateFlow()
 
     private var stream: Job? = null
+
+    /** The connection being made or held now; cancelling just this is a reconnect. */
+    private var connection: Job? = null
+
+    /** Ask for a reconnect straight away, skipping any wait between attempts. */
+    private val kicks = Channel<Unit>(Channel.CONFLATED)
     private var calendarSync: Job? = null
     private var lastEventId: String? = null
 
@@ -73,44 +82,72 @@ class ConversationController(
             loadHistory()
             var backoff = 1_000L
             while (true) {
-                try {
-                    connectionId = null
-                    api.events(currentTimeZoneId(), lastEventId, capabilities(), speak).collect { (id, event) ->
-                        if (id != null) lastEventId = id
-                        backoff = 1_000L
-                        when (event) {
-                            ServerEvent.Resync -> loadHistory()
-                            is ServerEvent.ToolInvoke -> answer(event.event)
-                            is ServerEvent.Ready -> {
-                                connectionId = event.ready.connectionId
-                                _state.update { ConversationReducer.apply(it, event) }
+                kicks.tryReceive()
+                // Each attempt runs on its own, so a reconnect can cancel it without ending the loop.
+                val ended = CompletableDeferred<Exception?>()
+                val attempt = scope.launch {
+                    ended.complete(
+                        try {
+                            connectionId = null
+                            api.events(currentTimeZoneId(), lastEventId, capabilities(), speak).collect { (id, event) ->
+                                if (id != null) lastEventId = id
+                                backoff = 1_000L
+                                when (event) {
+                                    ServerEvent.Resync -> loadHistory()
+                                    is ServerEvent.ToolInvoke -> answer(event.event)
+                                    is ServerEvent.Ready -> {
+                                        connectionId = event.ready.connectionId
+                                        _state.update { ConversationReducer.apply(it, event) }
+                                    }
+                                    else -> _state.update { ConversationReducer.apply(it, event) }
+                                }
+                                onEvent(event)
                             }
-                            else -> _state.update { ConversationReducer.apply(it, event) }
-                        }
-                        onEvent(event)
-                    }
-                } catch (exception: CancellationException) {
-                    throw exception
-                } catch (exception: ApiException) {
-                    if (exception.unauthorized) {
-                        onSignedOut()
-                        return@launch
-                    }
-                } catch (_: Exception) {
-                    // Unreachable or dropped: try again shortly.
+                            null
+                        } catch (_: CancellationException) {
+                            null
+                        } catch (exception: Exception) {
+                            // Unreachable or dropped: try again shortly.
+                            exception
+                        },
+                    )
+                }
+                connection = attempt
+                val failure = try {
+                    ended.await()
+                } finally {
+                    attempt.cancel()
+                }
+                if (failure is ApiException && failure.unauthorized) {
+                    onSignedOut()
+                    return@launch
                 }
 
                 _state.update { it.copy(connection = Connection.Reconnecting) }
-                delay(backoff)
-                backoff = (backoff * 2).coerceAtMost(15_000L)
+                // A kick (the app back in front) skips the wait and starts the backing-off again.
+                backoff = if (withTimeoutOrNull(backoff) { kicks.receive() } != null) 1_000L else (backoff * 2).coerceAtMost(15_000L)
             }
         }
         startCalendarSync()
     }
 
+    /**
+     * Connects again now, dropping the connection there is. For coming back to the front: while the
+     * app was in the background the phone may have frozen it and the network dropped the
+     * connection without either end noticing, so it would sit looking connected and hear nothing
+     * until the read timed out. Last-Event-ID replays whatever was missed.
+     */
+    fun reconnect() {
+        if (stream == null) return
+        kicks.trySend(Unit)
+        connection?.cancel()
+    }
+
     fun stop() {
         stream?.cancel()
         stream = null
+        connection?.cancel()
+        connection = null
         calendarSync?.cancel()
         calendarSync = null
     }

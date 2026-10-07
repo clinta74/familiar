@@ -133,7 +133,7 @@ hadn't had a busy state at all.
 
 ## Voice and sound
 
-### 14. Sound effects, and maybe singing — effects done; vocal sounds need the voice itself
+### 14. Sound effects, and maybe singing — effects done; vocal sounds need the voice itself (left till last)
 
 **2026-10-05:** the synthesised vocal sounds (option 1 below) were listened to in the studio: the giggle
 and the gasp are far off, and none sound like the chosen voice. Taken out of the site (in git history:
@@ -426,6 +426,21 @@ Design to settle first:
   Familiar, text Sam…" from the lock screen is the natural home - Android shows the handed-off app
   over the lock screen once it's unlocked.
 
+
+### 22. ~~The app losing its connection in the background; notifications while it's away~~ — fixed (2026-10-06)
+
+Reported 2026-10-06: sometimes, after being in the background, the app had lost its connection;
+and something pushed (a Home Assistant announcement) should come up as a notification. **Fixed:**
+coming back to the front after more than five seconds (or with the connection down) it reconnects
+at once, rather than sitting on a connection the network dropped while Android had the app frozen,
+or waiting out the back-off (`ConversationController.reconnect`). While it's in the background,
+replies and announcements arriving on the stream come up as notifications (`AwayNotices`) - an
+announcement and the familiar saying it as one, under the push's id so a push doesn't repeat it;
+timers and reminders are left to the phone's alarms; nothing while hands-free is on. They're cleared
+on coming back. Tried on the emulator against the dev server: an announcement with the app in the
+background gave one notification; back in front it was gone, the stream reconnected and a message
+got its reply. With the app asleep or closed only a push wakes it - ntfy, off on the NAS until
+`NTFY_BASE_URL` and `Push__UnifiedPushServer` are set (deploy/TRUENAS.md, "Push to phones").
 ---
 
 ## Avatars

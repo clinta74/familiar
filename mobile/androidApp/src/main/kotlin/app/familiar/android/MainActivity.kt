@@ -124,6 +124,18 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    // Coming back to the front reconnects if it's been away a while; going away, what the familiar
+    // says comes up as notifications.
+    override fun onStart() {
+        super.onStart()
+        FamiliarSessions.current?.foreground(true)
+    }
+
+    override fun onStop() {
+        FamiliarSessions.current?.foreground(false)
+        super.onStop()
+    }
+
     override fun onDestroy() {
         if (Permissions.activity === this) Permissions.activity = null
         permissionAnswer?.complete(Unit)

@@ -3,6 +3,7 @@ package app.familiar.shared.session
 import app.familiar.shared.api.FamiliarApi
 import app.familiar.shared.auth.SignedIn
 import app.familiar.shared.avatar.AvatarController
+import app.familiar.shared.conversation.Connection
 import app.familiar.shared.conversation.ConversationController
 import app.familiar.shared.platform.DeviceAlarms
 import app.familiar.shared.platform.DeviceCalendar
@@ -29,6 +30,9 @@ import app.familiar.shared.protocol.FamiliarView
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 /**
  * One signed-in device's familiar: the conversation stream, the voice, the avatar's state, and the
@@ -116,6 +120,13 @@ class FamiliarSession(
 
     private var started = false
 
+    /** When the app went into the background; null while it's in front. */
+    private var awaySince: Instant? = null
+    private val notices = AwayNotices()
+
+    /** Notifications shown while away, taken down on coming back. */
+    private val shownAway = mutableListOf<String>()
+
     /** Listening for one thing said (opened as the assistant), not hands-free until switched off. */
     private var once = false
 
@@ -130,6 +141,13 @@ class FamiliarSession(
                 is ServerEvent.Sound -> if (_effectsOn.value) avatar.sound(event.sound)
                 is ServerEvent.ReplyStart, ServerEvent.Cleared -> player?.stop()
                 else -> Unit
+            }
+            // In the background, what it says comes up as a notification - unless they're talking to
+            // it hands-free, when they hear it.
+            val notice = notices.on(event, controller.state.value.familiarName)
+            if (notice != null && awaySince != null && !_handsFreeOn.value) {
+                alarms?.message(notice.id, notice.title, notice.body)
+                if (notice.id !in shownAway) shownAway += notice.id
             }
         }
         handsFree?.apply {
@@ -151,6 +169,23 @@ class FamiliarSession(
                 _userSpeaking.value = false
             }
         }
+    }
+
+    /**
+     * The app went into the background ([visible] false) or came back. Back after more than a few
+     * seconds - or with the connection down - it reconnects at once: the old connection may be dead
+     * without anything having noticed (docs/MOBILE.md).
+     */
+    fun foreground(visible: Boolean) {
+        if (!visible) {
+            if (awaySince == null) awaySince = Clock.System.now()
+            return
+        }
+        val away = awaySince ?: return
+        awaySince = null
+        shownAway.forEach { alarms?.dismissMessage(it) }
+        shownAway.clear()
+        if (Clock.System.now() - away > 5.seconds || controller.state.value.connection != Connection.Open) controller.reconnect()
     }
 
     /** Connects (once); the look is read as soon as the stream is ready. */

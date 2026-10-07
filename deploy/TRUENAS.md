@@ -132,3 +132,33 @@ docker exec familiar-backup familiar-backup --once
 **If something's wrong** at step 6: stop the app, put the YAML's paths back to `./data` and
 `./backups`, and start it; the old folder is untouched. If the database itself is the problem,
 `before-move.dump` restores with `pg_restore`.
+
+## Push to phones (ntfy)
+
+With the app open, messages arrive on its own connection; while it's in the background they come up
+as notifications. When Android has put the app to sleep or it's closed, only a push wakes it - for
+announcements (a hook's "speak"), timers and reminders. Push goes through the `ntfy` service in the
+YAML, and is off until it has an address.
+
+1. In the YAML, give both settings the same value - the address the **phone** reaches ntfy at
+   (the NAS's IP or hostname as the phone sees it, on the LAN or over the VPN; port 2586 is
+   published):
+
+   ```yaml
+     ntfy:
+       environment:
+         NTFY_BASE_URL: http://<nas-address>:2586
+     server:
+       environment:
+         Push__UnifiedPushServer: http://<nas-address>:2586
+   ```
+
+   They must match exactly (scheme, host and port): ntfy builds each phone's push address from
+   `NTFY_BASE_URL`, and the server only pushes to that host. Not `localhost` - that's the phone
+   itself.
+2. Update the app so the containers restart.
+3. On the phone: install the ntfy app and set its default server (Settings, Default server) to the
+   same address. Then open Familiar; it registers with ntfy by itself.
+
+To check: set a one-minute timer, close Familiar (swipe it away), and the timer still rings; or send
+an announcement from Home Assistant with the app closed, and a notification comes up.

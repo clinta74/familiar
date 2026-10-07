@@ -63,6 +63,12 @@ interface DeviceCalendar {
 interface DeviceAlarms {
     /** Replaces the alarms with these (the account's pending jobs). */
     fun sync(jobs: List<app.familiar.shared.protocol.JobView>, familiarName: String)
+
+    /** A notification for something said while the app is in the background; the same [id] replaces it. */
+    fun message(id: String, title: String, body: String) = Unit
+
+    /** Takes such a notification away: the app is back in front, showing it. */
+    fun dismissMessage(id: String) = Unit
 }
 
 /** A store in memory, for previews and tests. */

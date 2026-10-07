@@ -31,6 +31,10 @@ class PhoneAlarms(context: Context) : DeviceAlarms {
 
     data class Alarm(val id: String, val timer: Boolean, val label: String, val dueAt: Long, val ring: Boolean, val familiar: String)
 
+    override fun message(id: String, title: String, body: String) = Alerts.message(context, id, title, body)
+
+    override fun dismissMessage(id: String) = Alerts.dismiss(context, id)
+
     @Synchronized
     override fun sync(jobs: List<JobView>, familiarName: String) {
         val wanted = jobs.mapNotNull { job ->
@@ -161,11 +165,17 @@ object Alerts {
         post(context, id, title, body, ring = false)
     }
 
+    /**
+     * What the familiar said while the app was in the background. Shown even if a push showed it
+     * already: the same id replaces it, with the familiar's own words.
+     */
+    fun message(context: Context, id: String, title: String, body: String) = post(context, id, title, body, ring = false, message = true)
+
     fun dismiss(context: Context, id: String) {
         context.getSystemService(NotificationManager::class.java).cancel(id.hashCode())
     }
 
-    private fun post(context: Context, id: String, title: String, body: String, ring: Boolean) {
+    private fun post(context: Context, id: String, title: String, body: String, ring: Boolean, message: Boolean = false) {
         val manager = context.getSystemService(NotificationManager::class.java)
         channels(manager)
         val open = PendingIntent.getActivity(
@@ -177,9 +187,10 @@ object Alerts {
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(title)
             .setContentText(body)
+            .setStyle(Notification.BigTextStyle().bigText(body))
             .setContentIntent(open)
             .setAutoCancel(true)
-            .setCategory(if (ring) Notification.CATEGORY_ALARM else Notification.CATEGORY_REMINDER)
+            .setCategory(if (ring) Notification.CATEGORY_ALARM else if (message) Notification.CATEGORY_MESSAGE else Notification.CATEGORY_REMINDER)
         if (ring) {
             val dismiss = PendingIntent.getBroadcast(
                 context, id.hashCode(),
