@@ -24,29 +24,10 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
 - **Alarms after a restart** (MOBILE.md, M3): a timer or reminder set, the phone restarted, and it
   still rings.
 - **The home-screen widget** (`NextUpWidget`).
+- **Contacts** (item 25, with the NAS updated): "take me to [someone]'s" and "what's [someone]'s
+  number?" with real contacts.
 - **"Where am I" on the website** (item 24), on the real site over HTTPS with "Look things up" on:
   the browser asks once to allow location; then "what's the weather where I am?".
-
----
-
-## What it can do
-
-### 25. Contacts: directions to someone's address, and saying a number or address
-
-Asked for 2026-10-08. The app already reads the phone's contacts (item 21) to match a name to a
-number for texts and calls, on the phone - the server and the model only learn the name. Two more
-uses, in this order:
-
-1. **Directions to a contact's address** ("take me to Mum's"): the phone finds the contact's postal
-   address (`ContactsContract.CommonDataKinds.StructuredPostal`) and opens Maps with it, as
-   `navigate` does - the address stays on the phone; the familiar learns only that directions to
-   Mum are open. Either a `to_contact` argument on `navigate`, or the phone resolving a destination
-   that's a contact's name. Several addresses (home, work) come back as labels to ask about.
-2. **Saying a number or address** ("what's Sam's number?", "where does Jo live?"): to say it, the
-   familiar has to see it, so that one number or address goes to the server and the model - the
-   first contact detail to leave the phone. A `contact_details` device tool returning just what was
-   asked for, of the one contact; `Read` risk; never stored as a memory (the memory pass skips tool
-   results that came from contacts). Worth saying so in Settings beside the contacts permission.
 
 ---
 

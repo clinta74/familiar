@@ -28,6 +28,9 @@ object Capabilities {
     const val PHONE_CALL = "phone.call"
     const val MAPS_NAVIGATE = "maps.navigate"
     const val LOCATION_READ = "location.read"
+
+    /** One contact's number or address, to say it (BACKLOG item 25). */
+    const val CONTACTS_READ = "contacts.read"
 }
 
 /** A timer, not a reminder. */

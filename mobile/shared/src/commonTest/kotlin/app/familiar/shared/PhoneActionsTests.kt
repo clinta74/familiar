@@ -1,6 +1,7 @@
 package app.familiar.shared
 
 import app.familiar.shared.phone.PhoneActions
+import app.familiar.shared.platform.ContactAddress
 import app.familiar.shared.platform.DevicePhone
 import app.familiar.shared.platform.HandOff
 import app.familiar.shared.platform.HandedOff
@@ -25,10 +26,19 @@ class PhoneActionsTests {
             PhoneContact("Sam Patel", "+44 7700 900005", mobile = true),
         ),
         val inFront: Boolean = true,
+        val places: List<ContactAddress>? = listOf(
+            ContactAddress("Mum", "1 Oak Lane, Leeds", "home"),
+            ContactAddress("Sam Kim", "2 Elm Road, Leeds", "home"),
+            ContactAddress("Sam Kim", "3 Office Park, Leeds", "work"),
+        ),
     ) : DevicePhone {
         val handedOff = mutableListOf<HandOff>()
 
-        override suspend fun contacts(name: String) = book?.filter { contact -> contact.name.split(' ').any { it.startsWith(name, ignoreCase = true) } || contact.name.equals(name, ignoreCase = true) }
+        private fun matches(contact: String, name: String) = contact.split(' ').any { it.startsWith(name, ignoreCase = true) } || contact.equals(name, ignoreCase = true)
+
+        override suspend fun contacts(name: String) = book?.filter { matches(it.name, name) }
+
+        override suspend fun addresses(name: String) = places?.filter { matches(it.name, name) }
 
         override fun handOff(handOff: HandOff): HandedOff {
             handedOff += handOff
@@ -86,6 +96,53 @@ class PhoneActionsTests {
     fun with_the_app_in_the_background_its_a_notification_and_the_familiar_is_told() = runTest {
         val result = PhoneActions(FakePhone(inFront = false)).perform("maps.navigate", args("destination" to "Leeds station", "mode" to "walking"))
         assertContains(result["how"]!!.jsonPrimitive.content, "notification")
+    }
+
+    @Test
+    fun directions_to_a_contact_use_their_address_and_dont_say_it() = runTest {
+        val phone = FakePhone()
+        val result = PhoneActions(phone).perform("maps.navigate", args("to_contact" to "mum", "mode" to "walking"))
+
+        assertEquals(HandOff.Navigate("1 Oak Lane, Leeds", "walking", shownAs = "Mum's"), phone.handedOff.single())
+        assertEquals("Mum", result["to"]!!.jsonPrimitive.content)
+        assertFalse(result.toString().contains("Oak Lane"), "The address stays on the phone.")
+    }
+
+    @Test
+    fun a_contact_with_two_addresses_is_asked_about_unless_one_was_said() = runTest {
+        assertContains(
+            assertFailsWith<IllegalStateException> { PhoneActions(FakePhone()).perform("maps.navigate", args("to_contact" to "Sam Kim")) }.message!!,
+            "home, work",
+        )
+        val phone = FakePhone()
+        PhoneActions(phone).perform("maps.navigate", args("to_contact" to "Sam Kim", "which" to "work"))
+        assertEquals("3 Office Park, Leeds", (phone.handedOff.single() as HandOff.Navigate).destination)
+    }
+
+    @Test
+    fun a_contact_with_no_address_is_said_so() = runTest {
+        assertContains(
+            assertFailsWith<IllegalStateException> { PhoneActions(FakePhone()).perform("maps.navigate", args("to_contact" to "Sam Patel")) }.message!!,
+            "no address",
+        )
+    }
+
+    @Test
+    fun asked_for_a_number_it_says_it_with_its_kind() = runTest {
+        val result = PhoneActions(FakePhone()).perform("contacts.read", args("name" to "Mum"))
+
+        assertEquals("Mum", result["name"]!!.jsonPrimitive.content)
+        assertContains(result["numbers"].toString(), "+44 7700 900003")
+        assertContains(result["numbers"].toString(), "mobile")
+        assertEquals(null, result["addresses"])
+    }
+
+    @Test
+    fun asked_for_a_work_address_it_gives_just_that() = runTest {
+        val result = PhoneActions(FakePhone()).perform("contacts.read", args("name" to "Sam Kim", "want" to "address", "which" to "work"))
+        val said = result["addresses"].toString()
+        assertContains(said, "3 Office Park")
+        assertFalse(said.contains("Elm Road"))
     }
 
     @Test

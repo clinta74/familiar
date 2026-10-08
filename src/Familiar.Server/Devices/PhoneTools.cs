@@ -118,25 +118,86 @@ public sealed class NavigateTool(DeviceTools devices) : PhoneTool(devices)
     public override ToolDefinition Definition { get; } = new(
         "navigate",
         "Starts directions on the user's phone: Maps opens with the route to where they want to go. Use when they ask for " +
-        "directions or to be taken somewhere.",
+        "directions or to be taken somewhere. To go to someone they know (\"take me to Mum's\"), give that person as " +
+        "to_contact: their phone finds the address in their contacts, and it never needs saying.",
         ToolSchema.Object(
-            ["destination"],
-            ("destination", ToolSchema.String("Where to, as they said it: \"the station\", \"Tesco in Headingley\", an address.")),
+            ("destination", ToolSchema.String("Where to, as they said it: \"the station\", \"Tesco in Headingley\", an address. Leave out with to_contact.")),
+            ("to_contact", ToolSchema.String("Someone in their contacts whose address to go to, as they said it: \"Mum\", \"Sam Kim\".")),
+            ("which", ToolSchema.String("Which of that contact's addresses, if they said: \"home\", \"work\".")),
             ("mode", ToolSchema.Enum("How they're going. Leave out for driving.", Modes))),
         ToolRisk.WriteOwn);
 
-    public override string Describe(JsonObject arguments) => $"Directions to {ToolArgs.String(arguments, "destination")}";
+    public override string Describe(JsonObject arguments) =>
+        $"Directions to {ToolArgs.String(arguments, "destination") ?? ToolArgs.String(arguments, "to_contact") + "'s"}";
 
     public override Task<ToolResult> InvokeAsync(ToolContext context, JsonObject arguments, CancellationToken ct)
     {
-        if (ToolArgs.Label(arguments, "destination", 120) is not { } destination)
+        var destination = ToolArgs.Label(arguments, "destination", 120);
+        var contact = ToolArgs.Label(arguments, "to_contact", 80);
+        if (destination is null && contact is null)
         {
             return Task.FromResult(ToolResult.Failure("Ask where they want to go."));
         }
 
         var mode = ToolArgs.String(arguments, "mode")?.ToLowerInvariant();
-        var request = new JsonObject { ["destination"] = destination, ["mode"] = Modes.Contains(mode) ? mode : "driving" };
-        return AskPhoneAsync(context, request, _ => $"Directions to {destination}", ct);
+        var request = new JsonObject { ["mode"] = Modes.Contains(mode) ? mode : "driving" };
+        if (contact is not null)
+        {
+            request["to_contact"] = contact;
+            if (ToolArgs.Label(arguments, "which", 40) is { } which)
+            {
+                request["which"] = which;
+            }
+        }
+        else
+        {
+            request["destination"] = destination;
+        }
+
+        return AskPhoneAsync(context, request, r => $"Directions to {(contact is null ? destination : (Said(r, "to") ?? contact) + "'s")}", ct);
+    }
+}
+
+/// <summary>
+/// contact_details: one contact's number or address, to say it (BACKLOG item 25). Unlike texting or
+/// calling, the familiar has to see it to say it - the one contact detail that leaves the phone,
+/// when asked for. Never remembered (the memory pass leaves contact details out).
+/// </summary>
+public sealed class ContactDetailsTool(DeviceTools devices) : PhoneTool(devices)
+{
+    private static readonly string[] Wants = ["phone", "address", "both"];
+
+    public override string Capability => DeviceCapabilities.Contacts;
+
+    public override ToolDefinition Definition { get; } = new(
+        "contact_details",
+        "Looks up someone in the user's phone contacts and gives you their phone number or address, to tell the user. Use " +
+        "only when they ask what someone's number or address is - to text, call or go there, use send_text, call or " +
+        "navigate instead, which don't need the details.",
+        ToolSchema.Object(
+            ["name"],
+            ("name", ToolSchema.String("Who, as the user said it: \"Sam\", \"the dentist\".")),
+            ("want", ToolSchema.Enum("What they asked for. Leave out for the phone number.", Wants)),
+            ("which", ToolSchema.String("Which number or address, if they said: \"mobile\", \"work\", \"home\"."))),
+        ToolRisk.Read);
+
+    public override string Describe(JsonObject arguments) => $"Look up {ToolArgs.String(arguments, "name")} in the phone's contacts";
+
+    public override Task<ToolResult> InvokeAsync(ToolContext context, JsonObject arguments, CancellationToken ct)
+    {
+        if (ToolArgs.Label(arguments, "name", 80) is not { } name)
+        {
+            return Task.FromResult(ToolResult.Failure("Ask who they mean."));
+        }
+
+        var want = ToolArgs.String(arguments, "want")?.ToLowerInvariant();
+        var request = new JsonObject { ["name"] = name, ["want"] = Wants.Contains(want) ? want : "phone" };
+        if (ToolArgs.Label(arguments, "which", 40) is { } which)
+        {
+            request["which"] = which;
+        }
+
+        return AskPhoneAsync(context, request, r => $"Contact: {Said(r, "name") ?? name}", ct);
     }
 }
 

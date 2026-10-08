@@ -22,7 +22,10 @@ public static class DeviceCapabilities
     /// <summary>Say roughly where the phone is: the town.</summary>
     public const string Location = "location.read";
 
-    public static readonly IReadOnlySet<string> Known = new HashSet<string>(StringComparer.Ordinal) { CalendarWrite, Text, Call, Navigate, Location };
+    /// <summary>Look up one contact's number or address, to say it (BACKLOG item 25).</summary>
+    public const string Contacts = "contacts.read";
+
+    public static readonly IReadOnlySet<string> Known = new HashSet<string>(StringComparer.Ordinal) { CalendarWrite, Text, Call, Navigate, Location, Contacts };
 
     /// <summary>What a browser may offer: where it is (BACKLOG item 24), and nothing else.</summary>
     public static readonly IReadOnlySet<string> Browser = new HashSet<string>(StringComparer.Ordinal) { Location };

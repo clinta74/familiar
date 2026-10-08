@@ -234,6 +234,7 @@ public static class ToolRegistration
         services.AddSingleton<ITool, Devices.CallTool>();
         services.AddSingleton<ITool, Devices.NavigateTool>();
         services.AddSingleton<ITool, Devices.WhereAmITool>();
+        services.AddSingleton<ITool, Devices.ContactDetailsTool>();
 
         // Worked out here, not looked up: offered whether or not look-ups are on.
         services.AddSingleton<ITool, Maths.CalculateTool>();

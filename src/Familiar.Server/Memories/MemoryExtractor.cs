@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Text.Json.Nodes;
 using Familiar.Agent.Llm;
 using Familiar.Domain.Conversations;
@@ -36,7 +37,7 @@ public sealed class MemoryOptions
 /// Maya", "They prefer their tea without sugar", and skipped the timer request in the middle; small
 /// talk gave nothing, and facts already listed weren't repeated.
 /// </remarks>
-public sealed class MemoryExtractor(
+public sealed partial class MemoryExtractor(
     IDbContextFactory<FamiliarDbContext> db,
     ILlmClient llm,
     MemoryStore memories,
@@ -51,8 +52,9 @@ public sealed class MemoryExtractor(
         mention, and plans or dates that matter to them.
 
         Leave out: small talk, passing moods, anything only relevant today, requests made to the
-        companion (timers, reminders, questions), anything the companion said about itself, and
-        anything already remembered (listed first).
+        companion (timers, reminders, questions), anything the companion said about itself, phone
+        numbers, addresses and other contact details (they're in the phone's contacts, not for
+        remembering), and anything already remembered (listed first).
 
         Write each fact as one short sentence about the user, in the third person: "Their daughter
         is called Maya." Write dates as dates ("on 9 October"), not "on Friday": the conversation's
@@ -153,17 +155,24 @@ public sealed class MemoryExtractor(
         }
 
         var stored = 0;
+        var read = await WithoutContactLookupsAsync(messages, ct);
 
         // Nothing to learn from a stretch where the user said nothing (announcements, greetings).
-        if (messages.Any(m => m.Role == MessageRole.User))
+        if (read.Any(m => m.Role == MessageRole.User))
         {
             var known = await memories.ListAsync(conversation.AccountId, ct);
             // The date in UTC: conversations don't keep the user's zone, and a day out near midnight
             // is the worst that does.
-            var answer = await llm.CompleteJsonAsync(Prompt(known, messages, TimeZoneInfo.Utc), Schema, ct);
+            var answer = await llm.CompleteJsonAsync(Prompt(known, read, TimeZoneInfo.Utc), Schema, ct);
 
             foreach (var fact in (answer["facts"] as JsonArray ?? []).Select(f => f?.GetValue<string>()).OfType<string>().Take(10))
             {
+                // A phone number is never a memory, however it came up.
+                if (HasPhoneNumber(fact))
+                {
+                    continue;
+                }
+
                 if (await memories.AddAsync(conversation.AccountId, fact, MemorySource.Conversation, messages[^1].Id, ct) is not null)
                 {
                     stored++;
@@ -176,6 +185,52 @@ public sealed class MemoryExtractor(
         await MarkAsync(conversation.Id, messages[^1].CreatedAt, ct);
         return stored;
     }
+
+    /// <summary>
+    /// The messages without any exchange where the familiar looked someone up in the phone's contacts
+    /// (BACKLOG item 25): the number or address it said came from the contacts, to answer the
+    /// question, not for remembering. Told to leave contact details out, the model kept them anyway.
+    /// </summary>
+    private async Task<List<Message>> WithoutContactLookupsAsync(List<Message> messages, CancellationToken ct)
+    {
+        var ids = messages.Select(m => (Guid?)m.Id).ToList();
+        HashSet<Guid> lookups;
+        await using (var context = await db.CreateDbContextAsync(ct))
+        {
+            lookups = (await context.ToolInvocations.AsNoTracking()
+                .Where(t => t.Tool == "contact_details" && ids.Contains(t.ReplyId))
+                .Select(t => t.ReplyId!.Value)
+                .ToListAsync(ct)).ToHashSet();
+        }
+
+        if (lookups.Count == 0)
+        {
+            return messages;
+        }
+
+        var kept = new List<Message>(messages.Count);
+        for (var i = 0; i < messages.Count; i++)
+        {
+            // The reply, and the question it answered.
+            var answered = i + 1 < messages.Count && lookups.Contains(messages[i + 1].Id) && messages[i].Role == MessageRole.User;
+            if (!lookups.Contains(messages[i].Id) && !answered)
+            {
+                kept.Add(messages[i]);
+            }
+        }
+
+        return kept;
+    }
+
+    /// <summary>Seven or more digits in a run, with the spaces, dashes and brackets numbers are written with - not a date.</summary>
+    internal static bool HasPhoneNumber(string text) =>
+        DigitRun().Matches(text).Any(m => m.Value.Count(char.IsAsciiDigit) >= 7 && !IsoDate().IsMatch(m.Value));
+
+    [GeneratedRegex(@"\+?\d[\d\s().-]{5,}\d")]
+    private static partial Regex DigitRun();
+
+    [GeneratedRegex(@"^\d{4}-\d{2}-\d{2}$")]
+    private static partial Regex IsoDate();
 
     internal static IReadOnlyList<ChatMessage> Prompt(IReadOnlyList<MemoryFact> known, IReadOnlyList<Message> messages, TimeZoneInfo zone)
     {

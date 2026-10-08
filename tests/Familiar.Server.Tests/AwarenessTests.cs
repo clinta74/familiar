@@ -70,6 +70,47 @@ public sealed class MemoryTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_number_looked_up_in_the_contacts_is_never_remembered()
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync(), NoBackgroundPass);
+        var client = await SignedInAsync(app);
+        var phone = app.DeviceClient((await app.CreateClient().DeviceLoginAsync("rememberer", device: "Pixel 10")).Token);
+        await using var phoneStream = await SseClient.ConnectAsync(phone, capabilities: "contacts.read");
+        await phoneStream.ReadUntilAsync(EventTypes.Ready);
+
+        await SayAsync(phone, "I'm Sam");
+        await phoneStream.ReadUntilStateAsync(FamiliarState.Idle);
+
+        app.Llm.ThenCall("contact_details", """{"name": "Mum"}""").ThenSay("[neutral:0.4] Her mobile is 555 0101.");
+        await SayAsync(phone, "what's Mum's number?");
+        var invoke = (await phoneStream.ReadUntilAsync(EventTypes.ToolInvoke))[^1].Payload<Devices.ToolInvokeEvent>();
+        await phone.PostAsJsonAsync("/api/conversation/tool-result", new Devices.ToolResultRequest(invoke.CallId, true,
+            new System.Text.Json.Nodes.JsonObject { ["name"] = "Mum", ["numbers"] = new System.Text.Json.Nodes.JsonArray(new System.Text.Json.Nodes.JsonObject { ["number"] = "555 0101", ["kind"] = "mobile" }) }));
+        await phoneStream.ReadUntilStateAsync(FamiliarState.Idle);
+
+        // Told to leave contact details out, the model kept them anyway: so the exchange isn't shown it,
+        // and a fact with a phone number in is dropped whatever it says.
+        app.Llm.JsonAnswers.Enqueue("""{"facts": ["Their name is Sam.", "Their mum's mobile number is +1 555 0101."]}""");
+        await Extractor(app).PassAsync(default);
+
+        var asked = app.Llm.LastJsonPrompt![^1].Content;
+        Assert.Contains("User: I'm Sam", asked, StringComparison.Ordinal);
+        Assert.DoesNotContain("Mum", asked, StringComparison.Ordinal);
+        Assert.DoesNotContain("0101", asked, StringComparison.Ordinal);
+        var memories = await (await client.GetAsync("/api/memories")).ReadAsync<List<MemoryView>>();
+        Assert.Equal(["Their name is Sam."], memories.Select(m => m.Text));
+    }
+
+    [Theory]
+    [InlineData("Their mum's mobile is +1 (555) 010-1234.", true)]
+    [InlineData("Sam's number is 0113 496 0000.", true)]
+    [InlineData("Their anniversary is on 9 October.", false)]
+    [InlineData("They moved on 2026-10-08.", false)]
+    [InlineData("They have 2 cats and 3 dogs.", false)]
+    public void A_phone_number_is_spotted_but_a_date_is_not(string fact, bool expected) =>
+        Assert.Equal(expected, MemoryExtractor.HasPhoneNumber(fact));
+
+    [Fact]
     public async Task Asking_to_remember_and_to_forget_works_by_meaning_not_exact_words()
     {
         await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync(), NoBackgroundPass);

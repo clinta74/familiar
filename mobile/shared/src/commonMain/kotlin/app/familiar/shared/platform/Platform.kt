@@ -79,6 +79,9 @@ interface DevicePhone {
     /** Contacts whose names match [name], with their numbers; null when contacts can't be read (not allowed). */
     suspend fun contacts(name: String): List<PhoneContact>?
 
+    /** Contacts whose names match [name], with their postal addresses; null when contacts can't be read. */
+    suspend fun addresses(name: String): List<ContactAddress>?
+
     /**
      * Opens Messages, the dialler or Maps ready to go - or, when the app isn't on screen (Android won't
      * open another app from the background), puts that in a notification to tap.
@@ -89,12 +92,17 @@ interface DevicePhone {
     suspend fun place(): String
 }
 
-data class PhoneContact(val name: String, val number: String, val mobile: Boolean)
+/** A contact's number, and what kind it is ("mobile", "work"). */
+data class PhoneContact(val name: String, val number: String, val mobile: Boolean, val label: String = if (mobile) "mobile" else "")
+
+/** A contact's postal address, and which it is ("home", "work"). */
+data class ContactAddress(val name: String, val address: String, val label: String = "")
 
 sealed interface HandOff {
     data class Text(val to: String, val number: String, val message: String) : HandOff
     data class Call(val to: String, val number: String) : HandOff
-    data class Navigate(val destination: String, val mode: String) : HandOff
+    /** [shownAs] is what a notification calls it: "Mum's", not her address. */
+    data class Navigate(val destination: String, val mode: String, val shownAs: String = destination) : HandOff
 }
 
 enum class HandedOff { Opened, Notified }

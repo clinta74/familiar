@@ -142,4 +142,45 @@ public sealed class PhoneToolsTests(PostgresFixture postgres)
 
         Assert.Contains(fromPhone ? "Headingley" : "53.82,-1.58", app.Llm.LastPrompt!.Single(m => m.Role == ChatRole.Tool).Content, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task Contact_details_are_offered_only_by_a_phone_that_can()
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        app.Llm.Fragments = ["[neutral:0.3] Okay."];
+        var (browser, phone) = await SignedInAsync(app);
+        await LookUpsAsync(browser, true);
+
+        await using var tab = await SseClient.ConnectAsync(browser, capabilities: "location.read,contacts.read");
+        await tab.ReadUntilAsync(EventTypes.Ready);
+        await browser.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("hello", "UTC"));
+        await tab.ReadUntilStateAsync(FamiliarState.Idle);
+        Assert.DoesNotContain("contact_details", Offered(app));
+
+        await using var phoneStream = await SseClient.ConnectAsync(phone, capabilities: "contacts.read");
+        await phoneStream.ReadUntilAsync(EventTypes.Ready);
+        await phone.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("hello again", "UTC"));
+        await phoneStream.ReadUntilStateAsync(FamiliarState.Idle);
+        Assert.Contains("contact_details", Offered(app));
+    }
+
+    [Fact]
+    public async Task Directions_to_a_contact_send_the_name_not_an_address()
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        app.Llm.ThenCall("navigate", """{"to_contact": "Mum", "mode": "walking"}""").ThenSay("[joy:0.4] Off you go.");
+        var (browser, phone) = await SignedInAsync(app);
+
+        await using var phoneStream = await SseClient.ConnectAsync(phone, capabilities: "maps.navigate");
+        await phoneStream.ReadUntilAsync(EventTypes.Ready);
+        await phone.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("take me to Mum's", "UTC"));
+
+        var invoke = (await phoneStream.ReadUntilAsync(EventTypes.ToolInvoke))[^1].Payload<ToolInvokeEvent>();
+        Assert.Equal(("maps.navigate", "Mum", null), (invoke.Tool, invoke.Arguments["to_contact"]?.GetValue<string>(), invoke.Arguments["destination"]));
+        await phone.PostAsJsonAsync("/api/conversation/tool-result",
+            new ToolResultRequest(invoke.CallId, true, new JsonObject { ["to"] = "Mum", ["how"] = "Maps opened with directions to Mum's." }));
+        await phoneStream.ReadUntilStateAsync(FamiliarState.Idle);
+
+        Assert.Contains("Mum's", app.Llm.LastPrompt!.Single(m => m.Role == ChatRole.Tool).Content, StringComparison.Ordinal);
+    }
 }

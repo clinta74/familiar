@@ -18,6 +18,8 @@ import android.os.Build
 import android.os.CancellationSignal
 import android.os.SystemClock
 import android.provider.ContactsContract
+import android.provider.ContactsContract.CommonDataKinds.StructuredPostal
+import app.familiar.shared.platform.ContactAddress
 import app.familiar.shared.platform.DevicePhone
 import app.familiar.shared.platform.HandOff
 import app.familiar.shared.platform.HandedOff
@@ -50,14 +52,40 @@ class AndroidPhone(context: Context, private val ask: suspend (Array<String>) ->
                 ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
                 ContactsContract.CommonDataKinds.Phone.NUMBER,
                 ContactsContract.CommonDataKinds.Phone.TYPE,
+                ContactsContract.CommonDataKinds.Phone.LABEL,
             )
             context.contentResolver.query(uri, columns, null, null, null)?.use { rows ->
                 buildList {
                     while (rows.moveToNext() && size < 30) {
                         val number = rows.getString(1) ?: continue
-                        add(PhoneContact(rows.getString(0) ?: number, number, rows.getInt(2) == ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE))
+                        val type = rows.getInt(2)
+                        val label = ContactsContract.CommonDataKinds.Phone.getTypeLabel(context.resources, type, rows.getString(3)).toString()
+                        add(PhoneContact(rows.getString(0) ?: number, number, type == ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, label.lowercase()))
                     }
                 }.distinctBy { it.name to it.number.filter(Char::isDigit) }
+            } ?: emptyList()
+        }
+    }
+
+    override suspend fun addresses(name: String): List<ContactAddress>? {
+        if (!allowed(Manifest.permission.READ_CONTACTS)) return null
+        return withContext(Dispatchers.IO) {
+            val columns = arrayOf(StructuredPostal.DISPLAY_NAME, StructuredPostal.FORMATTED_ADDRESS, StructuredPostal.TYPE, StructuredPostal.LABEL)
+            context.contentResolver.query(
+                StructuredPostal.CONTENT_URI, columns, "${StructuredPostal.DISPLAY_NAME} LIKE ?", arrayOf("%$name%"), null,
+            )?.use { rows ->
+                buildList {
+                    while (rows.moveToNext() && size < 30) {
+                        val contact = rows.getString(0) ?: continue
+                        val address = rows.getString(1)?.replace('\n', ' ')?.trim()?.takeIf { it.isNotEmpty() } ?: continue
+                        // As the phone matches names for numbers: the whole name, or the start of a word in it.
+                        if (!contact.equals(name, ignoreCase = true) && contact.split(' ').none { it.startsWith(name, ignoreCase = true) } &&
+                            !contact.startsWith(name, ignoreCase = true)
+                        ) continue
+                        val label = StructuredPostal.getTypeLabel(context.resources, rows.getInt(2), rows.getString(3)).toString()
+                        add(ContactAddress(contact, address, label.lowercase()))
+                    }
+                }
             } ?: emptyList()
         }
     }
@@ -78,7 +106,7 @@ class AndroidPhone(context: Context, private val ask: suspend (Array<String>) ->
                     "https://www.google.com/maps/dir/?api=1&destination=" + Uri.encode(handOff.destination) +
                         "&travelmode=" + travelMode(handOff.mode) + "&dir_action=navigate",
                 )),
-                "Directions to ${handOff.destination}",
+                "Directions to ${handOff.shownAs}",
                 "Tap to open Maps.",
             )
         }

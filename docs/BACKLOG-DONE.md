@@ -373,6 +373,23 @@ model and a stubbed position: "where am I" answered from the browser in 0.2 seco
 Leeds"), and "what's the weather where I am?" called `where_am_i` then `get_weather` with the
 coordinates, in °F for a US time zone.
 
+### 25. ~~Contacts: directions to someone's address, and saying a number or address~~ — done (2026-10-08)
+
+Asked for 2026-10-08. **Directions to a contact** - `navigate` takes `to_contact` (and `which`, for
+"work"): the phone finds the address in its contacts and opens Maps with it, its notification saying
+"Directions to Mum's"; the server and the model get only the name. Several addresses come back as
+labels to ask about; none, as "no address". **Saying a number or address** - `contact_details`
+(`contacts.read`, a phone's only, never a browser's; `Read`): the one contact's numbers or addresses
+asked for, with their kinds ("mobile", "work") - the only contact detail that leaves the phone. The
+memory pass leaves contact details out. Choosing the contact is the same for texts, calls, addresses
+and lookups (`PhoneActions.choose`). No Settings line about it: there's no place for the phone's
+permissions in Settings yet, and Android's own prompt and app permissions page are where contacts
+are allowed. Tried on the emulator with made-up contacts and the real model: "please take me to Mum"
+opened Maps at her address (the server saw `{"to_contact": "Mum"}`); "what is the phone number for
+Mum" - "Your Mum's mobile number is plus one five five five zero one zero one"; "where does Sam Kim
+work" asked for his work address only - "Sam Kim works at Leeds Station on New Station Street".
+**Found on the way:** told to leave contact details out, the memory pass kept "The user's mother's mobile number is +15550101" anyway. Now an exchange where the familiar looked someone up (a `contact_details` call on the reply) isn't shown to the memory pass at all, and any fact with a phone number in it is dropped (`MemoryExtractor.HasPhoneNumber`, which a date doesn't set off). Tried again: the pass kept "Their name is Sam." and nothing about Mum.
+
 ---
 
 ## Avatars
