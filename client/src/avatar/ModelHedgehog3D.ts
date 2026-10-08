@@ -6,7 +6,7 @@ import type { FaceLayout } from './plush/parts';
 import { ModelPlush3D, type ModelSpec } from './plush3d/ModelPlush3D';
 import { GROUND, S } from './plush3d/Plush3D';
 
-/** As PlushHedgehogAvatar's. */
+/** The flat hedgehog's face as it was when it sat up, placed on this face with layoutAt. */
 const LAYOUT: FaceLayout = {
   eyeX: 17, eyeY: -17, eyeR: 9,
   browY: -32, browInnerX: 8, browOuterX: 23,

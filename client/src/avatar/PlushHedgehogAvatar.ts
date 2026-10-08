@@ -1,29 +1,37 @@
 import { llamaPalette } from './appearance';
 import { PlushCharacter, type PlushLook, type Pose } from './plush/engine';
 import {
-  buildAccessories, buildFace, buildOverlay, drawFace, drawOverlay, el, f, foot, GROUND_Y, plushRoot, showAccessory, wool,
-  type AccessoryParts, type BodySpec, type FaceLayout, type FaceParts, type Overlay, type Puff,
+  buildAccessories, buildFace, buildOverlay, drawFace, drawOverlay, el, f, foot, GROUND_Y, plushRoot, showAccessory,
+  type AccessoryParts, type BodySpec, type FaceLayout, type FaceParts, type Overlay,
 } from './plush/parts';
 
+/** The face, low in front of the prickles: the sitting one's, moved down. */
+const FACE = { cx: 0, cy: 44, rx: 42, ry: 38 };
 const LAYOUT: FaceLayout = {
-  eyeX: 17, eyeY: -17, eyeR: 9,
-  browY: -32, browInnerX: 8, browOuterX: 23,
-  mouthY: 24, mouthW: 6, mouthDrop: 9,
-  cheekX: 29, cheekY: 2,
+  eyeX: 17, eyeY: FACE.cy - 13, eyeR: 9,
+  browY: FACE.cy - 28, browInnerX: 8, browOuterX: 23,
+  mouthY: FACE.cy + 28, mouthW: 6, mouthDrop: 9,
+  cheekX: 29, cheekY: FACE.cy + 6,
   eyeStyle: 'button', lashes: false,
 };
 
-/** The ball: everything hangs off it and it moves as one, rocking on its bottom. */
-const BALL = { cx: 0, cy: 8, rx: 92, ry: 96 };
-const PIVOT_Y = 100;
 /**
- * The ball is the whole toy, so it's drawn a little bigger than the others' heads and sits on
- * the ground where their feet rest.
+ * On all fours, facing you (2026-10-07, as the 3D one): the prickles a wide, low dome; everything
+ * hangs off it and it moves as one, rocking on its feet.
+ */
+const BALL = { cx: 0, cy: 36, rx: 92, ry: 68 };
+const PIVOT_Y = 100;
+/** Where its feet rest: the bottom of the drawing. */
+const FEET_Y = 108;
+/**
+ * The hedgehog is the whole toy, so it's drawn a little bigger than the others' heads and stands
+ * on the ground where their feet rest.
  */
 const SCALE = 1.15;
-const SHIFT = GROUND_Y - 6 - (BALL.cy + BALL.ry) * SCALE;
-const FEET: BodySpec['feet'] = { rx: 17, ry: 9, kind: 'paw', splay: 14 };
-const FOOT = { x: 30, y: 100 };
+const SHIFT = GROUND_Y - 4 - FEET_Y * SCALE;
+const FEET: BodySpec['feet'] = { rx: 15, ry: 11, kind: 'paw', splay: 0 };
+const PAW = { x: 30, y: 98 };
+const HIND = { x: 58, y: 96 };
 
 /**
  * The fur's edge as one path of soft tufts around an ellipse: rounded, plush prickles rather than
@@ -57,8 +65,8 @@ function streaks(parent: SVGGElement) {
       const r = 0.62 + ring * 0.1 + 0.03 * Math.sin(i * 3.1);
       const x = BALL.cx + Math.cos(a) * BALL.rx * r;
       const y = BALL.cy + Math.sin(a) * BALL.ry * r;
-      // Not over the face and its ruff, nor the tummy.
-      if (Math.hypot(x / 58, (y + 6) / 54) < 1 || Math.hypot(x / 44, (y - 66) / 40) < 1) continue;
+      // Not over the face, nor low down where the tummy and paws are.
+      if (Math.hypot((x - FACE.cx) / (FACE.rx + 14), (y - FACE.cy) / (FACE.ry + 12)) < 1 || y > 84) continue;
       const len = 7 + 4 * Math.abs(Math.sin(i * 1.9 + ring));
       d += `M${f(x)},${f(y)} l${f(Math.cos(a) * len)},${f(Math.sin(a) * len)} `;
     }
@@ -67,18 +75,19 @@ function streaks(parent: SVGGElement) {
 }
 
 /**
- * A plush hedgehog, after the classic round toy: a ball of soft, mottled fur sitting on two little
- * feet, with a cream face in a fluffy ruff, little round ears, a short snout with a big button
- * nose, and its paws held in front. Its prickles - soft tufts round its edge - bristle when it's
- * startled or cross and lie flat when it's sad.
+ * A plush hedgehog on all fours, facing you, after the classic toy: a wide, low dome of soft,
+ * mottled fur coming down over its forehead, a cream face set low in front with a short snout and a
+ * big button nose, little round ears where the prickles meet the face, and four stubby legs - the
+ * front paws poking out under its chin, the hind feet just showing at the sides. Its prickles - soft
+ * tufts round its edge - bristle when it's startled or cross and lie flat when it's sad. (Until
+ * 2026-10-07 it sat up, a round ball with its paws held in front: in git history.)
  */
 export class PlushHedgehogAvatar extends PlushCharacter {
   protected readonly root: SVGSVGElement;
   private readonly head: SVGGElement;
   private readonly tufts: [SVGPathElement, SVGPathElement];
   private readonly ears: [SVGGElement, SVGGElement];
-  private readonly feet: [SVGGElement, SVGGElement];
-  private readonly wavePaw: SVGGElement;
+  private readonly paws: [SVGGElement, SVGGElement];
   private readonly faceParts: FaceParts;
   private readonly overlay: Overlay;
   private readonly accessories: AccessoryParts;
@@ -92,6 +101,9 @@ export class PlushHedgehogAvatar extends PlushCharacter {
     const stage = el('g', { transform: `translate(0 ${f(SHIFT)}) scale(${SCALE})` }, root);
     this.head = el('g', {}, stage);
 
+    // The hind feet, just showing at the sides behind it.
+    for (const side of [-1, 1]) el('ellipse', { cx: side * HIND.x, cy: HIND.y, rx: 14, ry: 10, class: 'plush-paw plush-fuzzy' }, this.head);
+
     // The fur's edge, two layers of tufts: the back one darker, so the edge reads as fur.
     this.tufts = [
       el('path', { class: 'plush-spines plush-spines-back plush-fuzzy' }, this.head),
@@ -100,7 +112,7 @@ export class PlushHedgehogAvatar extends PlushCharacter {
     el('ellipse', { ...BALL, class: 'plush-wool plush-fuzzy' }, this.head);
     streaks(this.head);
 
-    // Little round ears, set into the fur above the ruff.
+    // Little round ears, where the prickles meet the face.
     const roundEar = () => {
       const g = el('g', {}, this.head);
       el('ellipse', { cx: 0, cy: 0, rx: 13, ry: 12, class: 'plush-ear-outer-tan plush-fuzzy' }, g);
@@ -109,43 +121,33 @@ export class PlushHedgehogAvatar extends PlushCharacter {
     };
     this.ears = [roundEar(), roundEar()];
 
-    // The tummy, low on the ball, and two little feet poking out under it.
-    el('ellipse', { cx: 0, cy: 66, rx: 40, ry: 38, class: 'plush-skin plush-fuzzy' }, this.head);
-    this.feet = [foot(this.head, FEET, -1), foot(this.head, FEET, 1)];
+    // The cream underneath, showing as a band between its legs.
+    el('ellipse', { cx: 0, cy: 97, rx: 48, ry: 10, class: 'plush-skin plush-fuzzy' }, this.head);
 
-    // The ruff: a fluffy cream frame round the face.
-    const ruff: Puff[] = [];
-    for (let i = 0; i < 18; i++) {
-      const a = Math.PI * (0.92 + (1.16 * i) / 17);
-      ruff.push([Math.cos(a) * 45, -6 + Math.sin(a) * 41, i % 2 === 0 ? 13 : 11]);
-    }
-    for (const x of [-43, 43]) ruff.push([x, 12, 12], [x * 0.82, 26, 11]);
-    wool(this.head, ruff, 'plush-cream');
-
-    // The face: a soft oval, coming forward into a short snout.
-    el('ellipse', { cx: 0, cy: -4, rx: 39, ry: 36, class: 'plush-skin plush-fuzzy' }, this.head);
+    // The face: a soft oval set low in front of the prickles, coming forward into a short snout.
+    el('ellipse', { ...FACE, class: 'plush-skin plush-fuzzy' }, this.head);
 
     this.faceParts = buildFace(this.head, LAYOUT, id, {
       beforeMouth: (head) => {
-        el('ellipse', { cx: 0, cy: 6, rx: 17, ry: 15, class: 'plush-snout' }, head);
-        el('ellipse', { cx: 0, cy: 7, rx: 9.5, ry: 8, class: 'plush-button' }, head);
-        el('circle', { cx: 3, cy: 4, r: 2.4, class: 'plush-button-shine' }, head);
-        el('path', { class: 'plush-thread', d: 'M0,15 L0,21' }, head);
+        const y = FACE.cy;
+        el('ellipse', { cx: 0, cy: y + 10, rx: 17, ry: 15, class: 'plush-snout' }, head);
+        el('ellipse', { cx: 0, cy: y + 11, rx: 9.5, ry: 8, class: 'plush-button' }, head);
+        el('circle', { cx: 3, cy: y + 8, r: 2.4, class: 'plush-button-shine' }, head);
+        el('path', { class: 'plush-thread', d: `M0,${y + 19} L0,${y + 25}` }, head);
       },
     });
 
     this.accessories = buildAccessories({
       bow: { parent: this.ears[0], transform: 'translate(-2 -10) rotate(-15) scale(0.75)' },
       glasses: { parent: this.head, layout: LAYOUT },
-      flower: { parent: this.head, x: 46, y: -66 },
-      scarf: { parent: this.head, y: 32, halfWidth: 46 },
+      flower: { parent: this.head, x: 50, y: -8 },
+      // A collar under its chin.
+      scarf: { parent: this.head, y: FACE.cy + 36, halfWidth: 38 },
     });
 
-    // Its paws, held in front of its tummy (drawn last, so they're over a scarf). The right one
-    // comes up to wave.
-    el('ellipse', { cx: -22, cy: 60, rx: 13, ry: 9, transform: 'rotate(18 -22 60)', class: 'plush-paw plush-fuzzy' }, this.head);
-    this.wavePaw = el('g', {}, this.head);
-    el('ellipse', { cx: 22, cy: 60, rx: 13, ry: 9, transform: 'rotate(-18 22 60)', class: 'plush-paw plush-fuzzy' }, this.wavePaw);
+    // Its front paws, poking out under its chin (drawn last, so they're over a scarf); the right one
+    // lifts to wave.
+    this.paws = [foot(this.head, FEET, -1), foot(this.head, FEET, 1)];
 
     this.overlay = buildOverlay(root, -36);
 
@@ -175,18 +177,17 @@ export class PlushHedgehogAvatar extends PlushCharacter {
     // The little ears tip up with interest and droop back when it's down.
     this.ears.forEach((e, i) => {
       const side = i === 0 ? -1 : 1;
-      e.setAttribute('transform', `translate(${side * 42} ${f(-50 - face.earLift * 3)}) rotate(${f(side * (8 - face.earLift * 14))})`);
+      e.setAttribute('transform', `translate(${side * 40} ${f(FACE.cy - 40 - face.earLift * 3)}) rotate(${f(side * (8 - face.earLift * 14))})`);
     });
 
-    // Feet turn out a little, and kick up with each hop of joy.
-    this.feet.forEach((e, i) => {
-      const side = i === 0 ? -1 : 1;
-      e.setAttribute('transform', `translate(${side * FOOT.x} ${FOOT.y}) rotate(${f(-side * ((FEET.splay ?? 0) + pose.hop * 8))})`);
-    });
-
-    // The right paw comes up beside its face to wave.
+    // The front paws kick up with each hop of joy; the right one lifts up beside its cheek to wave.
     const lift = pose.pawLift ?? 0;
-    this.wavePaw.setAttribute('transform', `translate(${f(lift * 26)} ${f(-lift * 72)}) rotate(${f(pose.pawAngle * 0.6 - lift * 30)} 22 60)`);
+    this.paws.forEach((e, i) => {
+      const side = i === 0 ? -1 : 1;
+      const up = side === 1 ? lift : 0;
+      const turn = -side * pose.hop * 8 + (side === 1 ? pose.pawAngle * 0.6 - up * 20 : 0);
+      e.setAttribute('transform', `translate(${f(side * PAW.x + up * 10)} ${f(PAW.y - up * 40)}) rotate(${f(turn)})`);
+    });
 
     drawFace(this.faceParts, face, pose);
     drawOverlay(this.overlay, pose);
