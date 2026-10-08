@@ -4,7 +4,7 @@ Work that's agreed but not finished, in the order it'll be done. Bigger designs 
 [PLAN.md](PLAN.md) and [MOBILE.md](MOBILE.md). When an item ships, move it to
 [BACKLOG-DONE.md](BACKLOG-DONE.md) under the same number - code comments cite items by number
 ("BACKLOG item 21") - and say what was built and how it was checked. New items take the next
-number: **26**.
+number: **27**.
 
 ---
 
@@ -28,6 +28,30 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
   number?" with real contacts.
 - **"Where am I" on the website** (item 24), on the real site over HTTPS with "Look things up" on:
   the browser asks once to allow location; then "what's the weather where I am?".
+
+---
+
+## What it can do
+
+### 26. Numbers worked out or looked up, never guessed
+
+Asked for 2026-10-08: maths and exact statistics should be calculated or found, not made up - "I
+don't know" is a fine answer, a confident wrong number isn't. What's there: `calculate` and
+`convert_units` (worked out on the server), and `look_up`'s Wikidata facts (populations, heights,
+dates) with look-ups on (BACKLOG-DONE item 15). But nothing makes the model use them: the prompt has
+no rule about numbers, and a 12B model will happily multiply in its head.
+
+- **A rule in the instructions:** any number that matters is worked out with `calculate` or found
+  with a look-up, never estimated; if neither can, say so ("I'm not sure - I'd only be guessing").
+  And a figure from memory gets "about" and "last I knew", or a look-up.
+- **More the calculator can do:** a list of numbers (total, average, median, spread), percentage
+  change, and dates - days between two, a date plus some days, someone's age - which the model gets
+  wrong as often as sums.
+- **Measured on the real model**, before and after: a set of questions (big multiplications, a tip,
+  "what's 17% of 2,340", "how many days until Christmas", "population of Leeds", "how tall is Everest")
+  checking which it answers with a tool, which it guesses, and which are right.
+- **Parked unless the above isn't enough:** a general maths engine (a sandboxed Python or a CAS) for
+  algebra and harder questions - more power, more risk.
 
 ---
 
