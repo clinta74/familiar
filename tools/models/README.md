@@ -13,6 +13,9 @@ Blender 4.5 or newer (5.2 is what they're made with):
 blender -b --factory-startup -P tools/models/build.py -- llama fox hedgehog monster otter giraffe
 ```
 
+(`hedgehog_sitting` is the first hedgehog, sitting up, kept when it went on all fours: its spec is
+`ModelHedgehogSitting3D.ts`, unused - point `createAvatar`'s hedgehog at it to have it back.)
+
 Each writes `client/src/avatar/models/<name>.glb` (commit it: nothing builds models in CI) and
 front, three-quarter and side preview renders to `tools/models/previews/` (not committed). A model
 takes a second or two.

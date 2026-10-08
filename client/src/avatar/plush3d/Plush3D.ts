@@ -268,6 +268,12 @@ export interface FaceSpec {
   lids?: Coat;
   /** Short fur over the face, coloured by its paint (a fox's mask), this long; none by default. */
   fur?: number;
+  /**
+   * Where the layout's centre is on this head, if not at (0, 0): the eyes, brows, tear and glasses
+   * are placed from the layout's numbers about it. The hedgehog on all fours has its face low and
+   * forward, below its prickles.
+   */
+  layoutAt?: [x: number, y: number];
   /** A big shiny black button for a nose, rather than a stitched felt one. */
   buttonNose?: boolean;
   /**
@@ -1021,6 +1027,10 @@ export abstract class Plush3D extends PlushCharacter {
 
   /** The point on the face dome at (x, y) seen from the front, and the surface's normal there. */
   protected onFace(x: number, y: number): { point: THREE.Vector3; normal: THREE.Vector3 } {
+    // The layout's numbers are about the head's centre; a face set elsewhere says where.
+    const [dx, dy] = this.faceSpec?.layoutAt ?? [0, 0];
+    x += dx;
+    y += dy;
     if (this.faceProbe) {
       this.ray.set(new THREE.Vector3(x, y, 5), new THREE.Vector3(0, 0, -1));
       const hit = this.ray.intersectObject(this.faceProbe, false)[0];

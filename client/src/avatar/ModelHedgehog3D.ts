@@ -15,14 +15,15 @@ const LAYOUT: FaceLayout = {
   eyeStyle: 'button', lashes: false,
 };
 
-// As the flat hedgehog: the ball is the whole toy, a little bigger than the others' heads, sitting
-// on the ground; it rocks on its bottom (PIVOT_Y).
+// On all fours, facing you (2026-10-07; the sitting one is ModelHedgehogSitting3D): the whole toy
+// moves as one, a little bigger than the others' heads, standing on the ground; it rocks on its feet
+// (PIVOT_Y). Modelled in the sitting one's units, so these still hold.
 const SCALE = 1.15;
 const PIVOT_Y = 100;
 const SHIFT = -GROUND / S - 6 - (8 + 96) * SCALE;
 const deg = Math.PI / 180;
 
-/** The plush hedgehog, modelled in Blender (tools/models/hedgehog.py). */
+/** The plush hedgehog on all fours, modelled in Blender (tools/models/hedgehog.py). */
 export const hedgehogModel: ModelSpec = {
   url: modelUrl,
   label: 'Your familiar, a plush hedgehog',
@@ -31,7 +32,9 @@ export const hedgehogModel: ModelSpec = {
   head: { y: PIVOT_Y * S * SCALE, scale: SCALE, rock: true },
   face: {
     layout: LAYOUT,
-    dome: { centre: new THREE.Vector3(0, 0.04, 0.49), radii: new THREE.Vector3(0.39, 0.36, 0.26), svg: [0, -4, 39, 36] },
+    dome: { centre: new THREE.Vector3(0, -0.42, 0.42), radii: new THREE.Vector3(0.41, 0.37, 0.36), svg: [0, -4, 39, 36] },
+    // The face is low, under the prickles: the sitting one's was at (0, 0.04).
+    layoutAt: [0, -0.46],
     philtrum: [15, 21],
     // The snout a shade darker than the face.
     paintDome: (p, palette) => {
@@ -51,8 +54,9 @@ export const hedgehogModel: ModelSpec = {
     coat === 'wool' ? { root: new THREE.Color(mix(colour, '#ffffff', 0.12)), tip: new THREE.Color(mix(colour, '#2a1d17', 0.42)) } : undefined,
   anchors: (node) => ({
     bow: { parent: node('ear_L'), at: new THREE.Vector3(-0.02, 0.1, 0.06), tilt: 0.26 },
-    flower: new THREE.Vector3(0.46, 0.66, 0.3),
-    scarf: { y: -0.32, radius: 0.98, tail: new THREE.Vector3(0.28, -0.5, 0.74), arc: Math.PI * 1.6, z: -0.2, depth: 0.87 },
+    flower: new THREE.Vector3(0.42, 0.1, 0.3),
+    // A collar under the chin, round the front of the face.
+    scarf: { y: -0.74, radius: 0.42, tail: new THREE.Vector3(0.2, -0.86, 0.78), arc: Math.PI * 1.3, z: 0.38, depth: 0.95 },
   }),
   animate: (pose, node, hedgehog) => {
     const { face } = pose;
@@ -67,13 +71,14 @@ export const hedgehogModel: ModelSpec = {
       ear.rotation.set(-0.35, side * -0.2, -side * (8 - face.earLift * 14) * deg);
     }
 
-    // The right paw comes up beside its face to wave.
+    // On all fours, it waves by lifting its right front paw up and forward off the ground.
     const paw = node('paw_R');
     if (paw) {
       const lift = pose.pawLift ?? 0;
       const rest = paw.userData.rest as THREE.Vector3;
-      paw.position.set(rest.x + lift * 0.26, rest.y + lift * 0.72, rest.z + lift * 0.06);
-      paw.rotation.z = -(pose.pawAngle * 0.6 - lift * 30) * deg;
+      paw.position.set(rest.x + lift * 0.06, rest.y + lift * 0.34, rest.z + lift * 0.16);
+      paw.rotation.x = -lift * 0.7;
+      paw.rotation.z = -pose.pawAngle * 0.6 * deg;
     }
   },
 };
