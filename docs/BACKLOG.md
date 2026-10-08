@@ -33,25 +33,21 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
 
 ## What it can do
 
-### 26. Numbers worked out or looked up, never guessed
+### 26. Dates worked out, not guessed
 
-Asked for 2026-10-08: maths and exact statistics should be calculated or found, not made up - "I
-don't know" is a fine answer, a confident wrong number isn't. What's there: `calculate` and
-`convert_units` (worked out on the server), and `look_up`'s Wikidata facts (populations, heights,
-dates) with look-ups on (BACKLOG-DONE item 15). But nothing makes the model use them: the prompt has
-no rule about numbers, and a 12B model will happily multiply in its head.
+Asked for 2026-10-08: maths and exact statistics calculated or found, not made up. **Measured the
+same day on the real model** (look-ups on), eight questions: it already used `calculate` for 17% of
+2,340, 4,837 x 296, compound interest, an average and someone's age, and `look_up` for the
+population of Leeds and the height of Everest - all right. The one miss was **dates**: "how many days
+until Christmas?" - it passed "2026-12-25 - 2026-10-09" to `calculate`, which read the dates as
+subtraction (-56), then counted months itself (108) and said "about eighty-seven" (it was 77).
 
-- **A rule in the instructions:** any number that matters is worked out with `calculate` or found
-  with a look-up, never estimated; if neither can, say so ("I'm not sure - I'd only be guessing").
-  And a figure from memory gets "about" and "last I knew", or a look-up.
-- **More the calculator can do:** a list of numbers (total, average, median, spread), percentage
-  change, and dates - days between two, a date plus some days, someone's age - which the model gets
-  wrong as often as sums.
-- **Measured on the real model**, before and after: a set of questions (big multiplications, a tip,
-  "what's 17% of 2,340", "how many days until Christmas", "population of Leeds", "how tall is Everest")
-  checking which it answers with a tool, which it guesses, and which are right.
-- **Parked unless the above isn't enough:** a general maths engine (a sandboxed Python or a CAS) for
-  algebra and harder questions - more power, more risk.
+- **Date arithmetic:** a `days` tool (or `calculate` learning dates): days between two dates or until
+  one, a date plus or minus some days or weeks, someone's age - in the user's time zone, "today" known.
+- **`calculate` refusing dates:** an expression like "2026-12-25 - 2026-10-09" gets "that's dates -
+  use the dates tool", not a wrong number.
+- Re-run the eight, plus "how many days since 1 January", "what date is 100 days from now", "how many
+  weeks until my birthday on 3 March".
 
 ---
 
