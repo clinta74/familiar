@@ -27,8 +27,6 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
 - **Hands-free hearing you** (item 27): answers that repeat the familiar's words ("yes, set the timer")
   get through; if one still vanishes, the NAS log says why ("Ignored a transcript that was the
   familiar's own voice", or no transcript at all).
-- **Contacts** (item 25, with the NAS updated): "take me to [someone]'s" and "what's [someone]'s
-  number?" with real contacts.
 - **"Where am I" on the website** (item 24), on the real site over HTTPS with "Look things up" on:
   the browser asks once to allow location; then "what's the weather where I am?".
 

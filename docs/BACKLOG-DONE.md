@@ -388,7 +388,7 @@ are allowed. Tried on the emulator with made-up contacts and the real model: "pl
 opened Maps at her address (the server saw `{"to_contact": "Mum"}`); "what is the phone number for
 Mum" - "Your Mum's mobile number is plus one five five five zero one zero one"; "where does Sam Kim
 work" asked for his work address only - "Sam Kim works at Leeds Station on New Station Street".
-**Found on the way:** told to leave contact details out, the memory pass kept "The user's mother's mobile number is +15550101" anyway. Now an exchange where the familiar looked someone up (a `contact_details` call on the reply) isn't shown to the memory pass at all, and any fact with a phone number in it is dropped (`MemoryExtractor.HasPhoneNumber`, which a date doesn't set off). Tried again: the pass kept "Their name is Sam." and nothing about Mum.
+**Found on the way:** told to leave contact details out, the memory pass kept "The user's mother's mobile number is +15550101" anyway. Now an exchange where the familiar looked someone up (a `contact_details` call on the reply) isn't shown to the memory pass at all, and any fact with a phone number in it is dropped (`MemoryExtractor.HasPhoneNumber`, which a date doesn't set off). Tried again: the pass kept "Their name is Sam." and nothing about Mum. Confirmed on the Fold with real contacts (v0.3.12, 2026-10-09): directions to a contact and asking for a number both work.
 
 ### 26. ~~Numbers worked out or looked up, never guessed~~ — done (2026-10-08): dates were the gap
 
