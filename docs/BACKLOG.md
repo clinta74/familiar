@@ -4,7 +4,7 @@ Work that's agreed but not finished, in the order it'll be done. Bigger designs 
 [PLAN.md](PLAN.md) and [MOBILE.md](MOBILE.md). When an item ships, move it to
 [BACKLOG-DONE.md](BACKLOG-DONE.md) under the same number - code comments cite items by number
 ("BACKLOG item 21") - and say what was built and how it was checked. New items take the next
-number: **28**.
+number: **29**.
 
 ---
 
@@ -22,6 +22,7 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
 - **Alarms after a restart** (MOBILE.md, M3): a timer or reminder set, the phone restarted, and it
   still rings.
 - **The home-screen widget** (`NextUpWidget`).
+- **The 3D avatar appearing faster** (item 28): from opening the app to the character showing.
 - **Hands-free hearing you** (item 27): answers that repeat the familiar's words ("yes, set the timer")
   get through; if one still vanishes, the NAS log says why ("Ignored a transcript that was the
   familiar's own voice", or no transcript at all).

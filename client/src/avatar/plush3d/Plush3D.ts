@@ -559,8 +559,14 @@ export abstract class Plush3D extends PlushCharacter {
     this.frameSpec = this.measure();
     this.fit();
     this.setLook(look ?? defaults);
-    this.start();
+    // Its shaders compiled in the background first (parallel where the browser can), then the
+    // first frame: compiled by that frame instead, they held the page up while the placeholder
+    // glow should have been showing.
+    this.ready = this.renderer.compileAsync(this.scene, this.camera).catch(() => undefined).then(() => this.start());
   }
+
+  /** Built and its shaders compiled: ready to show without a stall. */
+  ready: Promise<void> = Promise.resolve();
 
   /** Recolours and redresses it in place, for the studio's live preview. */
   setLook(look: PlushLook): void {
@@ -795,25 +801,32 @@ export abstract class Plush3D extends PlushCharacter {
     const material = new THREE.MeshStandardMaterial({ roughness: 1, alphaMap: strands, alphaTest: 0.25 + 0.7 * f });
     if (coat === 'painted') material.map = this.domePaint!.texture;
     if (coat === 'pattern') material.map = this.coatPattern(repeat).texture;
-    const out = (length * f).toFixed(4);
-    const droop = (length * f * f * 0.45).toFixed(4);
+    // How far out this layer sits and how much it droops, as uniforms: written into the shader as
+    // numbers, every layer of every fur length was its own program - 57 to 153 of them to compile
+    // before a character's first frame (0.3-0.8 s on a desktop graphics card, more on a phone). As
+    // uniforms, there's one program per kind of fur.
+    const out = { value: length * f };
+    const droop = { value: length * f * f * 0.45 };
     material.onBeforeCompile = (shader) => {
+      shader.uniforms.furOut = out;
+      shader.uniforms.furDroop = droop;
+      let declarations = 'uniform float furOut;\nuniform float furDroop;\n';
       let scale = '';
       if (bristle) {
         shader.uniforms.furScale = bristle;
-        shader.vertexShader = `uniform float furScale;\n${shader.vertexShader}`;
+        declarations += 'uniform float furScale;\n';
         scale += ' * furScale';
       }
       if (varying) {
-        shader.vertexShader = `attribute float furLength;\n${shader.vertexShader}`;
+        declarations += 'attribute float furLength;\n';
         scale += ' * furLength';
       }
-      shader.vertexShader = shader.vertexShader.replace(
+      shader.vertexShader = declarations + shader.vertexShader.replace(
         '#include <begin_vertex>',
-        `#include <begin_vertex>\n  transformed += objectNormal * ${out}${scale};\n  transformed.y -= ${droop}${scale};`,
+        `#include <begin_vertex>\n  transformed += objectNormal * furOut${scale};\n  transformed.y -= furDroop${scale};`,
       );
     };
-    material.customProgramCacheKey = () => `fur-${f}-${length}-${variant}`;
+    material.customProgramCacheKey = () => `fur-${bristle ? 'b' : ''}${varying ? 'v' : ''}`;
     const shell = { f, coat, material };
     this.shells.set(key, shell);
     return shell;

@@ -505,6 +505,20 @@ the height rather than 40%, and the chat keeps the end of the latest message in 
 coming up included (it used to line up the start of a long reply). Checked: every 3D character at the
 phone's size, the keyboard-up size and the web's; and on the emulator with the otter, both ways. Confirmed on the Fold (2026-10-09).
 
+### 28. ~~The 3D avatar slow to appear~~ — done (2026-10-09)
+
+Asked 2026-10-09: could the 3D avatar's first render be quicker. **Measured** on the dev box: loading
+and building a character took 45-70 ms, but its first frame 300-800 ms - the graphics card compiling
+57 (hedgehog) to 153 (fox) shader programs, because each fur layer's offset and droop were written
+into its shader as numbers, so every layer of every fur length was a program of its own. **Done**
+(`Plush3D.shell`): those are uniforms now, so there's one program per kind of fur - 11-16 a
+character; and the shaders are compiled in the background (`compileAsync`, parallel where the
+browser can) before the character's shown, while the placeholder glow is up, rather than in its
+first frame. Now, from creating a character to its first frame: fox about 850 ms to 120 ms, llama 480
+to 115, hedgehog 380 to 105; the first frame itself about 20 ms, and the longest the page is held up
+about 80 ms (building the shapes). The fur looks the same. On a phone the saving should be bigger
+in proportion - its graphics compile slower - but it wasn't measured there.
+
 ---
 
 ## Android (docs/MOBILE.md)

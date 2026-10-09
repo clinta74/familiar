@@ -14,7 +14,11 @@ const characters3d: Partial<Record<CharacterModel, (container: HTMLElement, look
   monster: async (container, look) => (await import('./ModelMonster3D')).createMonster(container, look),
   otter: async (container, look) => (await import('./ModelOtter3D')).createOtter(container, look),
   giraffe: async (container, look) => (await import('./ModelGiraffe3D')).createGiraffe(container, look),
-  spot: async (container, look) => new (await import('./Spot3D')).Spot3D(container, look),
+  spot: async (container, look) => {
+    const spot = new (await import('./Spot3D')).Spot3D(container, look);
+    await spot.ready;
+    return spot;
+  },
 };
 
 /** The built-in characters other than the llama load on demand, so the default costs nothing extra. */

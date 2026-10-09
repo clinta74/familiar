@@ -71,7 +71,9 @@ export class ModelPlush3D extends Plush3D {
 
   static async create(container: HTMLElement, look: PlushLook | undefined, spec: ModelSpec): Promise<ModelPlush3D> {
     const gltf = await load(spec.url);
-    return new ModelPlush3D(container, look, spec, gltf.scene);
+    const character = new ModelPlush3D(container, look, spec, gltf.scene);
+    await character.ready;
+    return character;
   }
 
   private constructor(container: HTMLElement, look: PlushLook | undefined, spec: ModelSpec, scene: THREE.Object3D) {
