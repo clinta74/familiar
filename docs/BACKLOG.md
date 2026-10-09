@@ -13,8 +13,8 @@ number: **28**.
 Built and tested on the emulator or the dev box, not yet seen on the real phone or site. Tick each off here
 (or open an item if it doesn't work).
 
-- **Texts, calls, directions and "where am I"** (item 21, v0.3.7, with the NAS updated): the first
-  of each asks for contacts or location; with Familiar in the background, a notification to tap.
+- **Texts and calls** (item 21; directions and "where am I" confirmed 2026-10-09): Messages or the
+  dialler opens ready; with Familiar in the background, a notification to tap.
 - **Sound effects in the app** (item 14): the avatar page plays them; "Turn sound effects off" in
   the menu.
 - **The sleepy avatar** (item 18): it dozes after a few minutes, and wakes on a tap or when the app
