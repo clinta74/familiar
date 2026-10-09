@@ -29,6 +29,12 @@ public sealed class CalculateTool : ITool
             return Task.FromResult(ToolResult.Failure("Give the sum as an expression, e.g. \"12 * 4.5\"."));
         }
 
+        // "2026-12-25 - 2026-10-09" is dates, not a sum: as one it came out as -56 days.
+        if (System.Text.RegularExpressions.Regex.IsMatch(expression, @"\d{4}-\d{1,2}-\d{1,2}"))
+        {
+            return Task.FromResult(ToolResult.Failure("Those are dates, not a sum: use the dates tool."));
+        }
+
         try
         {
             var value = Calculator.Evaluate(expression);

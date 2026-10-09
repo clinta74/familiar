@@ -239,6 +239,7 @@ public static class ToolRegistration
         // Worked out here, not looked up: offered whether or not look-ups are on.
         services.AddSingleton<ITool, Maths.CalculateTool>();
         services.AddSingleton<ITool, Maths.ConvertUnitsTool>();
+        services.AddSingleton<ITool, Maths.DatesTool>();
         services.AddSingleton<IToolExecutor, ToolExecutor>();
         return services;
     }

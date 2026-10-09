@@ -77,4 +77,61 @@ public sealed class MathsTests
         Assert.False(result.Ok);
         Assert.Contains("weight", result.Data["error"]!.GetValue<string>(), StringComparison.Ordinal);
     }
+
+    private static ToolContext OnThe8thOfOctober() =>
+        new(Guid.NewGuid(), Guid.NewGuid(), TimeZoneInfo.Utc, new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.Zero));
+
+    private static async Task<JsonObject> DatesAsync(params (string Name, JsonNode Value)[] arguments)
+    {
+        var result = await new DatesTool().InvokeAsync(OnThe8thOfOctober(), new JsonObject(arguments.Select(a => KeyValuePair.Create(a.Name, (JsonNode?)a.Value))), default);
+        Assert.True(result.Ok, result.Data.ToJsonString());
+        return result.Data;
+    }
+
+    [Theory]
+    [InlineData("Christmas", 78)]
+    [InlineData("25 December", 78)]
+    [InlineData("25th December", 78)]
+    [InlineData("2026-12-25", 78)]
+    [InlineData("1 January", 85)]
+    [InlineData("tomorrow", 1)]
+    public async Task Days_until_a_date_are_counted_not_guessed(string date, int days) =>
+        Assert.Equal(days, (await DatesAsync(("what", "until"), ("date", date)))["days"]!.GetValue<int>());
+
+    [Fact]
+    public async Task Days_since_a_date_without_a_year_count_from_the_last_one()
+    {
+        var since = await DatesAsync(("what", "since"), ("date", "1 January"));
+        Assert.Equal(280, since["days"]!.GetValue<int>());
+        Assert.Equal("Thursday 1 January 2026: 280 days ago", since["says"]!.GetValue<string>());
+        Assert.Equal(7, (await DatesAsync(("what", "between"), ("from", "2026-10-01"), ("date", "2026-10-08")))["days"]!.GetValue<int>());
+    }
+
+    [Theory]
+    [InlineData(100, "days", "Saturday 16 January 2027")]
+    [InlineData(-2, "weeks", "Thursday 24 September 2026")]
+    [InlineData(3, "months", "Friday 8 January 2027")]
+    public async Task A_date_some_time_away(int amount, string unit, string expected) =>
+        Assert.Equal(expected, (await DatesAsync(("what", "add"), ("amount", amount), ("unit", unit)))["date"]!.GetValue<string>());
+
+    [Fact]
+    public async Task Ages_count_whole_years_and_the_next_birthday()
+    {
+        var sam = await DatesAsync(("what", "age"), ("date", "14 March 1987"));
+        Assert.Equal(39, sam["age"]!.GetValue<int>());
+        Assert.Contains("in 157 days", sam["next_birthday"]!.GetValue<string>(), StringComparison.Ordinal);
+
+        // A leap-day birthday is the 28th in other years.
+        var leap = await DatesAsync(("what", "age"), ("date", "2000-02-29"));
+        Assert.Equal(26, leap["age"]!.GetValue<int>());
+        Assert.Contains("28 February 2027", leap["next_birthday"]!.GetValue<string>(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Calculate_turns_dates_away()
+    {
+        var result = await new CalculateTool().InvokeAsync(Context(), new JsonObject { ["expression"] = "(2026-12-25 - 2026-10-09) / 1" }, default);
+        Assert.False(result.Ok);
+        Assert.Contains("dates tool", result.Data["error"]!.GetValue<string>(), StringComparison.Ordinal);
+    }
 }

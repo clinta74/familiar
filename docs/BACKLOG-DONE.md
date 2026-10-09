@@ -390,6 +390,24 @@ Mum" - "Your Mum's mobile number is plus one five five five zero one zero one"; 
 work" asked for his work address only - "Sam Kim works at Leeds Station on New Station Street".
 **Found on the way:** told to leave contact details out, the memory pass kept "The user's mother's mobile number is +15550101" anyway. Now an exchange where the familiar looked someone up (a `contact_details` call on the reply) isn't shown to the memory pass at all, and any fact with a phone number in it is dropped (`MemoryExtractor.HasPhoneNumber`, which a date doesn't set off). Tried again: the pass kept "Their name is Sam." and nothing about Mum.
 
+### 26. ~~Numbers worked out or looked up, never guessed~~ — done (2026-10-08): dates were the gap
+
+Asked for 2026-10-08: maths and exact statistics calculated or found, not made up. **Measured first**
+on the real model, eight questions: it already used `calculate` for 17% of 2,340, 4,837 x 296,
+compound interest, an average and an age, and `look_up` for the population of Leeds and the height
+of Everest - all right. The miss was dates: "how many days until Christmas?" went to `calculate` as
+"2026-12-25 - 2026-10-09" (read as subtraction: -56), then a month count of its own (108), then
+"about eighty-seven" - it was 77. **Done:** `dates` (`src/Familiar.Server/Maths/DatesTool.cs`), in the
+user's time zone with today known - `until` and `since` a date, `between` two, `add` days, weeks,
+months or years, and `age` with the next birthday (a 29 February one on the 28th in other years).
+It reads YYYY-MM-DD, today, tomorrow, weekdays, "25 December" or "25th December" (the next one, or
+the last for `since`; or with a year) and a few named days (Christmas, New Year, Halloween...).
+`calculate` now turns dates away ("those are dates, not a sum: use the dates tool"). No rule about
+numbers was added to the prompt - it wasn't needed. Re-run on the real model: Christmas "exactly
+seventy-seven days", 281 days since 1 January, 100 days from today Sunday 17 January 2027 (at the
+third try - two malformed calls first), "about twenty weeks" to 3 March (145 days), 39 for someone
+born 14 March 1987, and the sums as before - all right.
+
 ---
 
 ## Avatars

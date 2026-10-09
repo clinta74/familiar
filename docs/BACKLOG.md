@@ -31,26 +31,6 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
 
 ---
 
-## What it can do
-
-### 26. Dates worked out, not guessed
-
-Asked for 2026-10-08: maths and exact statistics calculated or found, not made up. **Measured the
-same day on the real model** (look-ups on), eight questions: it already used `calculate` for 17% of
-2,340, 4,837 x 296, compound interest, an average and someone's age, and `look_up` for the
-population of Leeds and the height of Everest - all right. The one miss was **dates**: "how many days
-until Christmas?" - it passed "2026-12-25 - 2026-10-09" to `calculate`, which read the dates as
-subtraction (-56), then counted months itself (108) and said "about eighty-seven" (it was 77).
-
-- **Date arithmetic:** a `days` tool (or `calculate` learning dates): days between two dates or until
-  one, a date plus or minus some days or weeks, someone's age - in the user's time zone, "today" known.
-- **`calculate` refusing dates:** an expression like "2026-12-25 - 2026-10-09" gets "that's dates -
-  use the dates tool", not a wrong number.
-- Re-run the eight, plus "how many days since 1 January", "what date is 100 days from now", "how many
-  weeks until my birthday on 3 March".
-
----
-
 ## Parked
 
 Ideas that came up and were set aside - not agreed. Each would need asking about first.
