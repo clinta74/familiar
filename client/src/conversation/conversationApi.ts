@@ -15,8 +15,10 @@ export const conversationApi = {
    * A spoken message: the recording itself is the body. Resolves to the transcribed message, or
    * null if nothing was heard.
    */
-  sendSpoken: async (recording: Blob): Promise<MessageView | null> => {
-    const response = await fetch(`/api/conversation/audio?timeZone=${encodeURIComponent(timeZone())}`, {
+  sendSpoken: async (recording: Blob, overReply = false): Promise<MessageView | null> => {
+    // overReply: they started speaking while the familiar's reply was playing - only then can the
+    // server's echo check (its own voice through the speakers) be right to throw the words away.
+    const response = await fetch(`/api/conversation/audio?timeZone=${encodeURIComponent(timeZone())}&overReply=${overReply}`, {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': recording.type || 'audio/webm' },

@@ -198,7 +198,7 @@ public static class ConversationEndpoints
     /// A spoken message: the recorded utterance as the raw request body (Opus/WebM from browsers,
     /// AAC/M4A or WAV from phones), the user's time zone in the query string (PLAN.md §3.2).
     /// </summary>
-    private static async Task<IResult> SendSpokenAsync(HttpContext http, ConversationTurns turns, string? timeZone, CancellationToken ct)
+    private static async Task<IResult> SendSpokenAsync(HttpContext http, ConversationTurns turns, string? timeZone, bool? overReply, CancellationToken ct)
     {
         var contentType = http.Request.ContentType ?? string.Empty;
         if (!contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
@@ -220,7 +220,7 @@ public static class ConversationEndpoints
 
         try
         {
-            var message = await turns.SubmitSpokenAsync(http.User.AccountId()!.Value, buffer.ToArray(), contentType, Zone(timeZone), ct, From(http));
+            var message = await turns.SubmitSpokenAsync(http.User.AccountId()!.Value, buffer.ToArray(), contentType, Zone(timeZone), ct, From(http), overReply);
             return message is null
                 ? TypedResults.NoContent()
                 : TypedResults.Accepted((string?)null, MessageView.From(message));

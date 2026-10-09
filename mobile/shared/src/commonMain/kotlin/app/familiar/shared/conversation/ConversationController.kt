@@ -325,11 +325,11 @@ class ConversationController(
     }
 
     /** Something said aloud, as a WAV (push-to-talk); the reply comes on the stream, spoken. */
-    fun sendSpoken(wav: ByteArray) {
+    fun sendSpoken(wav: ByteArray, overReply: Boolean = false) {
         scope.launch {
             _state.update { it.copy(error = null) }
             try {
-                api.sendSpoken(wav, currentTimeZoneId())?.let { message ->
+                api.sendSpoken(wav, currentTimeZoneId(), overReply)?.let { message ->
                     _state.update { ConversationReducer.apply(it, ServerEvent.Message(message)) }
                 }
             } catch (exception: Exception) {

@@ -97,6 +97,7 @@ class FamiliarSession(
             onClip = { words -> avatar.clip(words, 0) }
             onLevel = avatar::level
             onPlayingChange = { playing ->
+                if (!playing && _audible.value) quietSince = Clock.System.now()
                 _audible.value = playing
                 handsFree?.familiarSpeaking(playing)
                 if (!playing) avatar.silence()
@@ -127,6 +128,12 @@ class FamiliarSession(
     val userSpeaking: StateFlow<Boolean> = _userSpeaking.asStateFlow()
 
     private var started = false
+
+    /** When the familiar last stopped talking aloud. */
+    private var quietSince: Instant? = null
+
+    /** Whether the utterance being heard began while the familiar was talking, or just after. */
+    private var speechOverReply = false
 
     /** When the app went into the background; null while it's in front. */
     private var awaySince: Instant? = null
@@ -164,11 +171,13 @@ class FamiliarSession(
         handsFree?.apply {
             onSpeechStart = {
                 _userSpeaking.value = true
+                // Before the reply's stopped: whether this began over its voice (or its last words).
+                speechOverReply = _audible.value || quietSince?.let { Clock.System.now() - it < ECHO_TAIL } == true
                 if (busy) stopReply()
             }
             onUtterance = { utterance ->
                 _userSpeaking.value = false
-                controller.sendSpoken(utterance)
+                controller.sendSpoken(utterance, overReply = speechOverReply)
                 if (once) {
                     once = false
                     scope.launch { setHandsFree(false) }
@@ -399,6 +408,9 @@ class FamiliarSession(
 
         /** Shorter than this is a tap on the mic button, not something said. */
         const val MIN_SPOKEN_SECONDS = 0.35
+
+        /** How long after the familiar stops talking an utterance can still be its own voice (the speaker's tail). */
+        val ECHO_TAIL = 2.seconds
 
         /** How the familiar looked last time, per account: the avatar starts as that, not a stand-in. */
         fun lookKey(username: String) = "look:$username"

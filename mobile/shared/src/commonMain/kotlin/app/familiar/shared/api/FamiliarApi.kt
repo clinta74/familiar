@@ -129,9 +129,10 @@ class FamiliarApi(
      * Something said aloud (push-to-talk), as a WAV. The transcribed message, or null when nothing
      * was heard - the server says so on the stream (`error`, no-speech). The reply is spoken.
      */
-    suspend fun sendSpoken(wav: ByteArray, timeZone: String): MessageView? {
+    /** [overReply]: they started speaking while the familiar's reply was playing (so it might be its own voice). */
+    suspend fun sendSpoken(wav: ByteArray, timeZone: String, overReply: Boolean = false): MessageView? {
         val response = checked {
-            http.post("api/conversation/audio?timeZone=$timeZone") {
+            http.post("api/conversation/audio?timeZone=$timeZone&overReply=$overReply") {
                 setBody(ByteArrayContent(wav, ContentType("audio", "wav")))
             }
         }

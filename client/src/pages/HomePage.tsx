@@ -15,6 +15,8 @@ import { Shell } from './Shell';
 
 const VOICE_KEY = 'familiar.voice';
 const EFFECTS_KEY = 'familiar.effects';
+/** How long after the familiar stops talking an utterance can still be its own voice (the speaker's tail). */
+const ECHO_TAIL_MS = 2000;
 
 // A per-device preference, so browser storage; it may be unavailable (private mode), which just
 // means the default.
@@ -80,6 +82,9 @@ export function HomePage() {
   const voiceOnRef = useRef(voiceOn);
   const effectsOnRef = useRef(effectsOn);
   const audibleRef = useRef(audible);
+  /** When the familiar last stopped talking aloud, and whether the utterance being heard began over it. */
+  const quietSince = useRef(0);
+  const overReply = useRef(false);
   useEffect(() => {
     voiceOnRef.current = voiceOn;
     effectsOnRef.current = effectsOn;
@@ -92,7 +97,10 @@ export function HomePage() {
       if (hasTimings) avatar.current?.viseme(viseme, level);
       else avatar.current?.mouth(level);
     };
-    player.onPlayingChange = setAudible;
+    player.onPlayingChange = (playing) => {
+      if (!playing) quietSince.current = Date.now();
+      setAudible(playing);
+    };
     return () => {
       player.stop();
       recorder.cancel();
@@ -243,11 +251,13 @@ export function HomePage() {
       await handsFree.start({
         onSpeechStart: () => {
           setUserSpeaking(true);
+          // Before the reply's stopped: whether this began over its voice (or its last words).
+          overReply.current = audibleRef.current || Date.now() - quietSince.current < ECHO_TAIL_MS;
           if (busyRef.current) bargeIn();
         },
         onSpeech: (utterance) => {
           setUserSpeaking(false);
-          void conversationRef.current.sendSpoken(utterance);
+          void conversationRef.current.sendSpoken(utterance, overReply.current);
         },
         onMisfire: () => setUserSpeaking(false),
       });

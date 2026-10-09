@@ -408,6 +408,20 @@ seventy-seven days", 281 days since 1 January, 100 days from today Sunday 17 Jan
 third try - two malformed calls first), "about twenty weeks" to 3 March (145 days), 39 for someone
 born 14 March 1987, and the sums as before - all right.
 
+### 27. ~~Hands-free sometimes doesn't register what was said~~ — fixed, most likely cause (2026-10-08)
+
+Reported 2026-10-08: in the app, hands-free sometimes heard nothing. Of the ways an utterance can be
+lost, the silent one was the server's echo check: a transcript of three or more words, 80% of them
+in the familiar's last reply, was taken for its own voice through the speaker and dropped without a
+word - checked against the last reply however long ago it was, so an answer in the question's words
+("set a timer for the pasta" after "shall I set a timer for the pasta?") vanished. **Fixed:** the app
+and the web page say whether the user began speaking while a reply was playing, or within two
+seconds of its end (`overReply` on `/api/conversation/audio`; push-to-talk never is), and only then
+does the server check for echo; a client that doesn't say is treated as before. Not confirmed from
+the NAS's log (`Ignored a transcript that was the familiar's own voice`, event 55) - if it still
+happens, that log says whether it was this. The other ways are visible or deliberate: no words
+("I didn't catch that"), a misfire under 0.3 seconds (a cough).
+
 ---
 
 ## Avatars

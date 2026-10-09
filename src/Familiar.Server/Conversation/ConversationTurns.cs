@@ -78,7 +78,13 @@ public sealed class ConversationTurns(
     /// is always spoken. Null when there were no words in it.
     /// </summary>
     /// <exception cref="SpeechUnavailableException">Speech-to-text can't be used.</exception>
-    public async Task<Message?> SubmitSpokenAsync(Guid accountId, byte[] audio, string contentType, TimeZoneInfo zone, CancellationToken ct, string? from = null)
+    /// <remarks>
+    /// overReply: whether the user started speaking while the familiar's reply was playing (or just
+    /// after) - only then can the transcript be its own voice. Null from a client that doesn't say,
+    /// treated as yes.
+    /// </remarks>
+    public async Task<Message?> SubmitSpokenAsync(
+        Guid accountId, byte[] audio, string contentType, TimeZoneInfo zone, CancellationToken ct, string? from = null, bool? overReply = null)
     {
         var receivedAt = clock.GetTimestamp();
         var channel = hub.For(accountId);
@@ -114,7 +120,9 @@ public sealed class ConversationTurns(
         }
 
         // The familiar hearing its own voice through the speakers (hands-free keeps the mic open).
-        if (EchoDetector.IsEcho(text, await store.LastReplyAsync(accountId, ct)))
+        // Only when it could be: checked against every reply, an answer that repeated the question's
+        // words ("set a timer for the pasta" after "shall I set a timer for the pasta?") was thrown away.
+        if (overReply != false && EchoDetector.IsEcho(text, await store.LastReplyAsync(accountId, ct)))
         {
             logger.EchoIgnored(text);
             channel.Publish(EventTypes.State, new StateEvent(FamiliarState.Idle));

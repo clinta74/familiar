@@ -147,10 +147,10 @@ export function useConversation(handlers: ConversationHandlers, options: { speak
     }
   }, []);
 
-  const sendSpoken = useCallback(async (recording: Blob) => {
+  const sendSpoken = useCallback(async (recording: Blob, overReply = false) => {
     dispatch({ type: 'error', message: null });
     try {
-      const message = await conversationApi.sendSpoken(recording);
+      const message = await conversationApi.sendSpoken(recording, overReply);
       if (message) dispatch({ type: 'message', message });
     } catch (error) {
       dispatch({ type: 'error', message: error instanceof Error ? error.message : 'Could not send that.' });

@@ -393,4 +393,26 @@ public sealed class BargeInTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Equal(2, (await (await client.GetAsync("/api/conversation/messages")).ReadAsync<List<MessageView>>()).Count);
     }
+
+    [Theory]
+    [InlineData("true", false)]
+    [InlineData("false", true)]
+    public async Task Its_own_words_are_only_echo_when_they_were_heard_over_its_voice(string overReply, bool kept)
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        app.Llm.Fragments = ["[neutral:0.5] Shall I set a timer for the pasta?"];
+        var client = await SignedInAsync(app);
+        await using var stream = await SseClient.ConnectAsync(client);
+        await stream.ReadUntilAsync(EventTypes.Ready);
+        await client.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("I'm making pasta", null));
+        await stream.ReadUntilStateAsync(FamiliarState.Idle);
+
+        // An answer in the question's own words: echo only if it came while the familiar was talking.
+        app.Stt.Transcript = "set a timer for the pasta";
+        var body = new ByteArrayContent([1, 2, 3]);
+        body.Headers.ContentType = new MediaTypeHeaderValue("audio/wav");
+        var response = await client.PostAsync($"/api/conversation/audio?overReply={overReply}", body);
+
+        Assert.Equal(kept ? HttpStatusCode.Accepted : HttpStatusCode.NoContent, response.StatusCode);
+    }
 }
