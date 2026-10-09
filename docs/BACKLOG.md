@@ -15,12 +15,10 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
 
 - **Texts and calls** (item 21; directions and "where am I" confirmed 2026-10-09): Messages or the
   dialler opens ready; with Familiar in the background, a notification to tap.
-- **Sound effects in the app** (item 14): the avatar page plays them; "Turn sound effects off" in
-  the menu.
+- **Sound effects in a conversation in the app** (item 14; they play in the studio, 2026-10-09): ask
+  for one by name ("play a drumroll"), or tell it a joke.
 - **The sleepy avatar** (item 18): it dozes after a few minutes, and wakes on a tap or when the app
   comes back to the front.
-- **The avatar's framing** (item 23) at the Fold's sizes: folded, with the keyboard up, and unfolded
-  (side by side, unchanged); and the flat characters, which weren't checked.
 - **Alarms after a restart** (MOBILE.md, M3): a timer or reminder set, the phone restarted, and it
   still rings.
 - **The home-screen widget** (`NextUpWidget`).

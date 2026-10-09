@@ -94,6 +94,12 @@ public sealed class ExpressionParserTests
     [InlineData("[sound:rim-shot]", SoundEffect.Rimshot)]
     [InlineData("[sound:uh-oh]", SoundEffect.Uhoh)]
     [InlineData("[sound:drumroll]", SoundEffect.Drumroll)]
+    // Without "sound:", as the model sometimes writes them when asked for one by name.
+    [InlineData("[drumroll]", SoundEffect.Drumroll)]
+    [InlineData("[drum roll]", SoundEffect.Drumroll)]
+    [InlineData("[Ta-da]", SoundEffect.Tada)]
+    [InlineData("[sad trombone]", SoundEffect.Womp)]
+    [InlineData("[uh oh]", SoundEffect.Uhoh)]
     public void Sound_tags_are_understood(string tag, SoundEffect sound) =>
         Assert.Equal(new SoundToken(sound), ExpressionParser.TryParseTag(tag));
 

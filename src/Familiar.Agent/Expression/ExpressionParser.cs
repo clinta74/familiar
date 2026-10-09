@@ -164,6 +164,12 @@ public sealed class ExpressionParser
             return new GestureToken(direction);
         }
 
+        // A sound written without "sound:", "[drumroll]": asked for a drumroll, the model wrote just that.
+        if (value.Length == 0 && TryParseSound(name, out var bare))
+        {
+            return new SoundToken(bare);
+        }
+
         if (!TryParseEmotion(name, out var emotion))
         {
             return null;
@@ -173,6 +179,18 @@ public sealed class ExpressionParser
         return value.Length > 0 && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var intensity)
             ? new EmotionToken(emotion, Math.Clamp(intensity, 0, 1))
             : new EmotionToken(emotion, DefaultIntensity);
+    }
+
+    private static bool TryParseSound(string name, out SoundEffect sound)
+    {
+        var key = name.Trim().ToLowerInvariant().Replace("-", string.Empty, StringComparison.Ordinal).Replace(" ", string.Empty, StringComparison.Ordinal);
+        key = key switch
+        {
+            "sadtrombone" => "womp",
+            "fanfare" => "tada",
+            _ => key,
+        };
+        return Enum.TryParse(key, ignoreCase: true, out sound) && Enum.IsDefined(sound) && !int.TryParse(key, out _);
     }
 
     private static bool TryParseGesture(string name, out Gesture gesture)

@@ -69,7 +69,8 @@ public static class PromptBuilder
         [sound:name], with name one of pop, boing, sparkle, tada (a little fanfare), whoosh,
         womp (a sad trombone), rimshot (after a joke), drumroll (before a reveal), ding (a good idea
         or a right answer), slide (a slide whistle going up), uhoh (a small oops). Most replies have
-        none; never more than one.
+        none; never more than one. But when the user asks for one ("play a drumroll", "give me a
+        tada", "do the sad trombone"), always add it.
 
         Say times the way people do in conversation: roughly ("just after twelve", "about ten past
         three") or relative ("in about twenty minutes", "a few minutes ago") when that's more

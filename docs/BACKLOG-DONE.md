@@ -139,7 +139,10 @@ Web Audio (`client/src/voice/soundEffects.ts`), so nothing to fetch or license. 
 and the server sends a `sound` event; the web page plays it, and the app's avatar page plays the same
 synthesis. "Sounds on/off" beside "Voice on" on the web, "Turn sound effects off" in the app's menu;
 both studios have a row to try them. Verified on the dev box: asked to celebrate, the real model added
-`[sound:tada]` and the page played it.
+`[sound:tada]` and the page played it. **Asked for by name (2026-10-09):** the instructions now say to always add a sound the user
+asks for ("play a drumroll", "give me a tada"); and a bare `[drumroll]` - how the model wrote one -
+counts as the sound rather than being left in the text. On the real model: tada, womp ("do the sad
+trombone") and rimshot played; the drumroll came as `[drumroll]`, hence the bare form.
 
 **The vocal sounds so far** (what's next is item 14 in BACKLOG.md):
 
@@ -500,7 +503,7 @@ the thought bubbles and the "z" come down beside the head rather than high above
 frames are gone. In the app, when the space is short (the keyboard's up) the character takes 28% of
 the height rather than 40%, and the chat keeps the end of the latest message in view, the keyboard
 coming up included (it used to line up the start of a long reply). Checked: every 3D character at the
-phone's size, the keyboard-up size and the web's; and on the emulator with the otter, both ways.
+phone's size, the keyboard-up size and the web's; and on the emulator with the otter, both ways. Confirmed on the Fold (2026-10-09).
 
 ---
 
