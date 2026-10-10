@@ -44,6 +44,8 @@ public sealed class FamiliarDbContext(DbContextOptions<FamiliarDbContext> option
 
     public DbSet<McpServer> McpServers => Set<McpServer>();
 
+    public DbSet<HomeAssistantLink> HomeAssistantLinks => Set<HomeAssistantLink>();
+
     public DbSet<CalendarSource> CalendarSources => Set<CalendarSource>();
 
     public DbSet<CalendarEvent> CalendarEvents => Set<CalendarEvent>();

@@ -17,6 +17,8 @@ import app.familiar.shared.protocol.FamiliarView
 import app.familiar.shared.protocol.HookTokenView
 import app.familiar.shared.protocol.InterruptRequest
 import app.familiar.shared.protocol.JobView
+import app.familiar.shared.protocol.HomeAssistantRequest
+import app.familiar.shared.protocol.HomeAssistantView
 import app.familiar.shared.protocol.McpServerRequest
 import app.familiar.shared.protocol.McpServerView
 import app.familiar.shared.protocol.McpToolsRequest
@@ -246,6 +248,16 @@ class FamiliarApi(
     suspend fun setMcpTools(id: String, enabled: List<String>): McpServerView = put("api/mcp/$id/tools", McpToolsRequest(enabled))
 
     suspend fun deleteMcpServer(id: String) = delete("api/mcp/$id")
+
+    suspend fun homeAssistant(): HomeAssistantView = call { http.get("api/home-assistant") }
+
+    /** Connects (refused unless Home Assistant answers with the token); a null token keeps the saved one. */
+    suspend fun connectHomeAssistant(request: HomeAssistantRequest): HomeAssistantView = put("api/home-assistant", request)
+
+    /** Asks again which devices are exposed to Assist. */
+    suspend fun refreshHomeAssistant(): HomeAssistantView = call { http.post("api/home-assistant/refresh") }
+
+    suspend fun disconnectHomeAssistant() = delete("api/home-assistant")
 
     private suspend inline fun <reified B : Any> post(path: String, body: B) {
         call<Unit> {

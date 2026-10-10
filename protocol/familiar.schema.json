@@ -898,6 +898,96 @@
         "gesture"
       ]
     },
+    "HomeAssistantRequest": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "description": "Home Assistant's address, e.g. http://homeassistant.local:8123.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "token": {
+          "description": "A long-lived access token from the Home Assistant profile page. Left out, the saved one is kept.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "url",
+        "token"
+      ]
+    },
+    "HomeAssistantView": {
+      "description": "The account's Home Assistant connection.",
+      "type": "object",
+      "properties": {
+        "connected": {
+          "description": "Whether there is one; the rest is empty when not.",
+          "type": "boolean"
+        },
+        "urlHost": {
+          "description": "The host it talks to.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "devices": {
+          "description": "The devices exposed to Assist, when last asked.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HomeDeviceView"
+          }
+        },
+        "refreshedAt": {
+          "description": "When the devices were last asked for.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "lastError": {
+          "description": "Why the last check went wrong, if it did.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "connected",
+        "urlHost",
+        "devices",
+        "refreshedAt",
+        "lastError"
+      ]
+    },
+    "HomeDeviceView": {
+      "description": "A device Familiar can work, as Settings lists it.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "What Home Assistant calls it.",
+          "type": "string"
+        },
+        "area": {
+          "description": "Its room, if it has one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "area"
+      ]
+    },
     "HookTokenView": {
       "type": "object",
       "properties": {

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.Json.Nodes;
 using Familiar.Agent.Tools;
 using Familiar.Domain.Tools;
 using Familiar.Persistence;
@@ -81,6 +82,7 @@ public sealed class ToolExecutor(
     IDbContextFactory<FamiliarDbContext> db,
     Hooks.WebhookDispatcher webhooks,
     Hooks.McpTools mcp,
+    Home.HomeAssistant home,
     Devices.DeviceTools devices,
     TimeProvider clock,
     ILogger<ToolExecutor> logger) : IToolExecutor
@@ -96,7 +98,7 @@ public sealed class ToolExecutor(
     /// <summary>
     /// The built-in tools - the look-ups only for a user who's turned them on, the phone's only while
     /// a phone that can do them is connected (or a browser can say where it is, with look-ups on) -
-    /// then their MCP tools.
+    /// then their Home Assistant and MCP tools.
     /// </summary>
     public async Task<IReadOnlyList<ToolDefinition>> DefinitionsAsync(ToolContext context, CancellationToken ct) =>
     [
@@ -104,13 +106,17 @@ public sealed class ToolExecutor(
             .Where(t => t.Definition.Risk != ToolRisk.LookUp || context.LookUps)
             .Where(t => t is not Devices.IPhoneTool phone || devices.Find(context.AccountId, phone.Capability, context.From, browsers: context.LookUps) is not null)
             .Select(t => t.Definition),
-        .. (await mcp.ToolsForAsync(context.AccountId, ct)).Select(t => t.Definition),
+        .. (await AccountToolsAsync(context.AccountId, ct)).Select(t => t.Definition),
     ];
+
+    /// <summary>The tools that come from what the account has connected: Home Assistant, MCP servers.</summary>
+    private async Task<IReadOnlyList<ITool>> AccountToolsAsync(Guid accountId, CancellationToken ct) =>
+        [.. await home.ToolsForAsync(accountId, ct), .. await mcp.ToolsForAsync(accountId, ct)];
 
     public async Task<ToolResult> ExecuteAsync(ToolCall call, ToolContext context, CancellationToken ct)
     {
         var tool = _tools.GetValueOrDefault(call.Name)
-            ?? (await mcp.ToolsForAsync(context.AccountId, ct)).FirstOrDefault(t => t.Definition.Name == call.Name);
+            ?? (await AccountToolsAsync(context.AccountId, ct)).FirstOrDefault(t => t.Definition.Name == call.Name);
         if (tool is null)
         {
             logger.UnknownTool(call.Name);
@@ -122,7 +128,7 @@ public sealed class ToolExecutor(
         ToolResult result;
         ToolOutcome outcome;
 
-        var risk = tool.Definition.Risk;
+        var risk = tool is IRiskPerCall perCall ? perCall.RiskOf(call.Arguments) : tool.Definition.Risk;
         if (risk == ToolRisk.LookUp && !context.LookUps)
         {
             return ToolResult.Failure("Looking things up is turned off. Say you can't look that up; the user can turn it on in Settings.");
@@ -175,7 +181,7 @@ public sealed class ToolExecutor(
             AccountId = context.AccountId,
             ReplyId = context.ReplyId,
             Tool = call.Name,
-            Risk = tool.Definition.Risk,
+            Risk = risk,
             Arguments = call.Arguments.ToJsonString(),
             Result = result.Data.ToJsonString(),
             Outcome = outcome,
@@ -194,6 +200,12 @@ public sealed class ToolExecutor(
 
         return result;
     }
+}
+
+/// <summary>A tool whose risk depends on what it's asked to do: reading the house, or unlocking its door.</summary>
+public interface IRiskPerCall
+{
+    ToolRisk RiskOf(JsonObject arguments);
 }
 
 /// <summary>Registration of the tools and what runs them.</summary>

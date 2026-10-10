@@ -232,6 +232,38 @@ export interface GestureEvent {
   gesture: Gesture;
 }
 
+export interface HomeAssistantRequest {
+  /** Home Assistant's address, e.g. http://homeassistant.local:8123. */
+  url: string | null;
+  /**
+   * A long-lived access token from the Home Assistant profile page. Left out, the saved one is
+   * kept.
+   */
+  token: string | null;
+}
+
+/** The account's Home Assistant connection. */
+export interface HomeAssistantView {
+  /** Whether there is one; the rest is empty when not. */
+  connected: boolean;
+  /** The host it talks to. */
+  urlHost: string | null;
+  /** The devices exposed to Assist, when last asked. */
+  devices: HomeDeviceView[];
+  /** When the devices were last asked for. */
+  refreshedAt: string | null;
+  /** Why the last check went wrong, if it did. */
+  lastError: string | null;
+}
+
+/** A device Familiar can work, as Settings lists it. */
+export interface HomeDeviceView {
+  /** What Home Assistant calls it. */
+  name: string;
+  /** Its room, if it has one. */
+  area: string | null;
+}
+
 export interface HookTokenView {
   id: string;
   name: string;

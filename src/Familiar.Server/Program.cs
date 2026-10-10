@@ -105,6 +105,9 @@ builder.Services.AddSingleton<WebhookDispatcher>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<WebhookDispatcher>());
 builder.Services.AddHttpClient(nameof(McpTools), http => http.Timeout = TimeSpan.FromSeconds(30));
 builder.Services.AddSingleton<McpTools>();
+builder.Services.AddHttpClient(nameof(Familiar.Server.Home.HomeAssistant), http => http.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddSingleton<Familiar.Server.Home.HomeAssistantSockets>();
+builder.Services.AddSingleton<Familiar.Server.Home.HomeAssistant>();
 
 builder.Services.AddSingleton<ConversationHub>();
 builder.Services.AddSingleton<ConversationStore>();
@@ -155,6 +158,7 @@ app.MapMemoryEndpoints();
 app.MapCalendarEndpoints();
 app.MapHookEndpoints();
 app.MapMcpEndpoints();
+Familiar.Server.Home.HomeAssistantEndpoints.Map(app);
 
 await app.RunAsync();
 

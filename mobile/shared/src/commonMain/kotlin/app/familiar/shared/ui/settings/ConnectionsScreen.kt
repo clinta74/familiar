@@ -24,6 +24,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import app.familiar.shared.platform.formatInstant
+import app.familiar.shared.protocol.HomeAssistantRequest
+import app.familiar.shared.protocol.HomeAssistantView
 import app.familiar.shared.protocol.HookTokenView
 import app.familiar.shared.protocol.McpServerRequest
 import app.familiar.shared.protocol.McpServerView
@@ -33,8 +35,9 @@ import app.familiar.shared.protocol.WebhookView
 import app.familiar.shared.session.FamiliarSession
 import kotlinx.coroutines.launch
 
-// Hooks (PLAN.md §6.5): other systems making the familiar speak (hook tokens), the familiar telling
-// other systems what happened (webhooks), and other servers' tools for it to use (MCP).
+// Hooks (PLAN.md §6.5): Home Assistant's devices for the familiar to work (BACKLOG item 29), other
+// systems making the familiar speak (hook tokens), the familiar telling other systems what happened
+// (webhooks), and other servers' tools for it to use (MCP).
 
 private val webhookEvents = listOf(
     "timer.done" to "A timer finishes",
@@ -47,6 +50,7 @@ private val webhookEvents = listOf(
 fun ConnectionsScreen(session: FamiliarSession, onBack: () -> Unit) {
     ScreenFrame(Route.Connections.title, onBack) {
         Scrolling {
+            Card("Home Assistant") { HomeAssistant(session) }
             Card("Let other things make it speak") { HookTokens(session) }
             Card("Tell other things what happened") { Webhooks(session) }
             Card("Tools from MCP servers") { McpServers(session) }
@@ -173,6 +177,73 @@ private fun Webhooks(session: FamiliarSession) {
 }
 
 @Composable
+private fun HomeAssistant(session: FamiliarSession) {
+    val scope = rememberCoroutineScope()
+    var home by remember { mutableStateOf<HomeAssistantView?>(null) }
+    var url by remember { mutableStateOf("") }
+    var token by remember { mutableStateOf("") }
+    var editing by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) { runCatching { session.api.homeAssistant() }.onSuccess { home = it } }
+
+    fun act(block: suspend () -> HomeAssistantView?) {
+        busy = true
+        error = null
+        scope.launch {
+            runCatching { block() }
+                .onSuccess { home = it; editing = false; token = "" }
+                .onFailure { error = it.shown() }
+            busy = false
+        }
+    }
+
+    Muted("Your familiar can work the devices you've exposed to Assist in Home Assistant - \"turn off the kitchen light\", \"is the garage door open?\". Change which in Home Assistant (Settings, Voice assistants, Expose), then refresh here. Unlocking doors and opening the garage ask you first.")
+    val connected = home?.connected == true
+    home?.takeIf { connected }?.let { linked ->
+        Divider()
+        ItemRow(
+            linked.urlHost ?: "Home Assistant",
+            linked.lastError ?: "${linked.devices.size} devices",
+            detailIsError = linked.lastError != null,
+        ) {
+            TextButton(enabled = !busy, onClick = { act { session.api.refreshHomeAssistant() } }) { Text("Refresh") }
+            TextButton(enabled = !busy, onClick = { editing = !editing }) { Text("Change") }
+            TextButton(enabled = !busy, onClick = { act { session.api.disconnectHomeAssistant(); null } }) { Text("Disconnect") }
+        }
+        linked.devices.groupBy { it.area ?: "No room" }.forEach { (room, devices) ->
+            Muted("$room: ${devices.joinToString(", ") { it.name }}")
+        }
+    }
+    if (!connected || editing) {
+        Divider()
+        OutlinedTextField(
+            url,
+            { url = it },
+            label = { Text("Address") },
+            placeholder = { Text("http://homeassistant.local:8123") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            token,
+            { token = it },
+            label = { Text(if (connected) "Long-lived access token (empty keeps the current one)" else "Long-lived access token (profile, Security)") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        BusyButton(if (busy) "Connecting…" else "Connect", busy, enabled = url.isNotBlank() && (connected || token.isNotBlank())) {
+            act { session.api.connectHomeAssistant(HomeAssistantRequest(url.trim(), token.trim().ifBlank { null })) }
+        }
+    }
+    error?.let { ErrorText(it) }
+}
+
+@Composable
 private fun McpServers(session: FamiliarSession) {
     val scope = rememberCoroutineScope()
     var servers by remember { mutableStateOf<List<McpServerView>>(emptyList()) }
@@ -194,7 +265,7 @@ private fun McpServers(session: FamiliarSession) {
         }
     }
 
-    Muted("Connect an MCP server (streamable HTTP) and your familiar can use its tools - Home Assistant's MCP server, for instance. Anything that isn't marked read-only asks you first. Fewer tools work better: up to eight are offered.")
+    Muted("Connect an MCP server (streamable HTTP) and your familiar can use its tools. Anything that isn't marked read-only asks you first. Fewer tools work better: up to eight are offered.")
     servers.forEach { server ->
         Divider()
         ItemRow(

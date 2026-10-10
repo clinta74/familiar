@@ -425,6 +425,33 @@ the NAS's log (`Ignored a transcript that was the familiar's own voice`, event 5
 happens, that log says whether it was this. The other ways are visible or deliberate: no words
 ("I didn't catch that"), a misfire under 0.3 seconds (a cough).
 
+### 29. ~~Work Home Assistant's devices by voice~~ — done (2026-10-09)
+
+Asked 2026-10-09: the familiar should control any device published in Home Assistant, by voice. Until
+now the only way was Home Assistant's MCP server as a generic MCP connection: fifteen-odd tools
+(more than the eight offered), every change asking first, never tried. **Built:** a Home Assistant
+connection of its own (Settings → Connections, web and app: address and a long-lived access token,
+refused unless Home Assistant answers with it; one per account, both encrypted) and one tool,
+`home`. `do` hands a plain-words command to Assist - `POST /api/conversation/process` with Home
+Assistant's built-in agent (`conversation.home_assistant`), not any LLM agent set up there - so it
+reaches exactly the devices exposed to Assist (Settings → Voice assistants → Expose), by their names,
+aliases and rooms, and Assist's own answer comes back ("Turned on the light"). `check` reads how the
+exposed devices are now (one `/api/template` render: state, brightness, set and current temperature,
+position, what's playing), for "did I leave anything on?". Which devices are exposed comes from the
+websocket (`homeassistant/expose_entity/list`, which needs an administrator's token; without it
+commands still work, `check` doesn't), and their names by room go into the tool's description (up to
+1,200 characters) so the model knows the kettle is something it can switch. A name Assist doesn't
+know comes back with the ones it does, for one more try. Changes run without asking, except what lets
+someone in - unlock, disarm, opening a door, the garage or a gate - which asks first (`IRiskPerCall`);
+and after a look-up, as for every change. Home Assistant's MCP server can still be added as before.
+Tried on the real model against a stand-in Home Assistant on the LAN (REST, websocket, a crude
+Assist): kitchen light, kettle, dimming to 30 percent, the hall to 21 degrees, "pause the telly",
+"lock up for the night", "open the garage" (asked first), and "is the TV on?", "how warm is the
+bedroom?", "did I leave anything on?" all checked or done right. Two fixes from that: it guessed the
+bedroom's temperature without asking (the description now says never to guess), and it put the whole
+call in `what` ("check TV", "do, is the TV on?"), which is now read as meant. **Not tried against a
+real Home Assistant** - see "To check".
+
 ---
 
 ## Avatars

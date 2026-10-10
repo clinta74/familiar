@@ -99,7 +99,7 @@ public static class ProtocolCatalog
         typeof(UnsubscribeRequest),
         typeof(PushKeyResponse),
 
-        // Connections: hook tokens, webhooks, MCP servers.
+        // Connections: hook tokens, webhooks, MCP servers, Home Assistant.
         typeof(HookTokenView),
         typeof(NewHookTokenView),
         typeof(NameRequest),
@@ -111,6 +111,9 @@ public static class ProtocolCatalog
         typeof(McpServerView),
         typeof(McpServerRequest),
         typeof(McpToolsRequest),
+        typeof(Home.HomeAssistantView),
+        typeof(Home.HomeDeviceView),
+        typeof(Home.HomeAssistantRequest),
     ];
 }
 

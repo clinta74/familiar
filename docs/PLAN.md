@@ -757,7 +757,9 @@ for the small model's sake); anything not marked read-only asks first. Tools are
 Verified against a real MCP server (the SDK's own, in-process): read tool runs, write tool asks,
 switched-off tool isn't offered. **Not verified:** against Home Assistant's own MCP server (none to
 hand); outbound URLs may be on the LAN by design (Home Assistant lives there), with loopback and
-link-local refused.
+link-local refused. *Later (BACKLOG item 29):* Home Assistant has a connection of its own - one
+`home` tool that hands commands to Assist and reads the exposed devices' states - so working its
+devices doesn't depend on the MCP server.
 
 | Phase | Delivers | Done when |
 |---|---|---|

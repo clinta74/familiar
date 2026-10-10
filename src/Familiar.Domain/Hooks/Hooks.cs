@@ -88,3 +88,29 @@ public sealed class McpServer
 
     public string? LastError { get; set; }
 }
+
+/// <summary>
+/// The account's Home Assistant (BACKLOG item 29): the familiar works the devices exposed to Assist
+/// there, by voice, through Assist itself. One per account.
+/// </summary>
+public sealed class HomeAssistantLink
+{
+    public Guid Id { get; init; } = Guid.CreateVersion7();
+
+    public Guid AccountId { get; init; }
+
+    /// <summary>Encrypted base address, e.g. http://homeassistant.local:8123/.</summary>
+    public required string ProtectedUrl { get; set; }
+
+    /// <summary>Encrypted long-lived access token.</summary>
+    public required string ProtectedToken { get; set; }
+
+    /// <summary>The devices exposed to Assist when last asked, as JSON (id, name, area).</summary>
+    public string DevicesJson { get; set; } = "[]";
+
+    public DateTimeOffset CreatedAt { get; init; }
+
+    public DateTimeOffset? RefreshedAt { get; set; }
+
+    public string? LastError { get; set; }
+}

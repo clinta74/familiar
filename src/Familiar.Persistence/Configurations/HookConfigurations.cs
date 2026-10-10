@@ -47,3 +47,18 @@ internal sealed class McpServerConfiguration : IEntityTypeConfiguration<McpServe
         builder.Property(m => m.LastError).HasMaxLength(500);
     }
 }
+
+internal sealed class HomeAssistantLinkConfiguration : IEntityTypeConfiguration<HomeAssistantLink>
+{
+    public void Configure(EntityTypeBuilder<HomeAssistantLink> builder)
+    {
+        builder.ToTable("HomeAssistantLinks");
+        builder.Property(h => h.Id).HasDefaultValueSql("uuidv7()");
+        builder.HasOne<Account>().WithMany().HasForeignKey(h => h.AccountId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(h => h.AccountId).IsUnique();
+        builder.Property(h => h.ProtectedUrl).IsRequired();
+        builder.Property(h => h.ProtectedToken).IsRequired();
+        builder.Property(h => h.DevicesJson).HasColumnType("jsonb").IsRequired();
+        builder.Property(h => h.LastError).HasMaxLength(500);
+    }
+}

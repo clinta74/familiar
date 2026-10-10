@@ -293,6 +293,41 @@ data class GestureEvent(
 )
 
 @Serializable
+data class HomeAssistantRequest(
+    /** Home Assistant's address, e.g. http://homeassistant.local:8123. */
+    val url: String? = null,
+    /**
+     * A long-lived access token from the Home Assistant profile page. Left out, the saved one is
+     * kept.
+     */
+    val token: String? = null,
+)
+
+/** The account's Home Assistant connection. */
+@Serializable
+data class HomeAssistantView(
+    /** Whether there is one; the rest is empty when not. */
+    val connected: Boolean,
+    /** The host it talks to. */
+    val urlHost: String? = null,
+    /** The devices exposed to Assist, when last asked. */
+    val devices: List<HomeDeviceView>,
+    /** When the devices were last asked for. */
+    val refreshedAt: String? = null,
+    /** Why the last check went wrong, if it did. */
+    val lastError: String? = null,
+)
+
+/** A device Familiar can work, as Settings lists it. */
+@Serializable
+data class HomeDeviceView(
+    /** What Home Assistant calls it. */
+    val name: String,
+    /** Its room, if it has one. */
+    val area: String? = null,
+)
+
+@Serializable
 data class HookTokenView(
     val id: String,
     val name: String,

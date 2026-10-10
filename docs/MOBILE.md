@@ -285,7 +285,7 @@ mode.
 
 **Settings and the studio (2026-10-04).** Everything a user can change on the web, natively: the
 chat menu's Settings has the familiar (name, personality, voice with a preview, saying hello first),
-what it remembers, calendars, connections (hook tokens, webhooks, MCP servers), the account and its
+what it remembers, calendars, connections (Home Assistant, hook tokens, webhooks, MCP servers), the account and its
 password, and devices; and Studio changes the look with the avatar previewing it live (turned round
 in 3D, trying expressions and gestures), VRM uploads through the system's file chooser included.
 Saving updates the chat's name and avatar at once. User administration stays on the web.

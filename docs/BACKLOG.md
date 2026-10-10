@@ -4,7 +4,7 @@ Work that's agreed but not finished, in the order it'll be done. Bigger designs 
 [PLAN.md](PLAN.md) and [MOBILE.md](MOBILE.md). When an item ships, move it to
 [BACKLOG-DONE.md](BACKLOG-DONE.md) under the same number - code comments cite items by number
 ("BACKLOG item 21") - and say what was built and how it was checked. New items take the next
-number: **29**.
+number: **30**.
 
 ---
 
@@ -26,6 +26,11 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
 - **Hands-free hearing you** (item 27): answers that repeat the familiar's words ("yes, set the timer")
   get through; if one still vanishes, the NAS log says why ("Ignored a transcript that was the
   familiar's own voice", or no transcript at all).
+- **Home Assistant** (item 29), against the real one: Settings → Connections → Home Assistant, its
+  address as the NAS reaches it and a long-lived access token (your Home Assistant profile →
+  Security); the devices exposed to Assist should be listed. Then "turn on the kitchen light", a
+  dimmer to a percentage, the heating to a temperature, "is the front door locked?", "did I leave
+  anything on?" - and unlocking should ask first.
 - **"Where am I" on the website** (item 24), on the real site over HTTPS with "Look things up" on:
   the browser asks once to allow location; then "what's the weather where I am?".
 

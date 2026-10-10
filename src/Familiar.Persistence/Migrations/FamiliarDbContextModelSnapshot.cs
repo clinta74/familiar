@@ -490,6 +490,56 @@ namespace Familiar.Persistence.Migrations
                     b.ToTable("familiar_profiles", (string)null);
                 });
 
+            modelBuilder.Entity("Familiar.Domain.Hooks.HomeAssistantLink", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DevicesJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("devices_json");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("last_error");
+
+                    b.Property<string>("ProtectedToken")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("protected_token");
+
+                    b.Property<string>("ProtectedUrl")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("protected_url");
+
+                    b.Property<DateTimeOffset?>("RefreshedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("refreshed_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_home_assistant_links");
+
+                    b.HasIndex("AccountId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_home_assistant_links_account_id");
+
+                    b.ToTable("home_assistant_links", (string)null);
+                });
+
             modelBuilder.Entity("Familiar.Domain.Hooks.HookToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1008,6 +1058,16 @@ namespace Familiar.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_familiar_profiles_accounts_account_id");
+                });
+
+            modelBuilder.Entity("Familiar.Domain.Hooks.HomeAssistantLink", b =>
+                {
+                    b.HasOne("Familiar.Domain.Accounts.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_home_assistant_links_accounts_account_id");
                 });
 
             modelBuilder.Entity("Familiar.Domain.Hooks.HookToken", b =>

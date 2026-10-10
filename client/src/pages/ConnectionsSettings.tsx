@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api/client';
 
-// Hooks (PLAN.md §6.5): other systems making the familiar speak (hook tokens), the familiar telling
-// other systems what happened (webhooks), and other servers' tools for it to use (MCP).
+// Hooks (PLAN.md §6.5): Home Assistant's devices for the familiar to work (BACKLOG item 29), other
+// systems making the familiar speak (hook tokens), the familiar telling other systems what happened
+// (webhooks), and other servers' tools for it to use (MCP).
 
 import type {
+  HomeAssistantRequest,
+  HomeAssistantView,
   HookTokenView as HookToken,
   McpServerRequest,
   McpServerView as McpServer,
@@ -263,8 +266,8 @@ function McpServers() {
     <div className="stack">
       <h3>Tools from MCP servers</h3>
       <p className="muted">
-        Connect an MCP server (streamable HTTP) and your familiar can use its tools — Home Assistant’s MCP server, for
-        instance. Anything that isn’t marked read-only asks you first. Fewer tools work better: up to eight are offered.
+        Connect an MCP server (streamable HTTP) and your familiar can use its tools. Anything that isn’t marked read-only
+        asks you first. Fewer tools work better: up to eight are offered.
       </p>
       {servers.map((s) => (
         <div key={s.id} className="mcp-server">
@@ -315,9 +318,101 @@ function McpServers() {
   );
 }
 
+const notConnected: HomeAssistantView = { connected: false, urlHost: null, devices: [], refreshedAt: null, lastError: null };
+
+function HomeAssistant() {
+  const [home, setHome] = useState<HomeAssistantView | null>(null);
+  const [url, setUrl] = useState('');
+  const [token, setToken] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => void api<HomeAssistantView>('/api/home-assistant').then(setHome).catch(() => undefined), []);
+
+  async function run(action: () => Promise<HomeAssistantView>, failed: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await action();
+      setHome(updated);
+      setEditing(false);
+      setToken('');
+    } catch (e) {
+      setError(message(e, failed));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function connect(event: FormEvent) {
+    event.preventDefault();
+    void run(
+      () => api<HomeAssistantView>('/api/home-assistant', { method: 'PUT', body: { url, token: token || null } satisfies HomeAssistantRequest }),
+      'Couldn’t connect to Home Assistant.',
+    );
+  }
+
+  const rooms = new Map<string, string[]>();
+  for (const d of home?.devices ?? []) rooms.set(d.area ?? 'No room', [...(rooms.get(d.area ?? 'No room') ?? []), d.name]);
+  const connected = home?.connected === true;
+
+  return (
+    <div className="stack">
+      <h3>Home Assistant</h3>
+      <p className="muted">
+        Your familiar can work the devices you’ve exposed to Assist in Home Assistant — “turn off the kitchen light”,
+        “is the garage door open?”. Change which devices in Home Assistant: Settings → Voice assistants → Expose, then
+        refresh here. Unlocking doors and opening the garage ask you first.
+      </p>
+      {connected && home && (
+        <div className="mcp-server">
+          <div className="model-row">
+            <div>
+              <strong>{home.urlHost}</strong>
+              <span className={home.lastError ? 'error small' : 'muted small'}>
+                {' '}· {home.lastError ?? `${home.devices.length} devices`}
+              </span>
+            </div>
+            <span className="row-actions">
+              <button type="button" className="link" disabled={busy}
+                onClick={() => void run(() => api<HomeAssistantView>('/api/home-assistant/refresh', { method: 'POST' }), 'Couldn’t refresh.')}>Refresh</button>
+              <button type="button" className="link" disabled={busy} onClick={() => setEditing((e) => !e)}>Change</button>
+              <button type="button" className="secondary" disabled={busy}
+                onClick={() => void run(async () => { await api('/api/home-assistant', { method: 'DELETE' }); return notConnected; }, 'Couldn’t disconnect.')}>Disconnect</button>
+            </span>
+          </div>
+          {rooms.size > 0 && (
+            <ul className="tool-list">
+              {[...rooms].map(([room, names]) => (
+                <li key={room}><strong>{room}</strong><span className="muted small"> — {names.join(', ')}</span></li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      {(!connected || editing) && (
+        <form className="stack" onSubmit={connect}>
+          <label>
+            Address
+            <input value={url} onChange={(e) => setUrl(e.target.value)} type="url" placeholder="http://homeassistant.local:8123" required />
+          </label>
+          <label>
+            Long-lived access token <span className="muted small">(your Home Assistant profile → Security{connected ? '; leave empty to keep the current one' : ''})</span>
+            <input value={token} onChange={(e) => setToken(e.target.value)} type="password" autoComplete="off" required={!connected} />
+          </label>
+          <button type="submit" disabled={busy || !url} aria-busy={busy}>{busy ? 'Connecting…' : 'Connect'}</button>
+        </form>
+      )}
+      {error && <p className="error" role="alert">{error}</p>}
+    </div>
+  );
+}
+
 export function ConnectionsSettings() {
   return (
     <div className="stack connections">
+      <HomeAssistant />
       <HookTokens />
       <Webhooks />
       <McpServers />
