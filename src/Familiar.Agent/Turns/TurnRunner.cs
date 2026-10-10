@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Familiar.Agent.Expression;
 using Familiar.Agent.Llm;
 using Familiar.Agent.Tools;
@@ -55,10 +56,21 @@ public sealed record TurnResult(string Text, Emotion Emotion, double Intensity, 
 /// model streams again - up to <see cref="MaxToolRounds"/> times, so a confused model can't loop.
 /// Anything it said before calling a tool ("Let me set that…") is part of the reply.
 /// </para>
+/// <para>
+/// A reply that says it's doing something with no tool called ("I'm setting the lamp to fifty
+/// percent") gets one more round, told nothing happened: the model does that now and then however
+/// the prompt words it (BACKLOG item 30), and the user would believe it. By then the claim has been
+/// spoken; what follows is the tool really running, or the model owning up.
+/// </para>
 /// </remarks>
-public sealed class TurnRunner(ILlmClient llm)
+public sealed partial class TurnRunner(ILlmClient llm)
 {
     public const int MaxToolRounds = 4;
+
+    /// <summary>What the model is told when it said it did something without calling a tool.</summary>
+    public const string ClaimedNote =
+        "You just said you'd do that, but you didn't call a tool, so nothing has happened. Call the tool now. " +
+        "If none of your tools can do it, say so plainly instead.";
 
     // Results are read by the model, not a browser: "didn't", not "didn't".
     private static readonly JsonSerializerOptions ToolJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
@@ -108,6 +120,8 @@ public sealed class TurnRunner(ILlmClient llm)
         }
 
         var messages = prompt.ToList();
+        var toolsRan = false;
+        var nudged = false;
 
         try
         {
@@ -135,11 +149,27 @@ public sealed class TurnRunner(ILlmClient llm)
                     }
                 }
 
+                // Said it did something, called nothing: once, it's told so and goes again.
+                if (calls.Count == 0 && offered is not null && !toolsRan && !nudged && ClaimsToAct(raw.ToString()))
+                {
+                    nudged = true;
+                    messages.Add(new ChatMessage(ChatRole.Assistant, raw.ToString()));
+                    messages.Add(new ChatMessage(ChatRole.System, ClaimedNote));
+                    if (spoken.Length > 0 && !char.IsWhiteSpace(spoken[^1]))
+                    {
+                        await Handle(parser.Feed(" "));
+                    }
+
+                    continue;
+                }
+
                 // Calls on the last round (offered nothing) are ignored: it's past time to answer.
                 if (calls.Count == 0 || offered is null || tools is null || toolContext is null)
                 {
                     break;
                 }
+
+                toolsRan = true;
 
                 messages.Add(new ChatMessage(ChatRole.Assistant, raw.ToString(), calls));
                 foreach (var call in calls)
@@ -179,4 +209,17 @@ public sealed class TurnRunner(ILlmClient llm)
 
         return new TurnResult(text, emotion, intensity, EmotionWasTagged: false, interrupted);
     }
+
+    /// <summary>
+    /// Whether a reply says the familiar is doing, or has done, something only a tool could: "I've
+    /// turned on", "I'm setting", "I'll remind you". Not "I can't", nor what the user did.
+    /// </summary>
+    public static bool ClaimsToAct(string reply) => Claim().IsMatch(reply);
+
+    [GeneratedRegex(
+        @"\bI(?:'ve|’ve| have|'m|’m| am|'ll|’ll| will)\s+(?:just\s+|now\s+|gone\s+and\s+|also\s+)?" +
+        @"(?:turn|switch|set|chang|dim|brighten|light|lock|unlock|open|clos|shut|start|stop|paus|play|resum|" +
+        @"add|creat|put|schedul|remind|cancel|delet|remov|send|text|call|book|mov|adjust|rais|lower|boil)",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex Claim();
 }

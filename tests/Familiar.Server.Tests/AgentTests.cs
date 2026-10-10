@@ -246,6 +246,17 @@ public sealed class TurnRunnerTests
         Assert.Equal([new SoundMade(SoundEffect.Tada)], events.OfType<SoundMade>());
     }
 
+    [Theory]
+    [InlineData("You got it! I'm setting Hydra Lamp One to fifty percent brightness for you now.", true)]
+    [InlineData("I've turned on the kitchen light.", true)]
+    [InlineData("I’ll remind you at six.", true)]
+    [InlineData("I have just changed it to green.", true)]
+    [InlineData("I can't change the colour of that lamp.", false)]
+    [InlineData("You've turned it on already, I think.", false)]
+    [InlineData("I'm so glad you're awake!", false)]
+    public void A_reply_that_says_it_did_something_is_spotted(string reply, bool claims) =>
+        Assert.Equal(claims, TurnRunner.ClaimsToAct(reply));
+
     [Fact]
     public async Task A_model_that_is_down_surfaces_as_unavailable() =>
         await Assert.ThrowsAsync<LlmUnavailableException>(() => Run(new FakeLlm { Down = true }));

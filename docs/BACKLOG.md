@@ -4,7 +4,7 @@ Work that's agreed but not finished, in the order it'll be done. Bigger designs 
 [PLAN.md](PLAN.md) and [MOBILE.md](MOBILE.md). When an item ships, move it to
 [BACKLOG-DONE.md](BACKLOG-DONE.md) under the same number - code comments cite items by number
 ("BACKLOG item 21") - and say what was built and how it was checked. New items take the next
-number: **30**.
+number: **31**.
 
 ---
 
@@ -30,7 +30,8 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
   address as the NAS reaches it and a long-lived access token (your Home Assistant profile →
   Security); the devices exposed to Assist should be listed. Then "turn on the kitchen light", a
   dimmer to a percentage, the heating to a temperature, "is the front door locked?", "did I leave
-  anything on?" - and unlocking should ask first.
+  anything on?" - and unlocking should ask first. Brightness and colour (item 30): "set it to 50
+  percent", "make it green" after naming a lamp.
 - **"Where am I" on the website** (item 24), on the real site over HTTPS with "Look things up" on:
   the browser asks once to allow location; then "what's the weather where I am?".
 

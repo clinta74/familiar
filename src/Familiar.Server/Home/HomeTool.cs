@@ -29,11 +29,12 @@ public sealed partial class HomeTool(HomeAssistant home, HomeAssistantLink link)
 
     public ToolDefinition Definition => new(
         "home",
-        "Works the user's smart home through Home Assistant: switches lights and plugs on and off, dims them, sets " +
-        "the heating, opens and closes blinds, locks doors, plays and pauses media, and says how things are. Never " +
-        "guess how anything in the house is - a temperature, whether something's on - ask it. " +
+        "Works the user's smart home through Home Assistant: switches lights and plugs on and off, sets a light's " +
+        "brightness or colour, sets the heating, opens and closes blinds, locks doors, plays and pauses media, and " +
+        "says how things are. Never guess how anything in the house is - a temperature, whether something's on - ask it. " +
         "do: say the command simply, as you would to a smart speaker, naming the device or room (\"turn off the " +
-        "kitchen light\", \"set the bedroom to 20 degrees\", \"is the garage door open\"). check: how things are " +
+        "kitchen light\", \"set the desk lamp brightness to 50%\", \"set the desk lamp to green\", \"is the garage door open\"); " +
+        "each change is a new call, and say the device's name, never \"it\". check: how things are " +
         "now, in a room or the whole house." + Listed(),
         ToolSchema.Object(
             ["what"],
@@ -78,10 +79,18 @@ public sealed partial class HomeTool(HomeAssistant home, HomeAssistantLink link)
         var answer = await home.AssistAsync(link, command, ct);
         if (!answer.Ok)
         {
-            // Mostly a name it didn't know: say what there is, so one more try can use a real one.
-            var hint = answer.Code is "no_intent_match" or "no_valid_targets" && _devices.Count > 0
-                ? $" It knows these: {string.Join("; ", Rooms(_devices))}. If one of them is what the user meant, call home again now with its name; if none is, tell the user."
-                : " Tell the user it didn't work.";
+            // A name it didn't know, or wording it doesn't: say what there is and how Assist likes to
+            // be asked, so one more try can get it right.
+            var hint = answer.Code switch
+            {
+                "no_valid_targets" when _devices.Count > 0 =>
+                    $" It knows these: {string.Join("; ", Rooms(_devices))}. If one of them is what the user meant, call home again now with its name; if none is, tell the user.",
+                "no_intent_match" =>
+                    " It didn't follow the wording. Call home again now, worded its way: \"turn on the <device>\", " +
+                    "\"set the <device> brightness to 50%\", \"set the <device> to green\", \"set the temperature in the <room> to 21\", " +
+                    "\"is the <device> on\"" + (_devices.Count > 0 ? $". Its devices: {string.Join("; ", Rooms(_devices))}." : "."),
+                _ => " Tell the user it didn't work.",
+            };
             return ToolResult.Failure($"Home Assistant said: “{answer.Speech}”.{hint}", "Home Assistant didn't understand");
         }
 

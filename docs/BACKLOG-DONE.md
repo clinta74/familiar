@@ -452,6 +452,22 @@ bedroom's temperature without asking (the description now says never to guess), 
 call in `what` ("check TV", "do, is the TV on?"), which is now read as meant. **Not tried against a
 real Home Assistant** - see "To check".
 
+### 30. ~~"Set it to 50%" answered as done, and nothing happened~~ — fixed (2026-10-10)
+
+Reported 2026-10-10 on the real Home Assistant: "turn on Hydra Lamp One" worked, but "set it to 50
+percent brightness" and "set Hydra Lamp One to green" were answered "I'm setting it now" with no tool
+called, so nothing changed. **Fixed, two ways.** The `home` description now names brightness and
+colour, with examples in the wording Assist knows ("set the desk lamp brightness to 50%", "set the
+desk lamp to green"), and says each change is a new call naming the device, never "it". And for every
+tool, not just this one: a reply that says it's doing or has done something ("I'm setting", "I've
+turned on", "I'll remind you") with no tool called gets one more round, told nothing happened and to
+call the tool now or say it can't (`TurnRunner.ClaimsToAct`). The claim has been spoken by then; what
+follows is the tool really running. Also, when Assist doesn't follow the wording (`no_intent_match`)
+the result gives the model its sentence shapes to try once more. Tried on the real model against the
+stand-in with a Hydra Lamp One: the reported conversation, then "make it blue" and "turn it off",
+twice through - every change reached Home Assistant, with "it" replaced by the lamp's name, and
+brightness worded "set Hydra Lamp One brightness to 50%".
+
 ---
 
 ## Avatars

@@ -168,6 +168,8 @@ public sealed partial class HomeAssistantTests(PostgresFixture postgres)
         });
         app.Llm
             .ThenCall("home", """{"what": "do", "command": "turn off the kitchen light"}""").ThenSay("[joy:0.5] Kitchen's dark.")
+            .ThenSay("[joy:0.5] I'm setting the kitchen light to fifty percent for you now.")
+            .ThenCall("home", """{"what": "do", "command": "set the kitchen light to 50%"}""").ThenSay("[joy:0.5] Done.")
             .ThenCall("home", """{"what": "check everywhere"}""").ThenSay("[relaxed:0.5] The kitchen light's on.")
             .ThenCall("home", """{"what": "do", "command": "turn on the lounge lamp"}""").ThenSay("[sad:0.4] There's no lounge lamp.")
             .ThenCall("home", """{"what": "do", "command": "unlock the front door"}""").ThenSay("[relaxed:0.5] Unlocked.");
@@ -198,6 +200,12 @@ public sealed partial class HomeAssistantTests(PostgresFixture postgres)
         Assert.DoesNotContain("Heater", home.Description, StringComparison.Ordinal);
         Assert.Equal(("turn off the kitchen light", HomeAssistant.AgentId), house.Commands[^1]);
         Assert.Contains("Kitchen light", app.Llm.LastPrompt!.Last(m => m.Role == ChatRole.Tool).Content, StringComparison.Ordinal);
+
+        // Said it was doing it, called nothing (BACKLOG item 30): it's told, and does.
+        await client.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("set it to 50 percent", "UTC"));
+        await stream.ReadUntilStateAsync(FamiliarState.Idle);
+        Assert.Equal("set the kitchen light to 50%", house.Commands[^1].Text);
+        Assert.Contains(app.Llm.LastPrompt!, m => m.Role == ChatRole.System && m.Content == Familiar.Agent.Turns.TurnRunner.ClaimedNote);
 
         // Checking reads the exposed devices' states - and the model often puts it all in "what".
         await client.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("did I leave anything on?", "UTC"));
