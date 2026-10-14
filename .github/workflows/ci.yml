@@ -67,11 +67,15 @@ jobs:
       # Compose 1.12 compiles against API 37; the runner image may not have it yet.
       - run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" > /dev/null
       - run: ./gradlew :shared:testAndroidHostTest :androidApp:assembleDebug --console=plain
+      # Handy for a look, not for keeping: every push makes one (~28 MB) and the account's artifact
+      # storage filled up at 30 days each. Releases carry the APK to install. A full store
+      # doesn't fail the build.
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: familiar-android-debug
           path: mobile/androidApp/build/outputs/apk/debug/*.apk
-          retention-days: 30
+          retention-days: 3
 
   # A version tag (v1.2.3) publishes a GitHub release with the APK signed by the release key, to
   # sideload and update over (docs/RELEASING.md). The key is the repository's ANDROID_* secrets.
