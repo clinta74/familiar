@@ -148,11 +148,32 @@ public sealed class PromptBuilderTests
 
         var prompt = PromptBuilder.Build(Context(history));
 
-        Assert.Equal([ChatRole.System, ChatRole.User, ChatRole.Assistant, ChatRole.Assistant, ChatRole.User], prompt.Select(m => m.Role));
+        Assert.Equal([ChatRole.System, ChatRole.System, ChatRole.User, ChatRole.Assistant, ChatRole.Assistant, ChatRole.User], prompt.Select(m => m.Role));
         Assert.Contains("You are Pip, alice's familiar", prompt[0].Content, StringComparison.Ordinal);
-        Assert.Equal("[joy:0.8] Hello!", prompt[2].Content);
-        Assert.Equal("[neutral:0.5] As I was say…", prompt[3].Content);
-        Assert.Equal("(Thursday night, 1 October 2026, half past ten (10:30 PM)) What's up?", prompt[4].Content);
+        Assert.Equal("(Said Monday 1 January, from 12:00 AM)", prompt[1].Content);
+        Assert.Equal("[joy:0.8] Hello!", prompt[3].Content);
+        Assert.Equal("[neutral:0.5] As I was say…", prompt[4].Content);
+        Assert.Equal("(Thursday night, 1 October 2026, half past ten (10:30 PM)) What's up?", prompt[5].Content);
+    }
+
+    [Fact]
+    public void Earlier_talk_is_marked_with_when_it_was_said()
+    {
+        // BACKLOG item 31: yesterday's "your appointment's tomorrow", replayed bare, read as today's.
+        var monday = new DateTimeOffset(2026, 10, 12, 20, 15, 0, TimeSpan.Zero);
+        Message[] history =
+        [
+            new() { Role = MessageRole.User, Content = "What's on tomorrow?", CreatedAt = monday },
+            new() { Role = MessageRole.Assistant, Content = "Your sleep doctor, tomorrow at 4.", CreatedAt = monday.AddMinutes(1) },
+            new() { Role = MessageRole.User, Content = "Thanks", CreatedAt = monday.AddMinutes(20) },
+            new() { Role = MessageRole.Assistant, Content = "Morning!", CreatedAt = monday.AddHours(12) },
+            new() { Role = MessageRole.User, Content = "Hi", CreatedAt = monday.AddHours(12.1) },
+            new() { Role = MessageRole.User, Content = "Back again", CreatedAt = monday.AddHours(16) },
+        ];
+
+        var markers = PromptBuilder.Build(Context(history)).Where(m => m.Role == ChatRole.System).Skip(1).Select(m => m.Content);
+
+        Assert.Equal(["(Said Monday 12 October, from 8:15 PM)", "(Said Tuesday 13 October, from 8:15 AM)", "(Said Tuesday 13 October, from 12:15 PM)"], markers);
     }
 
     [Fact]

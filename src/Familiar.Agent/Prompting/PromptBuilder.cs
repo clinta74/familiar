@@ -81,13 +81,17 @@ public static class PromptBuilder
         context for you, not something the user said. Bring them up when they matter (a meeting in
         ten minutes is worth a mention); otherwise don't repeat them, and never mention the same thing
         twice. If they ask what's on their calendar, look with list_events.
+        Earlier parts of the conversation are marked with when they were said, like (Said Monday 12
+        October, from 8:15 PM). Today, tonight and tomorrow in them meant then, not now: go by the
+        current time in the newest notes. Something that was coming up then may well be over.
         A previous reply of yours ending in "…" was cut off by the user before you finished.
         """;
 
     /// <summary>Asked to speak first, with nothing from the user: a greeting (PLAN.md §6.3).</summary>
     public const string GreetingCue =
         "[They've just opened the app and haven't said anything yet. Greet them in a sentence or two, the way a " +
-        "friend would after however long it's been. If something in the notes is coming up soon, mention it. If " +
+        "friend would after however long it's been. If something in the notes is coming up soon, mention it; only " +
+        "what's in these notes is still to come - plans from earlier in the conversation may be over. If " +
         "today's weather is in the notes and worth knowing (rain, snow, a hot or cold day), mention that briefly too.]";
 
     public static IReadOnlyList<ChatMessage> Build(PromptContext context) => Assemble(context, context.UserText);
@@ -102,8 +106,17 @@ public static class PromptBuilder
             new(ChatRole.System, SystemMessage(context)),
         };
 
+        DateTimeOffset? previous = null;
         foreach (var message in context.History)
         {
+            // When it was said, at the start and after a new day or a long gap: replayed bare,
+            // yesterday's "your appointment's tomorrow" read as said just now (BACKLOG item 31).
+            if (SaidMarker(message.CreatedAt, previous, context.TimeZone) is { } said)
+            {
+                messages.Add(new ChatMessage(ChatRole.System, said));
+            }
+
+            previous = message.CreatedAt;
             messages.Add(message.Role == MessageRole.User
                 ? new ChatMessage(ChatRole.User, message.Content)
                 : new ChatMessage(ChatRole.Assistant, AsTheModelWroteIt(message)));
@@ -112,6 +125,25 @@ public static class PromptBuilder
         var notes = context.Notes is { Count: > 0 } n ? ". " + string.Join(" ", n).TrimEnd('.') : "";
         messages.Add(new ChatMessage(ChatRole.User, $"({Situation(context.Now, context.TimeZone)}{notes}) {last}"));
         return messages;
+    }
+
+    /// <summary>A gap this long in the history gets a marker saying when the talking picked up again.</summary>
+    internal static readonly TimeSpan MarkedGap = TimeSpan.FromHours(3);
+
+    /// <summary>
+    /// "(Said Monday 12 October, from 8:15 PM)" before a message that starts the history, a new day,
+    /// or talking again after <see cref="MarkedGap"/>; null otherwise. Dates, not "yesterday", so a
+    /// marker never changes and the prompt cache holds.
+    /// </summary>
+    internal static string? SaidMarker(DateTimeOffset at, DateTimeOffset? previous, TimeZoneInfo zone)
+    {
+        var local = TimeZoneInfo.ConvertTime(at, zone);
+        if (previous is { } before && at - before < MarkedGap && TimeZoneInfo.ConvertTime(before, zone).Date == local.Date)
+        {
+            return null;
+        }
+
+        return string.Create(CultureInfo.InvariantCulture, $"(Said {local:dddd d MMMM}, from {local:h:mm tt})");
     }
 
     /// <summary>

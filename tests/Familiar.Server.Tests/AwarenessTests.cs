@@ -254,6 +254,28 @@ public sealed class AwarenessTests(PostgresFixture postgres)
         Assert.DoesNotContain("first time", last, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Coming_back_in_the_evening_what_was_on_earlier_is_over()
+    {
+        // BACKLOG item 31: a 4 PM appointment, greeted at 9 PM as "tomorrow".
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        await SignedInAsync(app);
+        var accountId = await AccountIdAsync(app, "aware");
+        var now = DateTimeOffset.UtcNow;
+        var hours = (21 - now.UtcDateTime.Hour + 36) % 24 - 12;
+        var evening = TimeZoneInfo.CreateCustomTimeZone("Evening", TimeSpan.FromHours(hours), "Evening", "Evening");
+        var calendar = app.Services.GetRequiredService<CalendarStore>();
+        await calendar.AddLocalEventAsync(accountId, "Sleep doctor", now.AddHours(-5), now.AddHours(-4), false, default);
+        await calendar.AddLocalEventAsync(accountId, "Dentist", now.AddHours(1), now.AddHours(2), false, default);
+
+        var situation = await app.Services.GetRequiredService<SituationProvider>().ForAsync(accountId, evening, now, now, default);
+
+        var over = Assert.Single(situation.Notes, n => n.StartsWith("Already over today:", StringComparison.Ordinal));
+        Assert.Contains("Sleep doctor at ", over, StringComparison.Ordinal);
+        Assert.DoesNotContain("Dentist", over, StringComparison.Ordinal);
+        Assert.Contains(situation.Notes, n => n.Contains("Dentist", StringComparison.Ordinal) && n.StartsWith("On their calendar", StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData(40, 45, false)] // Not yet within half an hour.
     [InlineData(25, 35, true)] // Came within it since they last spoke: mentioned once...

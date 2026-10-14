@@ -468,6 +468,22 @@ stand-in with a Hydra Lamp One: the reported conversation, then "make it blue" a
 twice through - every change reached Home Assistant, with "it" replaced by the lamp's name, and
 brightness worded "set Hydra Lamp One brightness to 50%".
 
+### 31. ~~Coming back later, an appointment that's over is "tomorrow"~~ — fixed, cause not pinned down (2026-10-13)
+
+Reported 2026-10-13: opening the app at about 9 PM, the greeting said "your sleep doctor appointment
+tomorrow" - it had been at 4 PM that day - and, told, it guessed "happening right now". The calendar
+notes only list what hasn't ended, so the idea came from somewhere else: the conversation history
+(replayed with no times, yesterday's "it's tomorrow" reads as said just now), or a memory (the memory
+pass kept "plans or dates that matter"). Neither reproduced it on the dev server with the real model -
+history alone, a memory alone, or both - so it's fixed on every front: **the history is marked with
+when it was said** ("(Said Monday 12 October, from 8:15 PM)", a system message at the start, after a
+new day, and after three hours apart; dates, not "yesterday", so the prompt cache holds), with a
+rule that today and tomorrow in them meant then; **coming back after a while, the notes say what's
+already over today** ("Already over today: Sleep doctor at 4:00 PM"); the greeting is told only the
+notes' plans are still to come; and the memory pass leaves out one-off appointments (they're on the
+calendar). Tried with the appointment on the calendar, yesterday's "tomorrow" in the history and a
+dated memory: four greetings at 9:43 PM, none said it was to come, one asked how it went.
+
 ---
 
 ## Avatars

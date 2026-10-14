@@ -91,6 +91,23 @@ public sealed class SituationProvider(
             notes.Add(catchingUp ? $"On their calendar: {string.Join("; ", upcoming)}." : $"Starting soon on their calendar: {string.Join("; ", upcoming)}.");
         }
 
+        // And what's been and gone since this morning: an appointment talked about yesterday as
+        // "tomorrow" was greeted that evening as still to come (BACKLOG item 31).
+        if (catchingUp)
+        {
+            var today = TimeZoneInfo.ConvertTime(now, zone).Date;
+            var startOfDay = new DateTimeOffset(today, zone.GetUtcOffset(today)).ToUniversalTime();
+            var over = (await calendars.BetweenAsync(accountId, startOfDay, now, ct))
+                .Where(e => !e.AllDay && e.StartsAt >= startOfDay && e.EndsAt <= now)
+                .TakeLast(3)
+                .Select(e => $"{e.Title} {Spoken.When(e.StartsAt, zone, now)}")
+                .ToList();
+            if (over.Count > 0)
+            {
+                notes.Add($"Already over today: {string.Join("; ", over)}.");
+            }
+        }
+
         var pending = await scheduler.PendingAsync(accountId, null, ct);
         var running = pending
             .Where(j => j.Kind == JobKind.Timer || (catchingUp ? j.DueAt - now < Soon : JustImminent(j.DueAt, now, lastSpoke)))

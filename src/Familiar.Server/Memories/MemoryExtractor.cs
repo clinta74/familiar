@@ -51,8 +51,9 @@ public sealed partial class MemoryExtractor(
         people and pets in their life, their likes and dislikes, routines, work, health matters they
         mention, and plans or dates that matter to them.
 
-        Leave out: small talk, passing moods, anything only relevant today, requests made to the
-        companion (timers, reminders, questions), anything the companion said about itself, phone
+        Leave out: small talk, passing moods, anything only relevant today, one-off appointments and
+        plans that will soon be over (they're on the calendar), requests made to the companion
+        (timers, reminders, questions), anything the companion said about itself, phone
         numbers, addresses and other contact details (they're in the phone's contacts, not for
         remembering), and anything already remembered (listed first).
 
