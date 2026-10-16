@@ -52,6 +52,17 @@ Ideas that came up and were set aside - not agreed. Each would need asking about
 - **Singing:** Kokoro's speech pitched to a tune, for short set pieces like "happy birthday"
   (item 14's original notes).
 - **30 fps when idle**, if battery matters in long hands-free sessions (item 8).
+- **A "System One" decision model** (typed choice / yes-no answers with calibrated probabilities, no
+  text): TypeSafe's Jev, and the open ones listed at github.com/yanng981/awesome-system-one. Looked
+  at 2026-10-16 and set aside: Jev is cloud-only, against keeping everything on our hardware; none of
+  them fill in free-form arguments (the `home` command, a timer's length, a text), so gemma still has
+  to; choosing among ~23 tools is where the small open ones are weakest (Laya 0.425 on a 77-label set,
+  against Jev's 0.870); and the server's risk classes, confirmations, allow-lists, dates and sums are
+  rules in code on purpose, not a model's judgement. The one narrow fit: a small CPU encoder (Laya,
+  Von, OpenDecider nano; ONNX, callable from .NET, under 100 ms) answering yes/no checks on a reply -
+  "does this claim an action that wasn't taken?" (now the regex in `TurnRunner.ClaimsToAct`, item 30)
+  or "worth remembering?". Only if the regex starts missing claims in real use; first score a few
+  hundred replies offline against it.
 
 ---
 
