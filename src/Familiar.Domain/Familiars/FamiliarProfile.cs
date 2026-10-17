@@ -68,10 +68,23 @@ public sealed class FamiliarProfile
     public bool LookUps { get; set; }
 
     /// <summary>
-    /// Where the user lives, as they put it ("Leeds"), for the weather when they don't say where. Only
-    /// the weather look-up reads it; it's never put into the prompt.
+    /// Where the user lives, as it's said: "Warren, Michigan, United States" for a place picked in
+    /// Settings, or as they typed it ("Leeds") before places were picked (BACKLOG item 32). The model
+    /// is told it; the look-ups use <see cref="HomeLatitude"/> and <see cref="HomeLongitude"/> when
+    /// they're known, and find the place by this name when they aren't.
     /// </summary>
     public string? HomePlace { get; set; }
+
+    /// <summary>The picked place's latitude, rounded to about a kilometre; null for a typed-in home.</summary>
+    public double? HomeLatitude { get; set; }
+
+    public double? HomeLongitude { get; set; }
+
+    /// <summary>Its country, as ISO 3166 alpha-2 ("US"): units, holidays.</summary>
+    public string? HomeCountryCode { get; set; }
+
+    /// <summary>Its state, province or nation ("Michigan", "England"): regional holidays.</summary>
+    public string? HomeRegion { get; set; }
 
     /// <summary>When it last spoke first, so it doesn't greet every time a tab is opened.</summary>
     public DateTimeOffset? LastGreetedAt { get; set; }

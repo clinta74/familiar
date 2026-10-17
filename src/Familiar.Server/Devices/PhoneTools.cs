@@ -215,6 +215,22 @@ public sealed class WhereAmITool(DeviceTools devices) : PhoneTool(devices)
 
     public override string Describe(JsonObject arguments) => "Check where the phone is";
 
-    public override Task<ToolResult> InvokeAsync(ToolContext context, JsonObject arguments, CancellationToken ct) =>
-        AskPhoneAsync(context, [], r => $"Location: {Said(r, "place") ?? (r["coordinates"] is null ? "found" : "from the browser")}", ct);
+    public override async Task<ToolResult> InvokeAsync(ToolContext context, JsonObject arguments, CancellationToken ct)
+    {
+        var found = await AskPhoneAsync(context, [], r => $"Location: {Said(r, "place") ?? (r["coordinates"] is null ? "found" : "from the browser")}", ct);
+        if (found.Ok || string.IsNullOrWhiteSpace(context.HomePlace))
+        {
+            return found;
+        }
+
+        // The device wouldn't or couldn't say: home will usually do (BACKLOG item 32). Stopping there
+        // left "who are the candidates for me?" with no answer when it knew where they live.
+        return ToolResult.Success(new JsonObject
+        {
+            ["ok"] = true,
+            ["home"] = context.HomePlace,
+            ["note"] = $"The device couldn't say where it is ({found.Data["error"]?.GetValue<string>()}). They live in {context.HomePlace}: " +
+                "go by that, and mention you're assuming home, unless they say they're somewhere else.",
+        }, "Location: home");
+    }
 }

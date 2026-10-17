@@ -859,6 +859,17 @@
             "null"
           ],
           "default": null
+        },
+        "home": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlaceView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -1516,6 +1527,55 @@
         "kind",
         "label",
         "text"
+      ]
+    },
+    "PlaceView": {
+      "description": "A place to pick as home: one of the matches for a name, or where the device is.",
+      "type": "object",
+      "properties": {
+        "label": {
+          "description": "How it's said and shown: \"Warren, Michigan, United States\".",
+          "type": "string"
+        },
+        "name": {
+          "description": "The town: \"Warren\".",
+          "type": "string"
+        },
+        "region": {
+          "description": "Its state, province or nation (\"Michigan\"), if it has one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "country": {
+          "description": "\"United States\".",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "countryCode": {
+          "description": "ISO 3166 alpha-2: \"US\".",
+          "type": "string"
+        },
+        "latitude": {
+          "description": "Rounded to two places, about a kilometre.",
+          "type": "number"
+        },
+        "longitude": {
+          "description": "Rounded to two places, about a kilometre.",
+          "type": "number"
+        }
+      },
+      "required": [
+        "label",
+        "name",
+        "region",
+        "country",
+        "countryCode",
+        "latitude",
+        "longitude"
       ]
     },
     "PushKeyResponse": {

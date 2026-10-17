@@ -20,6 +20,8 @@ internal sealed class FamiliarProfileConfiguration : IEntityTypeConfiguration<Fa
         builder.Property(p => p.Name).HasMaxLength(FamiliarProfile.MaxNameLength).IsRequired();
         builder.Property(p => p.UserNickname).HasMaxLength(FamiliarProfile.MaxNameLength);
         builder.Property(p => p.HomePlace).HasMaxLength(FamiliarProfile.MaxHomePlaceLength);
+        builder.Property(p => p.HomeCountryCode).HasMaxLength(2);
+        builder.Property(p => p.HomeRegion).HasMaxLength(FamiliarProfile.MaxHomePlaceLength);
         builder.Property(p => p.Voice).HasMaxLength(FamiliarProfile.MaxVoiceLength);
         builder.Property(p => p.VoiceSpeed).HasDefaultValue(1.0);
         builder.Property(p => p.Appearance).HasColumnType("jsonb");

@@ -54,6 +54,11 @@ internal sealed class OutsideServices : HttpMessageHandler
 
     private const string DollarRates = """{"amount":1.0,"base":"USD","date":"2026-10-05","rates":{"EUR":0.88739,"GBP":0.75322,"JPY":148.21}}""";
 
+    /// <summary>OpenStreetMap's Nominatim, the town at some coordinates (BACKLOG item 32).</summary>
+    public string Nominatim { get; set; } = """
+        {"lat":"42.49","lon":"-83.02","address":{"city":"Warren","county":"Macomb County","state":"Michigan","country":"United States","country_code":"us"}}
+        """;
+
     /// <summary>Wikipedia answers "busy" (429) when set.</summary>
     public bool WikipediaBusy { get; set; }
 
@@ -106,6 +111,7 @@ internal sealed class OutsideServices : HttpMessageHandler
         {
             "geocoding-api.open-meteo.com" => (HttpStatusCode.OK, Geocoding),
             "api.open-meteo.com" => (HttpStatusCode.OK, Forecast),
+            "nominatim.openstreetmap.org" => (HttpStatusCode.OK, Nominatim),
             "en.wiktionary.org" when uri.AbsolutePath.EndsWith("/petrichor", StringComparison.Ordinal) => (HttpStatusCode.OK, Definition),
             "en.wikipedia.org" when WikipediaBusy => (HttpStatusCode.TooManyRequests, "{}"),
             "en.wikipedia.org" when uri.AbsolutePath.EndsWith("/search/page", StringComparison.Ordinal) =>
@@ -509,8 +515,8 @@ public sealed class LookUpTests(PostgresFixture postgres)
 
             var prompt = string.Join(" ", app.Llm.LastPrompt!.Select(m => m.Content));
             Assert.Equal(lookUps, prompt.Contains("Weather where they live today: light rain", StringComparison.Ordinal));
-            // Where they live goes to the weather service, never into the prompt.
-            Assert.DoesNotContain("Portland", prompt, StringComparison.Ordinal);
+            // Where they live is the user's to tell it, look-ups or not (BACKLOG item 32).
+            Assert.Contains("They live in Portland, Oregon.", prompt, StringComparison.Ordinal);
         }
     }
 

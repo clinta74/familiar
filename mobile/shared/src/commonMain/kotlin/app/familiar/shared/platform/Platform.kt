@@ -90,6 +90,12 @@ interface DevicePhone {
 
     /** Roughly where the phone is, as a place ("Headingley, Leeds"). */
     suspend fun place(): String
+
+    /**
+     * Where the phone is, as latitude and longitude, for picking home in Settings (BACKLOG item 32).
+     * Throws with a message to show when it can't say (not allowed, location off).
+     */
+    suspend fun position(): Pair<Double, Double>
 }
 
 /** A contact's number, and what kind it is ("mobile", "work"). */

@@ -20,6 +20,9 @@ public sealed class LookUpHosts : DelegatingHandler
         "date.nager.at",
         "air-quality-api.open-meteo.com",
         "api.frankfurter.dev",
+        // The town at some coordinates, for Settings' "use my current location" only (BACKLOG item 32):
+        // Open-Meteo can't go from coordinates to a name. Never a model's tool.
+        "nominatim.openstreetmap.org",
     };
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

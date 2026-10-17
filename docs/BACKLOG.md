@@ -32,6 +32,9 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
   dimmer to a percentage, the heating to a temperature, "is the front door locked?", "did I leave
   anything on?" - and unlocking should ask first. Brightness and colour (item 30): "set it to 50
   percent", "make it green" after naming a lamp.
+- **Where you live, picked** (item 32): in the app, Settings → Your familiar → Where you live:
+  search for the town and pick it, or "Use my location"; then "do I need a coat?" and "where do I
+  live?". A home typed in before shows as "typed, not picked" until it's picked.
 - **"Where am I" on the website** (item 24), on the real site over HTTPS with "Look things up" on:
   the browser asks once to allow location; then "what's the weather where I am?".
 
@@ -74,29 +77,7 @@ it knew from the weather, it said "Warren" and guessed Ohio (it's Warren, Michig
 congressional district from memory, then offered to "look up that link" and gave none. Four of eight
 exchanges went on finding out where he lives, which it could have known from the start; the district
 was guessed, not found; and it offered something no tool can do. The order below is the suggested
-order: 32 fixes most of that chat on its own.
-
-### 32. Know where they live, exactly
-
-Today "Where you live" is free text ("Warren"), geocoded again by each look-up, and kept out of the
-prompt on purpose (item 15) - so the model doesn't know it, and Open-Meteo's pick for a bare "Warren"
-is whichever is first.
-
-- **Settings picks a real place:** type a town and choose from the matches ("Warren, Michigan, US" /
-  "Warren, Ohio, US"), or **"Use my current location"** - the browser's or phone's location, turned
-  into town, region and country. Stored as name, region, country, coordinates rounded to ~1 km, and
-  time zone. The weather, air quality and holidays use the coordinates, never re-guessing the text.
-- **The model is told the town:** "They live in Warren, Michigan, United States." in the system
-  message (town and region only, never coordinates). This reverses item 15's choice: the town may now
-  go into a look-up when it's relevant ("2026 Michigan elections"), which is what the user is asking
-  for. The model is local; nothing else changes about what leaves the house.
-- **Where am I falls back:** when the browser or phone can't or won't say, `where_am_i` answers with
-  home ("Their browser won't share its location; they live in Warren, Michigan - go by that unless
-  they say they're elsewhere") instead of stopping.
-- **The website asks properly:** a "Share location while chatting" switch in Settings that prompts
-  the browser once, and says how to undo a refusal in that browser's site settings when it was
-  blocked. Current location stays per-turn, never stored.
-- Existing free-text homes are geocoded once on upgrade and shown for the user to confirm.
+order. 32 is done (BACKLOG-DONE.md).
 
 ### 33. Find local facts, not guess them
 

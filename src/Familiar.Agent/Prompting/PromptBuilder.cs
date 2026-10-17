@@ -17,7 +17,8 @@ public sealed record PromptContext(
     TimeZoneInfo TimeZone,
     IReadOnlyList<string>? Notes = null,
     IReadOnlyList<string>? Memories = null,
-    string? Look = null);
+    string? Look = null,
+    string? Home = null);
 
 /// <summary>
 /// Builds the messages for one turn, always in the same order - most stable first, most variable
@@ -154,6 +155,16 @@ public static class PromptBuilder
     {
         var text = new StringBuilder();
         text.Append(Persona(context.Profile, context.Username, context.Look)).Append("\n\n").Append(Rules);
+
+        // Where they live (BACKLOG item 32): asked about anything local - the weather, who's standing
+        // in their district - it asked which town, then guessed the wrong Warren. Theirs to set, so it
+        // changes as seldom as the persona does.
+        if (!string.IsNullOrWhiteSpace(context.Home))
+        {
+            text.Append(CultureInfo.InvariantCulture, $"\n\nThey live in {context.Home.Trim()}.")
+                .Append(" When an answer depends on where they are - the weather, an election, local services, what's near - it's there: ")
+                .Append("don't ask where, unless they say they're somewhere else.");
+        }
 
         if (context.Memories is { Count: > 0 } memories)
         {

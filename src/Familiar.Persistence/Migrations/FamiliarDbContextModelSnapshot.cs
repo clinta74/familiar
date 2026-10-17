@@ -425,10 +425,28 @@ namespace Familiar.Persistence.Migrations
                         .HasColumnType("double precision")
                         .HasColumnName("formality");
 
+                    b.Property<string>("HomeCountryCode")
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)")
+                        .HasColumnName("home_country_code");
+
+                    b.Property<double?>("HomeLatitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("home_latitude");
+
+                    b.Property<double?>("HomeLongitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("home_longitude");
+
                     b.Property<string>("HomePlace")
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)")
                         .HasColumnName("home_place");
+
+                    b.Property<string>("HomeRegion")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("home_region");
 
                     b.Property<DateTimeOffset?>("LastGreetedAt")
                         .HasColumnType("timestamp with time zone")

@@ -123,8 +123,7 @@ public sealed partial class HolidaysTool(IHttpClientFactory http, IMemoryCache c
     /// <summary>The region code of where the user lives, if that's in [country] and a region we know.</summary>
     private async Task<string?> HomeRegionAsync(string country, ToolContext context, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(context.HomePlace) || await weather.GeocodeAsync(context.HomePlace, ct) is not { } home
-            || !home.CountryCode.Equals(country, StringComparison.OrdinalIgnoreCase))
+        if (await weather.HomeAsync(context, ct) is not { } home || !home.CountryCode.Equals(country, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
@@ -163,7 +162,7 @@ public sealed partial class HolidaysTool(IHttpClientFactory http, IMemoryCache c
         var countries = await CountriesAsync(ct);
         if (string.IsNullOrEmpty(asked))
         {
-            if (string.IsNullOrWhiteSpace(context.HomePlace) || await weather.GeocodeAsync(context.HomePlace, ct) is not { } home)
+            if (await weather.HomeAsync(context, ct) is not { } home)
             {
                 return null;
             }

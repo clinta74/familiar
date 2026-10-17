@@ -63,8 +63,10 @@ public sealed class SituationProvider(
     /// first thing said in a morning) the notes have today's weather there.
     /// </param>
     /// <param name="ct">Cancels it.</param>
+    /// <param name="home">The place they picked as home, when they have: its forecast, not a town found by name.</param>
     public async Task<Situation> ForAsync(
-        Guid accountId, TimeZoneInfo zone, DateTimeOffset now, DateTimeOffset messagesBefore, CancellationToken ct, string? weatherAt = null)
+        Guid accountId, TimeZoneInfo zone, DateTimeOffset now, DateTimeOffset messagesBefore, CancellationToken ct, string? weatherAt = null,
+        Agent.Tools.HomeLocation? home = null)
     {
         var notes = new List<string>();
         var soon = false;
@@ -132,7 +134,7 @@ public sealed class SituationProvider(
         }
 
         if (!string.IsNullOrWhiteSpace(weatherAt) && catchingUp
-            && await weather.TodayNoteAsync(weatherAt, ct) is { } forecast)
+            && await weather.TodayNoteAsync(weatherAt, ct, home) is { } forecast)
         {
             notes.Add(forecast);
         }

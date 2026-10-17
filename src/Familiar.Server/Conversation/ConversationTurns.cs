@@ -409,11 +409,12 @@ public sealed class ConversationTurns(
             var now = clock.GetUtcNow();
             var conversationId = userMessage?.ConversationId ?? (await store.CurrentAsync(accountId, ct)).Id;
             var history = await store.HistoryAsync(conversationId, userMessage?.Id ?? Guid.Empty, llmOptions.HistoryMessages, ct);
+            var home = Familiars.HomePlaces.HomeOf(profile);
             var situation = await situations.ForAsync(
-                accountId, request.Zone, now, userMessage?.CreatedAt ?? now, ct, profile.LookUps ? profile.HomePlace : null);
+                accountId, request.Zone, now, userMessage?.CreatedAt ?? now, ct, profile.LookUps ? profile.HomePlace : null, profile.LookUps ? home : null);
             var context = new PromptContext(
                 profile, username, history, userMessage?.Content ?? "", now, request.Zone, situation.Notes, situation.Memories,
-                Familiars.AppearanceView.Parse(profile.Appearance).Look());
+                Familiars.AppearanceView.Parse(profile.Appearance).Look(), profile.HomePlace);
             var prompt = userMessage is null ? PromptBuilder.BuildUnprompted(context, cue ?? PromptBuilder.GreetingCue) : PromptBuilder.Build(context);
 
             if (request.Speak)
@@ -479,7 +480,7 @@ public sealed class ConversationTurns(
             }
 
             var runner = scope.ServiceProvider.GetRequiredService<TurnRunner>();
-            var toolContext = new ToolContext(accountId, replyId, request.Zone, clock.GetUtcNow(), profile.LookUps, profile.HomePlace, request.From);
+            var toolContext = new ToolContext(accountId, replyId, request.Zone, clock.GetUtcNow(), profile.LookUps, profile.HomePlace, request.From, home);
             // A greeting gets no tools: it's a hello, not a chance to start doing things.
             var result = userMessage is null
                 ? await runner.RunAsync(prompt, Emit, ct)

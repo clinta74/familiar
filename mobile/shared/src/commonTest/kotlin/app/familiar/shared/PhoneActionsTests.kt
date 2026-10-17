@@ -46,6 +46,8 @@ class PhoneActionsTests {
         }
 
         override suspend fun place() = "Headingley, Leeds, England"
+
+        override suspend fun position() = 53.82 to -1.58
     }
 
     private fun args(vararg pairs: Pair<String, String>) = JsonObject(pairs.associate { it.first to JsonPrimitive(it.second) })

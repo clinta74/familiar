@@ -234,6 +234,7 @@ public static class ToolRegistration
             http.DefaultRequestHeaders.UserAgent.ParseAdd("Familiar/1.0 (https://github.com/clinta74/familiar; self-hosted household assistant)");
         }).AddHttpMessageHandler<LookUps.LookUpHosts>();
         services.AddSingleton<LookUps.Weather>();
+        services.AddSingleton<LookUps.Places>();
         services.AddSingleton<ITool, LookUps.WeatherTool>();
         services.AddSingleton<ITool, LookUps.DefineTool>();
         services.AddSingleton<ITool, LookUps.LookUpTool>();

@@ -271,6 +271,7 @@ data class FamiliarView(
     val appearance: AppearanceView? = null,
     val lookUps: Boolean? = null,
     val homePlace: String? = null,
+    val home: PlaceView? = null,
 )
 
 /** A one-off body movement the familiar makes mid-sentence. */
@@ -517,6 +518,25 @@ data class NotifyEvent(
     val label: String,
     /** What the familiar says about it. */
     val text: String,
+)
+
+/** A place to pick as home: one of the matches for a name, or where the device is. */
+@Serializable
+data class PlaceView(
+    /** How it's said and shown: "Warren, Michigan, United States". */
+    val label: String,
+    /** The town: "Warren". */
+    val name: String,
+    /** Its state, province or nation ("Michigan"), if it has one. */
+    val region: String? = null,
+    /** "United States". */
+    val country: String? = null,
+    /** ISO 3166 alpha-2: "US". */
+    val countryCode: String,
+    /** Rounded to two places, about a kilometre. */
+    val latitude: Double,
+    /** Rounded to two places, about a kilometre. */
+    val longitude: Double,
 )
 
 @Serializable

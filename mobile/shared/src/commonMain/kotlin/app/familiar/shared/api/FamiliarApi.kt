@@ -14,6 +14,7 @@ import app.familiar.shared.protocol.ErrorBody
 import app.familiar.shared.protocol.EventView
 import app.familiar.shared.protocol.FamiliarJson
 import app.familiar.shared.protocol.FamiliarView
+import app.familiar.shared.protocol.PlaceView
 import app.familiar.shared.protocol.HookTokenView
 import app.familiar.shared.protocol.InterruptRequest
 import app.familiar.shared.protocol.JobView
@@ -50,6 +51,7 @@ import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
@@ -167,6 +169,13 @@ class FamiliarApi(
 
     /** Saves the whole profile; the server's copy (validated) comes back. */
     suspend fun saveProfile(profile: FamiliarView): FamiliarView = put("api/familiar", profile)
+
+    /** The places called [name], to pick home from (BACKLOG item 32). */
+    suspend fun places(name: String): List<PlaceView> = call { http.get("api/familiar/places") { parameter("name", name) } }
+
+    /** The town at a position; the server keeps it to about a kilometre. */
+    suspend fun placeAt(latitude: Double, longitude: Double): PlaceView =
+        call { http.get("api/familiar/places/at") { parameter("latitude", latitude); parameter("longitude", longitude) } }
 
     suspend fun voices(): VoicesView = call { http.get("api/familiar/voices") }
 

@@ -1263,3 +1263,31 @@ pre.snippet {
   align-items: center;
   gap: 8px;
 }
+
+/* Where you live (BACKLOG item 32): a picked place, not free text. */
+.home-picker {
+  border: none;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.home-picker legend {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.home-picker .field-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+}
+
+@media (max-width: 520px) {
+  .home-picker .field-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .home-picker .field-row input {
+    grid-column: 1 / -1;
+  }
+}

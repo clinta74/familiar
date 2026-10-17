@@ -223,6 +223,7 @@ export interface FamiliarView {
   appearance?: AppearanceView | null;
   lookUps?: boolean | null;
   homePlace?: string | null;
+  home?: PlaceView | null;
 }
 
 /** A one-off body movement the familiar makes mid-sentence. */
@@ -426,6 +427,24 @@ export interface NotifyEvent {
   label: string;
   /** What the familiar says about it. */
   text: string;
+}
+
+/** A place to pick as home: one of the matches for a name, or where the device is. */
+export interface PlaceView {
+  /** How it's said and shown: "Warren, Michigan, United States". */
+  label: string;
+  /** The town: "Warren". */
+  name: string;
+  /** Its state, province or nation ("Michigan"), if it has one. */
+  region: string | null;
+  /** "United States". */
+  country: string | null;
+  /** ISO 3166 alpha-2: "US". */
+  countryCode: string;
+  /** Rounded to two places, about a kilometre. */
+  latitude: number;
+  /** Rounded to two places, about a kilometre. */
+  longitude: number;
 }
 
 export interface PushKeyResponse {

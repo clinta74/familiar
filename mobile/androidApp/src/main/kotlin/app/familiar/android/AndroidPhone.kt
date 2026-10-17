@@ -135,6 +135,14 @@ class AndroidPhone(context: Context, private val ask: suspend (Array<String>) ->
             ?: String.format(Locale.ROOT, "near %.2f, %.2f (no place name available)", location.latitude, location.longitude)
     }
 
+    override suspend fun position(): Pair<Double, Double> {
+        if (!allowed(Manifest.permission.ACCESS_COARSE_LOCATION)) {
+            throw IllegalStateException("Familiar isn't allowed to know where this phone is. Allow location for it in the phone's settings, or search instead.")
+        }
+        val location = locate() ?: throw IllegalStateException("The phone couldn't tell where it is just now (location may be off). Search instead.")
+        return location.latitude to location.longitude
+    }
+
     /** Granted already, or asked now - only possible with the app on screen. */
     private suspend fun allowed(permission: String): Boolean {
         if (granted(permission)) return true
@@ -152,7 +160,7 @@ class AndroidPhone(context: Context, private val ask: suspend (Array<String>) ->
      * where the network provider alone took its full 30 seconds and returned nothing (2026-10-07);
      * failing that, the last position there is, however old.
      */
-    @Suppress("MissingPermission") // Checked in place().
+    @Suppress("MissingPermission") // Checked in place() and position().
     private suspend fun locate(): Location? {
         val manager = context.getSystemService(LocationManager::class.java)
         val fused = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) LocationManager.FUSED_PROVIDER else null

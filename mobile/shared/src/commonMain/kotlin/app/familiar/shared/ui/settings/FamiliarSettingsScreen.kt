@@ -11,6 +11,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -22,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import app.familiar.shared.protocol.FamiliarView
+import app.familiar.shared.protocol.PlaceView
 import app.familiar.shared.protocol.VoicesView
 import app.familiar.shared.session.FamiliarSession
 import kotlinx.coroutines.launch
@@ -35,6 +37,77 @@ private val traits = listOf(
     Trait("Formality", "Casual", "Formal", { it.formality }, { p, v -> p.copy(formality = v) }),
     Trait("Expressiveness", "Subtle", "Animated", { it.expressiveness }, { p, v -> p.copy(expressiveness = v) }),
 )
+
+/**
+ * Where you live, as a real place (BACKLOG item 32): searched and picked, so "Warren" is the right
+ * Warren, or found from where the phone is. The familiar is told it; the look-ups use it.
+ */
+@Composable
+private fun HomePicker(session: FamiliarSession, current: FamiliarView, update: (FamiliarView) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var query by remember { mutableStateOf("") }
+    var matches by remember { mutableStateOf<List<PlaceView>?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    fun pick(place: PlaceView) {
+        update(current.copy(home = place, homePlace = place.label))
+        matches = null
+        query = ""
+        error = null
+    }
+
+    fun run(block: suspend () -> Unit) {
+        busy = true
+        error = null
+        scope.launch {
+            runCatching { block() }.onFailure { error = it.shown("Couldn't find that just now.") }
+            busy = false
+        }
+    }
+
+    Muted(
+        "${current.name.ifBlank { "Your familiar" }} knows it, for anything local, and the weather, air quality and holidays use it. " +
+            "Searching sends the name to Open-Meteo; \"Use my location\" sends the phone's position, to about a kilometre, to OpenStreetMap.",
+    )
+    val typedOnly = current.home == null && !current.homePlace.isNullOrBlank()
+    if (!current.homePlace.isNullOrBlank()) {
+        ItemRow(current.homePlace!!, if (typedOnly) "Typed, not picked: search for it so it's the right place" else "", detailIsError = typedOnly) {
+            TextButton(onClick = { update(current.copy(home = null, homePlace = "")) }) { Text("Clear") }
+        }
+    } else {
+        Muted("Not set.")
+    }
+    OutlinedTextField(
+        value = query,
+        onValueChange = { query = it.take(80) },
+        label = { Text("Town or city") },
+        placeholder = { Text(if (typedOnly) current.homePlace.orEmpty() else "e.g. Warren") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        OutlinedButton(enabled = !busy && query.trim().length >= 2, onClick = {
+            run {
+                val found = session.api.places(query.trim())
+                matches = found
+                if (found.isEmpty()) error = "No places by that name. Try the town or city."
+            }
+        }) { Text("Search") }
+        session.phone?.let { phone ->
+            TextButton(enabled = !busy, onClick = {
+                run {
+                    val (latitude, longitude) = phone.position()
+                    pick(session.api.placeAt(latitude, longitude))
+                }
+            }) { Text("Use my location") }
+        }
+    }
+    matches?.forEach { place ->
+        TextButton(onClick = { pick(place) }) { Text(place.label) }
+    }
+    error?.let { ErrorText(it) }
+}
 
 /** Who the familiar is (PLAN.md §5.5): the web's "Your familiar". Changes apply from the next thing said. */
 @Composable
@@ -115,15 +188,10 @@ fun FamiliarSettingsScreen(session: FamiliarSession, onBack: () -> Unit) {
                     }
                     Switch(checked = lookUps, onCheckedChange = { update(current.copy(lookUps = it)) })
                 }
-                OutlinedTextField(
-                    value = current.homePlace.orEmpty(),
-                    onValueChange = { update(current.copy(homePlace = it.take(80))) },
-                    label = { Text("Where you live (for the weather)") },
-                    placeholder = { Text("e.g. Leeds") },
-                    enabled = lookUps,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+            }
+
+            Card("Where you live") {
+                HomePicker(session, current, update)
             }
 
             StatusLine(status)

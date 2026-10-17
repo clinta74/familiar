@@ -52,7 +52,7 @@ class FamiliarSession(
     /** The phone's alarms, kept in step with the timers and reminders. */
     private val alarms: DeviceAlarms? = null,
     /** Its contacts, messages, dialler, maps and location, for the familiar to hand off to. */
-    phone: DevicePhone? = null,
+    val phone: DevicePhone? = null,
 ) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     val api = FamiliarApi(signedIn.server, signedIn.token)

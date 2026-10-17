@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { familiarApi, type FamiliarProfile, type Voices } from '../api/familiar';
+import { familiarApi, type FamiliarProfile, type Place, type Voices } from '../api/familiar';
 import { groupVoices } from './voiceNames';
 
 type Trait = 'warmth' | 'playfulness' | 'verbosity' | 'formality' | 'expressiveness';
@@ -100,20 +100,130 @@ export function FamiliarSettings() {
           </span>
         </span>
       </label>
-      <label>
-        Where you live <span className="muted small">(for the weather; a town is enough)</span>
-        <input
-          value={profile.homePlace ?? ''}
-          onChange={(e) => update({ homePlace: e.target.value })}
-          placeholder="e.g. Leeds"
-          maxLength={80}
-          disabled={!(profile.lookUps ?? false)}
-        />
-      </label>
+      <HomePicker profile={profile} onChange={update} />
 
       {status && <p className={status.ok ? 'success' : 'error'} role="status">{status.message}</p>}
       <button type="submit" disabled={busy} aria-busy={busy}>Save</button>
     </form>
+  );
+}
+
+type Permission = 'granted' | 'prompt' | 'denied' | 'unknown';
+
+/**
+ * Where you live, as a real place (BACKLOG item 32): searched and picked, so "Warren" is the right
+ * Warren, or found from this browser's location. The familiar is told it; the look-ups use it.
+ */
+function HomePicker({ profile, onChange }: { profile: FamiliarProfile; onChange: (patch: Partial<FamiliarProfile>) => void }) {
+  const [query, setQuery] = useState('');
+  const [matches, setMatches] = useState<Place[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [permission, setPermission] = useState<Permission>('unknown');
+
+  useEffect(() => {
+    let status: PermissionStatus | undefined;
+    const read = () => setPermission((status?.state as Permission | undefined) ?? 'unknown');
+    navigator.permissions?.query({ name: 'geolocation' }).then((s) => { status = s; read(); s.onchange = read; }).catch(() => undefined);
+    return () => { if (status) status.onchange = null; };
+  }, []);
+
+  const pick = (place: Place) => {
+    onChange({ home: place, homePlace: place.label });
+    setMatches(null);
+    setQuery('');
+    setError(null);
+  };
+
+  async function search() {
+    if (query.trim().length < 2) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const found = await familiarApi.places(query.trim());
+      setMatches(found);
+      if (found.length === 0) setError('No places by that name. Try the town or city.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not search for places.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function useLocation() {
+    if (!navigator.geolocation) {
+      setError('This browser can’t tell where it is. Search for your town instead.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        familiarApi.placeAt(position.coords.latitude, position.coords.longitude)
+          .then(pick)
+          .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Could not find a town there.'))
+          .finally(() => setBusy(false));
+      },
+      (failure) => {
+        setBusy(false);
+        setError(failure.code === failure.PERMISSION_DENIED
+          ? 'This browser isn’t sharing its location with Familiar. Allow it in the site settings (the icon left of the address), or search instead.'
+          : 'This browser couldn’t tell where it is just now. Search for your town instead.');
+      },
+      { maximumAge: 10 * 60_000, timeout: 15_000 },
+    );
+  }
+
+  const typedOnly = !profile.home && !!profile.homePlace;
+
+  return (
+    <fieldset className="home-picker stack">
+      <legend>Where you live</legend>
+      <p className="muted small">
+        {profile.name || 'Your familiar'} knows it, for anything local, and the weather, air quality and holidays use it. Searching sends
+        the name to Open-Meteo; “Use my location” sends this browser’s position, to about a kilometre, to OpenStreetMap.
+      </p>
+      {profile.homePlace ? (
+        <div className="model-row">
+          <span>
+            <strong>{profile.homePlace}</strong>
+            {typedOnly && <span className="error small"> · typed, not picked: search for it below so it’s the right place</span>}
+          </span>
+          <button type="button" className="link" onClick={() => onChange({ home: null, homePlace: '' })}>Clear</button>
+        </div>
+      ) : (
+        <p className="muted small">Not set.</p>
+      )}
+      <div className="field-row">
+        <input
+          id="home-search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void search(); } }}
+          placeholder={typedOnly ? profile.homePlace ?? '' : 'Town or city, e.g. Warren'}
+          maxLength={80}
+          aria-label="Search for your town"
+        />
+        <button type="button" className="secondary" disabled={busy || query.trim().length < 2} onClick={() => void search()}>Search</button>
+        <button type="button" className="secondary" disabled={busy} onClick={useLocation}>Use my location</button>
+      </div>
+      {matches && matches.length > 0 && (
+        <ul className="tool-list" aria-label="Places found">
+          {matches.map((m) => (
+            <li key={m.label}>
+              <button type="button" className="link" onClick={() => pick(m)}>{m.label}</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {error && <p className="error small" role="alert">{error}</p>}
+      <p className="muted small">
+        Location in this browser: {permission === 'granted' ? 'shared when the familiar asks where you are'
+          : permission === 'denied' ? 'blocked. To allow it, use the site settings (the icon left of the address) and set Location to Allow'
+          : permission === 'prompt' ? 'the browser asks the first time'
+          : 'unknown'}. Your current location is used for that reply only, never kept.
+      </p>
+    </fieldset>
   );
 }
 

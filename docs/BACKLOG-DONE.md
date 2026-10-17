@@ -484,6 +484,28 @@ notes' plans are still to come; and the memory pass leaves out one-off appointme
 calendar). Tried with the appointment on the calendar, yesterday's "tomorrow" in the history and a
 dated memory: four greetings at 9:43 PM, none said it was to come, one asked how it went.
 
+### 32. ~~Know where they live, exactly~~ — done (2026-10-17)
+
+From an elections chat (BACKLOG.md, "Knowing more, showing more"): it didn't know where he lives, and
+reminded, it took "Warren" for Ohio. "Where you live" was free text, found by name again by each
+look-up (Open-Meteo's first "Warren"), and kept out of the prompt on purpose (item 15). **Built:**
+Settings, web and app, picks a real place - search a name and choose among the matches ("Warren,
+Michigan, United States" / "Warren, Ohio, ..."), or **Use my location** (the browser's or phone's
+position, rounded to about a kilometre, turned into a town by OpenStreetMap's Nominatim - a new
+allow-listed host, used only by Settings). The profile keeps the label, coordinates (two decimals),
+region and country code (`FamiliarProfile.HomeLatitude` and so on). **The model is told:** "They live
+in Warren, Michigan, United States. When an answer depends on where they are ... it's there: don't
+ask where" - reversing item 15's choice, as asked; the model is local. The weather, air quality,
+holidays and the greeting's forecast use the picked place as it is (`Weather.HomeAsync`), including
+when the model names it ("Warren"); a home typed before this is still found by name, and Settings
+shows it as "typed, not picked". **Where am I falls back** to home when the browser or phone won't
+or can't say. The web Settings also say whether this browser shares its location and how to undo a
+block. An older app sending a typed home replaces the picked place. Tried on the real model with
+Warren, Michigan picked: "where do I live?" right; weather and "do I need a coat?" for Warren with no
+geocoding; "what's on near me" searched with Warren in mind; "who are the candidates for me?" no
+longer asks where they live or guesses a state - it asked which election once, and once said it
+hadn't the district details rather than inventing them (finding them is item 33).
+
 ---
 
 ## Avatars

@@ -21,17 +21,17 @@ public sealed class Weather(IHttpClientFactory http, IMemoryCache cache, ILogger
     public static bool IsImperial(string countryCode) => Imperial.Contains(countryCode);
 
     /// <summary>
-    /// Today's weather at [place] as a note for the familiar ("Weather where they live today: light
-    /// rain, 9-14°C, 80% chance of rain; 11°C now."), not naming the place: the user's home stays out
-    /// of the prompt. Null if it can't be had quickly.
+    /// Today's weather at [place] - or at [home], the place they picked, when there is one - as a note
+    /// for the familiar ("Weather where they live today: light rain, 9-14°C, 80% chance of rain; 11°C
+    /// now."). Null if it can't be had quickly.
     /// </summary>
-    public async Task<string?> TodayNoteAsync(string place, CancellationToken ct)
+    public async Task<string?> TodayNoteAsync(string place, CancellationToken ct, Agent.Tools.HomeLocation? home = null)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(NoteTimeout);
         try
         {
-            if (await GeocodeAsync(place, timeout.Token) is not { } found)
+            if ((At(home) ?? await GeocodeAsync(place, timeout.Token)) is not { } found)
             {
                 return null;
             }
@@ -73,13 +73,27 @@ public sealed class Weather(IHttpClientFactory http, IMemoryCache cache, ILogger
     {
         if (Coordinates(place) is not { } at)
         {
-            return await GeocodeAsync(place, ct);
+            // Home by name - "Warren", or all of "Warren, Michigan, United States" - is the place they
+            // picked, not whichever Warren comes first (BACKLOG item 32).
+            return IsHome(place, context) && At(context.Home) is { } home ? home : await GeocodeAsync(place, ct);
         }
 
-        var home = string.IsNullOrWhiteSpace(context.HomePlace) ? null : await GeocodeAsync(context.HomePlace, ct);
-        var country = home?.CountryCode ?? (UsZone(context.Zone.Id) ? "US" : "");
+        var country = (await HomeAsync(context, ct))?.CountryCode ?? (UsZone(context.Zone.Id) ? "US" : "");
         return new Location("where you are", "where you are", at.Latitude, at.Longitude, country);
     }
+
+    /// <summary>Where they live: the place they picked, or the one they typed found by name. Null if neither.</summary>
+    public async Task<Location?> HomeAsync(Agent.Tools.ToolContext context, CancellationToken ct) =>
+        At(context.Home) ?? (string.IsNullOrWhiteSpace(context.HomePlace) ? null : await GeocodeAsync(context.HomePlace, ct));
+
+    /// <summary>A picked home as a location; null for none.</summary>
+    public static Location? At(Agent.Tools.HomeLocation? home) =>
+        home is null ? null : new Location(home.Name, home.Label, home.Latitude, home.Longitude, home.CountryCode, home.Region);
+
+    private static bool IsHome(string place, Agent.Tools.ToolContext context) =>
+        context.Home is { } home
+        && (place.Equals(home.Name, StringComparison.OrdinalIgnoreCase)
+            || home.Label.StartsWith(place.Trim(), StringComparison.OrdinalIgnoreCase) && place.Trim().StartsWith(home.Name, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>"42.51,-83.08" (or with a space) as a latitude and longitude; null if it isn't one.</summary>
     public static (double Latitude, double Longitude)? Coordinates(string text)
