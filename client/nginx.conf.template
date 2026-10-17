@@ -112,7 +112,8 @@ http {
         add_header X-Frame-Options "SAMEORIGIN" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-        # Microphone for voice; camera and location stay off until something needs them.
-        add_header Permissions-Policy "microphone=(self), camera=(), geolocation=()" always;
+        # Microphone for voice; location for "where am I" and picking home (BACKLOG items 24, 32) - with
+        # geolocation=() the browser refused it whatever the user allowed. Camera stays off.
+        add_header Permissions-Policy "microphone=(self), camera=(), geolocation=(self)" always;
     }
 }
