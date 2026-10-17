@@ -4,7 +4,7 @@ Work that's agreed but not finished, in the order it'll be done. Bigger designs 
 [PLAN.md](PLAN.md) and [MOBILE.md](MOBILE.md). When an item ships, move it to
 [BACKLOG-DONE.md](BACKLOG-DONE.md) under the same number - code comments cite items by number
 ("BACKLOG item 21") - and say what was built and how it was checked. New items take the next
-number: **32**.
+number: **36**.
 
 ---
 
@@ -65,6 +65,89 @@ Ideas that came up and were set aside - not agreed. Each would need asking about
   hundred replies offline against it.
 
 ---
+
+## Knowing more, showing more
+
+Asked 2026-10-17, from a chat about the elections. Asked "who are the candidates for me?", it asked
+which races; asked to look where he was, the browser refused location and it stopped there; reminded
+it knew from the weather, it said "Warren" and guessed Ohio (it's Warren, Michigan), then gave a
+congressional district from memory, then offered to "look up that link" and gave none. Four of eight
+exchanges went on finding out where he lives, which it could have known from the start; the district
+was guessed, not found; and it offered something no tool can do. The order below is the suggested
+order: 32 fixes most of that chat on its own.
+
+### 32. Know where they live, exactly
+
+Today "Where you live" is free text ("Warren"), geocoded again by each look-up, and kept out of the
+prompt on purpose (item 15) - so the model doesn't know it, and Open-Meteo's pick for a bare "Warren"
+is whichever is first.
+
+- **Settings picks a real place:** type a town and choose from the matches ("Warren, Michigan, US" /
+  "Warren, Ohio, US"), or **"Use my current location"** - the browser's or phone's location, turned
+  into town, region and country. Stored as name, region, country, coordinates rounded to ~1 km, and
+  time zone. The weather, air quality and holidays use the coordinates, never re-guessing the text.
+- **The model is told the town:** "They live in Warren, Michigan, United States." in the system
+  message (town and region only, never coordinates). This reverses item 15's choice: the town may now
+  go into a look-up when it's relevant ("2026 Michigan elections"), which is what the user is asking
+  for. The model is local; nothing else changes about what leaves the house.
+- **Where am I falls back:** when the browser or phone can't or won't say, `where_am_i` answers with
+  home ("Their browser won't share its location; they live in Warren, Michigan - go by that unless
+  they say they're elsewhere") instead of stopping.
+- **The website asks properly:** a "Share location while chatting" switch in Settings that prompts
+  the browser once, and says how to undo a refusal in that browser's site settings when it was
+  blocked. Current location stays per-turn, never stored.
+- Existing free-text homes are geocoded once on upgrade and shown for the user to confirm.
+
+### 33. Find local facts, not guess them
+
+The district was made up and the candidates weren't found: `look_up` returns an article's opening
+paragraph, and a list of candidates is in a table further down.
+
+- **A rule:** never offer what no tool can do ("would you like me to look up that link?"); and civic
+  facts - districts, candidates, polling places, deadlines - only from a look-up, never memory.
+- **`look_up` reads a section:** given an article and what to find ("Michigan's 10th district" in "2026
+  United States House of Representatives elections in Michigan"), it returns that section's text and
+  table rows, trimmed, with the article's last-edited date. Wikipedia only, so the same safety.
+- **Where they live, officially** (US): the Census Bureau's geocoder (free, no key) gives the county,
+  congressional and state legislative districts for home's coordinates - one more allow-listed host.
+  Elsewhere, the region from item 32.
+- **Faster:** the look-ups in one round run in parallel rather than one after another, and each tool's
+  description says what it can't answer, so the model doesn't spend a round finding out. The time
+  lost in that chat was mostly exchanges, not milliseconds; 32 and the rule above save those.
+- A general web search stays parked; if this still leaves gaps, it's the next thing to reconsider.
+
+### 34. Links: given, and read
+
+Two things "a web link" can mean, both useful:
+
+- **The familiar hands over a link.** A reply can carry link cards - title and site, tappable,
+  shown under the message and never read aloud ("Michigan Secretary of State - Voter Information").
+  Only links a tool returned in that reply can be shown: look-up results carry their source page, and
+  the model refers to one by number (`[link:1]`, stripped like the emotion tags); it can never write
+  an address of its own. A short built-in list of official sites (state election offices, the
+  Census) can be a tool result too.
+- **The familiar reads a link you give it.** Paste a link into chat and it can read the page: public
+  http(s) only (never the LAN or the server itself), a size and time limit, text only (no scripts),
+  trimmed, and labelled as text from that site, not instructions - a look-up, so after it anything
+  that changes something asks first. Off with "Look things up".
+
+### 35. Pictures in the chat
+
+The chat model already sees images - `ollama show familiar-chat` lists vision (gemma4 with its
+52M-parameter image encoder) - so no new model.
+
+- **Web:** paste, drop or attach an image; **app:** attach or share to Familiar from another app.
+  Shown in the chat with the message; "what's this plant?", "read this letter", "what does this
+  error say?".
+- **Server:** stored with the message (Postgres, size-capped, shrunk to ~1024 px, location and camera
+  data stripped), sent to the model with that turn only; later turns see "(an image they sent: …)"
+  in its place, so a picture doesn't cost every turn after it. Measure what an image adds before the
+  first word (it isn't cached).
+- **Safety:** text in a picture is someone else's words, like a look-up - a photo of a note saying
+  "ignore your instructions" mustn't act - so a turn with an image asks first before changing
+  anything. The memory pass reads the words, not the pictures.
+- Not voice: hands-free can't send one, and "describe what you see" through the camera is a later
+  idea.
 
 ## Voice and sound
 
