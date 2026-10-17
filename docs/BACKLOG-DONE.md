@@ -63,6 +63,17 @@ What would actually cut the ~1 s of prefill before the first word:
 - **llama.cpp's `llama-server`** with `cache_prompt`, which also has slot save/restore across
   restarts.
 
+### 36. ~~Settings on the website as pages, like the app~~ — done (2026-10-17)
+
+Asked 2026-10-17: the web Settings had grown into one long page. **Built:** `/settings` is now a
+list of pages, in the app's order with the same names and one-line descriptions (Your familiar,
+Studio, What it remembers, Calendars, Connections, Notifications, Account, Devices; Users for an
+administrator), and each is its own page at `/settings/<page>` with a "‹ Settings" link back. Account
+and password are one page, as in the app. Studio and Users stay their own pages, linked from the list.
+Old links to part of the long page (`/settings#devices`, the account menu's) go to that page. Checked
+in the browser at desktop and phone width: the list, a page, the old link, and picking and saving a
+home (item 32) with no sideways scrolling.
+
 ### 5a. ~~Open the chat at its latest message~~ — done (2026-10-03)
 
 A conversation that arrives all at once (restored, reloaded after a resync, a new one) opens at its

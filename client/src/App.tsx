@@ -39,7 +39,7 @@ export function App() {
           <Route path="/login" element={<SignedOutOnly><LoginPage /></SignedOutOnly>} />
           <Route path="/register" element={<SignedOutOnly><RegisterPage /></SignedOutOnly>} />
           <Route path="/" element={<RequireAccount><HomePage /></RequireAccount>} />
-          <Route path="/settings" element={<RequireAccount><SettingsPage /></RequireAccount>} />
+          <Route path="/settings/:section?" element={<RequireAccount><SettingsPage /></RequireAccount>} />
           <Route path="/studio" element={<RequireAccount><StudioPage /></RequireAccount>} />
           <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
           <Route path="*" element={<Navigate to="/" replace />} />

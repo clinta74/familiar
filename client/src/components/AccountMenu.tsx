@@ -25,7 +25,7 @@ export function AccountMenu() {
 
   const entries: Item[] = [
     { label: 'Settings', to: '/settings' },
-    { label: 'Devices', to: '/settings#devices' },
+    { label: 'Devices', to: '/settings/devices' },
     ...(account?.role === 'admin' ? [{ label: 'Users', to: '/admin' }] : []),
     { label: 'Sign out', act: () => void logout() },
   ];

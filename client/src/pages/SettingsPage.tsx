@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link, useLocation } from 'react-router';
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { Link, Navigate, useLocation, useParams } from 'react-router';
 import { authApi, type Device } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { FamiliarSettings } from './FamiliarSettings';
@@ -97,58 +97,92 @@ function DeviceList() {
   );
 }
 
+function AccountSettings() {
+  const { account } = useAuth();
+  return (
+    <div className="stack">
+      <dl className="facts">
+        <dt>Username</dt><dd>{account?.username}</dd>
+        <dt>Email</dt><dd>{account?.email}</dd>
+        <dt>Role</dt><dd>{account?.role === 'admin' ? 'Administrator' : 'Member'}</dd>
+      </dl>
+      <h3>Password</h3>
+      <PasswordForm />
+    </div>
+  );
+}
+
+/** One page of Settings: its address, its name and line in the list, and what it shows - or where it lives instead. */
+type Section = { id: string; title: string; about: string } & ({ render: () => ReactNode } | { to: string });
+
+/** The same pages, in the same order, as the app's Settings (mobile SettingsScreen's Route list), plus this browser's notifications. */
+const sections: Section[] = [
+  { id: 'familiar', title: 'Your familiar', about: 'Its name, personality, voice, and where you live', render: () => <FamiliarSettings /> },
+  { id: 'studio', title: 'Studio', about: 'How it looks', to: '/studio' },
+  { id: 'memories', title: 'What it remembers', about: 'Things it has picked up about you', render: () => <MemorySettings /> },
+  { id: 'calendars', title: 'Calendars', about: 'The calendars it can see', render: () => <CalendarSettings /> },
+  { id: 'connections', title: 'Connections', about: 'Home Assistant, webhooks and MCP tools', render: () => <ConnectionsSettings /> },
+  { id: 'notifications', title: 'Notifications', about: 'Timers and reminders when this tab is closed', render: () => <NotificationSettings /> },
+  { id: 'account', title: 'Account', about: 'Your details and password', render: () => <AccountSettings /> },
+  { id: 'devices', title: 'Devices', about: 'The phones signed in to your account', render: () => <DeviceList /> },
+];
+
+/**
+ * Settings as a list of pages, as in the app: one short page each, rather than everything at once.
+ * /settings is the list; /settings/familiar and so on are the pages.
+ */
 export function SettingsPage() {
   const { account } = useAuth();
+  const { section } = useParams();
   const { hash } = useLocation();
 
-  // A link to a section (the account menu's Devices) scrolls to it.
-  useEffect(() => {
-    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [hash]);
+  // Old links to a part of the one long page (/settings#devices) go to its page.
+  if (!section && hash && sections.some((s) => s.id === hash.slice(1))) return <Navigate to={`/settings/${hash.slice(1)}`} replace />;
+
+  const page = sections.find((s) => s.id === section);
+  if (section && (!page || !('render' in page))) return <Navigate to={page && 'to' in page ? page.to : '/settings'} replace />;
 
   return (
     <Shell>
       <div className="settings">
-        <section className="card">
-          <h2>Your familiar</h2>
-          <FamiliarSettings />
-        </section>
-        <section className="card">
-          <h2>What it remembers</h2>
-          <MemorySettings />
-        </section>
-        <section className="card">
-          <h2>Calendars</h2>
-          <CalendarSettings />
-        </section>
-        <section className="card">
-          <h2>Connections</h2>
-          <ConnectionsSettings />
-        </section>
-        <section className="card">
-          <h2>Notifications</h2>
-          <NotificationSettings />
-        </section>
-        <section className="card">
-          <h2>Account</h2>
-          <dl className="facts">
-            <dt>Username</dt><dd>{account?.username}</dd>
-            <dt>Email</dt><dd>{account?.email}</dd>
-            <dt>Role</dt><dd>{account?.role === 'admin' ? 'Administrator' : 'Member'}</dd>
-          </dl>
-        </section>
-        <section className="card">
-          <h2>Password</h2>
-          <PasswordForm />
-        </section>
-        <section className="card" id="devices">
-          <h2>Devices</h2>
-          <DeviceList />
-        </section>
-        {account?.role === 'admin' && (
-          <p className="muted settings-note">
-            Users are managed on their own page: <Link to="/admin">Users</Link>, also in the account menu.
-          </p>
+        {page && 'render' in page ? (
+          <>
+            <Link to="/settings" className="settings-back">‹ Settings</Link>
+            <section className="card" aria-labelledby="settings-title">
+              <h2 id="settings-title">{page.title}</h2>
+              {page.render()}
+            </section>
+          </>
+        ) : (
+          <>
+            <h1 className="settings-heading">Settings</h1>
+            <nav className="card settings-nav" aria-label="Settings">
+              <ul>
+                {sections.map((s) => (
+                  <li key={s.id}>
+                    <Link to={'to' in s ? s.to : `/settings/${s.id}`}>
+                      <span>
+                        <strong>{s.title}</strong>
+                        <span className="muted small">{s.about}</span>
+                      </span>
+                      <span className="chevron" aria-hidden="true">›</span>
+                    </Link>
+                  </li>
+                ))}
+                {account?.role === 'admin' && (
+                  <li>
+                    <Link to="/admin">
+                      <span>
+                        <strong>Users</strong>
+                        <span className="muted small">Accounts on this server (administrators only)</span>
+                      </span>
+                      <span className="chevron" aria-hidden="true">›</span>
+                    </Link>
+                  </li>
+                )}
+              </ul>
+            </nav>
+          </>
         )}
       </div>
     </Shell>
