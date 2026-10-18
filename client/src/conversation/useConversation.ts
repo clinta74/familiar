@@ -2,6 +2,7 @@ import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { Emotion, Gesture } from '../avatar/types';
 import { answerLocation, canLocate, LOCATION } from './browserLocation';
 import { conversationApi } from './conversationApi';
+import { shrink } from './pictures';
 import type {
   AudioEvent,
   ErrorEvent,
@@ -136,10 +137,11 @@ export function useConversation(handlers: ConversationHandlers, options: { speak
     // Connect once: the options are read at mount; a change of voice setting needn't reconnect.
   }, []);
 
-  const send = useCallback(async (text: string, speak: boolean) => {
+  const send = useCallback(async (text: string, speak: boolean, picture?: Blob) => {
     dispatch({ type: 'error', message: null });
     try {
-      const message = await conversationApi.send(text, speak);
+      const imageId = picture ? (await conversationApi.uploadImage(await shrink(picture))).id : undefined;
+      const message = await conversationApi.send(text, speak, imageId);
       dispatch({ type: 'message', message });
     } catch (error) {
       dispatch({ type: 'error', message: error instanceof Error ? error.message : 'Could not send that.' });

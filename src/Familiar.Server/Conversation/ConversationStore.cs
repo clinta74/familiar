@@ -216,4 +216,33 @@ public sealed class ConversationStore(IDbContextFactory<FamiliarDbContext> facto
         await using var db = await factory.CreateDbContextAsync(ct);
         return await db.Accounts.Where(a => a.Id == accountId).Select(a => a.Username).SingleAsync(ct);
     }
+
+    /// <summary>A picture to send (BACKLOG item 35), kept for its owner; unsent ones over a day old go as it's added.</summary>
+    public async Task<MessageImage> AddImageAsync(Guid accountId, byte[] bytes, int width, int height, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var stale = clock.GetUtcNow().AddDays(-1);
+        await db.MessageImages
+            .Where(i => i.AccountId == accountId && i.CreatedAt < stale && !db.Messages.Any(m => m.ImageId == i.Id))
+            .ExecuteDeleteAsync(ct);
+
+        var image = new MessageImage { AccountId = accountId, Bytes = bytes, Width = width, Height = height, CreatedAt = clock.GetUtcNow() };
+        db.MessageImages.Add(image);
+        await db.SaveChangesAsync(ct);
+        return image;
+    }
+
+    /// <summary>Whether a picture is theirs and not yet sent with a message.</summary>
+    public async Task<bool> OwnsUnsentImageAsync(Guid accountId, Guid imageId, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.MessageImages.AnyAsync(i => i.Id == imageId && i.AccountId == accountId && !db.Messages.Any(m => m.ImageId == i.Id), ct);
+    }
+
+    /// <summary>A picture's bytes, if it's theirs.</summary>
+    public async Task<byte[]?> ImageAsync(Guid accountId, Guid imageId, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.MessageImages.Where(i => i.Id == imageId && i.AccountId == accountId).Select(i => i.Bytes).FirstOrDefaultAsync(ct);
+    }
 }

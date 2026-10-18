@@ -161,6 +161,12 @@ public sealed class OllamaClient(HttpClient http, LlmOptions options) : ILlmClie
             json["tool_name"] = name;
         }
 
+        // Pictures (BACKLOG item 35): Ollama takes them base64, beside the message's words.
+        if (message.Images is { Count: > 0 } images)
+        {
+            json["images"] = new JsonArray([.. images.Select(i => (JsonNode)Convert.ToBase64String(i))]);
+        }
+
         if (message.ToolCallId is { } id)
         {
             json["tool_call_id"] = id;

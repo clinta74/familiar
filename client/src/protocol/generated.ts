@@ -272,6 +272,13 @@ export interface HookTokenView {
   lastUsedAt: string | null;
 }
 
+/** A picture as uploaded: its id for the message to name, and its size. */
+export interface ImageView {
+  id: string;
+  width: number;
+  height: number;
+}
+
 export interface InterruptRequest {
   /** The reply that was playing when the user interrupted. */
   replyId: string | null;
@@ -394,6 +401,7 @@ export interface MessageView {
   interrupted: boolean;
   createdAt: string;
   links?: LinkView[] | null;
+  imageId?: string | null;
 }
 
 export interface NameRequest {
@@ -528,6 +536,11 @@ export interface SendMessageRequest {
   timeZone: string | null;
   /** Speak the reply as well as showing it. Spoken messages are always answered aloud. */
   speak?: boolean | null;
+  /**
+   * A picture uploaded to /api/conversation/images to send with it (BACKLOG item 35); the text may
+   * then be empty.
+   */
+  imageId?: string | null;
 }
 
 /**

@@ -1028,6 +1028,27 @@
         "lastUsedAt"
       ]
     },
+    "ImageView": {
+      "description": "A picture as uploaded: its id for the message to name, and its size.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "width": {
+          "type": "integer"
+        },
+        "height": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "width",
+        "height"
+      ]
+    },
     "InterruptRequest": {
       "type": "object",
       "properties": {
@@ -1427,6 +1448,14 @@
             "$ref": "#/$defs/LinkView"
           },
           "default": null
+        },
+        "imageId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid",
+          "default": null
         }
       },
       "required": [
@@ -1808,6 +1837,15 @@
             "boolean",
             "null"
           ],
+          "default": null
+        },
+        "imageId": {
+          "description": "A picture uploaded to /api/conversation/images to send with it (BACKLOG item 35); the text may then be empty.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid",
           "default": null
         }
       },

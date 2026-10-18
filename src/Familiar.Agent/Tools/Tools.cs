@@ -50,6 +50,12 @@ public sealed class ToolTurn
 {
     public int LookUps { get; set; }
 
+    /// <summary>
+    /// Someone else's words are already in the turn - a picture's (BACKLOG item 35) - so, as after a
+    /// look-up, anything that changes something asks first.
+    /// </summary>
+    public bool OutsideText { get; set; }
+
     /// <summary>The pages its tools found, numbered from 1 in order: what "[link:2]" in the reply means.</summary>
     public List<LinkRef> Links { get; } = [];
 }

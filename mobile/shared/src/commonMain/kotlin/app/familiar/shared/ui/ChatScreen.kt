@@ -1,5 +1,10 @@
 package app.familiar.shared.ui
 
+import app.familiar.shared.platform.PicturePicker
+import app.familiar.shared.platform.SharedPictures
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.Image
 import app.familiar.shared.protocol.LinkView
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalUriHandler
@@ -102,7 +107,7 @@ private val avatarStates = setOf("idle", "listening", "thinking", "speaking", "r
  * screen - a hands-free conversation carries on with the screen off.
  */
 @Composable
-fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyList(), open: (Route) -> Unit = {}) {
+fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyList(), open: (Route) -> Unit = {}, pictures: PicturePicker? = null) {
     val scope = rememberCoroutineScope()
     val controller = session.controller
     val avatar = session.avatar
@@ -172,11 +177,22 @@ fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyLi
     }
     LaunchedEffect(avatarState) { avatar.state(avatarState) }
 
+    // A picture to go with the next message: picked here, or shared to Familiar from another app.
+    var picture by remember { mutableStateOf<ByteArray?>(null) }
+    val shared by SharedPictures.pending.collectAsState()
+    LaunchedEffect(shared) {
+        shared?.let {
+            picture = it
+            SharedPictures.pending.value = null
+        }
+    }
+
     fun send() {
         val text = draft.trim()
-        if (text.isEmpty()) return
-        controller.send(text)
+        if (text.isEmpty() && picture == null) return
+        controller.send(text, picture)
         draft = ""
+        picture = null
     }
 
     // The messages and the box to type in, wherever the layout puts them.
@@ -195,14 +211,43 @@ fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyLi
                     )
                 }
             }
-            items(state.messages, key = { it.id }) { Bubble(it) }
+            items(state.messages, key = { it.id }) { Bubble(it, picture = { id -> PictureFrom(session, pictures, id) }) }
         }
 
         state.error?.let {
             Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
         }
 
+        picture?.let { chosen ->
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                pictures?.decode(chosen)?.let {
+                    Image(it, contentDescription = "The picture you're about to send", contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)))
+                }
+                Text(
+                    "Goes with your message. Its location and camera details aren't sent.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                )
+                TextButton(onClick = { picture = null }) { Text("Remove") }
+            }
+        }
+
         Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (pictures != null) {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            runCatching { pictures.pick() }
+                                .onSuccess { picked -> picked?.let { picture = it } }
+                                .onFailure { controller.showError(it.message ?: "Couldn't open that picture.") }
+                        }
+                    },
+                    contentPadding = compact,
+                    modifier = Modifier.semantics { contentDescription = "Add a picture" },
+                ) { Text("🖼", style = MaterialTheme.typography.titleMedium) }
+            }
             if (session.microphone != null) {
                 // Hold to talk: recording while it's pressed, sent on release; a slide off cancels.
                 // Hands-free has the microphone, so it's dimmed then and lights up as it hears you.
@@ -251,7 +296,7 @@ fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyLi
             if (busy) {
                 OutlinedButton(onClick = { session.stopReply() }, contentPadding = compact, modifier = Modifier.padding(start = 8.dp)) { Text("Stop") }
             } else {
-                Button(onClick = { send() }, enabled = draft.isNotBlank(), contentPadding = compact, modifier = Modifier.padding(start = 8.dp)) { Text("Send") }
+                Button(onClick = { send() }, enabled = draft.isNotBlank() || picture != null, contentPadding = compact, modifier = Modifier.padding(start = 8.dp)) { Text("Send") }
             }
         }
 
@@ -365,8 +410,20 @@ private fun LinkCard(link: LinkView) {
     }
 }
 
+/** A picture sent in the chat, fetched once and drawn; nothing while it loads or if it can't be. */
 @Composable
-private fun Bubble(message: ChatMessage) {
+private fun PictureFrom(session: FamiliarSession, pictures: PicturePicker?, id: String) {
+    if (pictures == null) return
+    var bitmap by remember(id) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    LaunchedEffect(id) { bitmap = runCatching { pictures.decode(session.api.image(id)) }.getOrNull() }
+    bitmap?.let {
+        Image(it, contentDescription = "A picture you sent", contentScale = ContentScale.Fit,
+            modifier = Modifier.heightIn(max = 220.dp).clip(RoundedCornerShape(10.dp)))
+    }
+}
+
+@Composable
+private fun Bubble(message: ChatMessage, picture: @Composable (String) -> Unit = {}) {
     val shape = RoundedCornerShape(16.dp)
     val colors = MaterialTheme.colorScheme
     Box(Modifier.fillMaxWidth(), contentAlignment = if (message.fromUser) Alignment.CenterEnd else Alignment.CenterStart) {
@@ -384,7 +441,8 @@ private fun Bubble(message: ChatMessage) {
             if (message.tools.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { message.tools.forEach { Chip(it) } }
             }
-            if (message.text.isNotEmpty() || message.tools.isEmpty()) {
+            message.imageId?.let { picture(it) }
+            if (message.text.isNotEmpty() || (message.tools.isEmpty() && message.imageId == null)) {
                 Text(
                     message.text + (if (message.interrupted) "…" else "") + (if (message.streaming) " ▍" else ""),
                     color = if (message.fromUser) colors.onPrimary else colors.onSurface,

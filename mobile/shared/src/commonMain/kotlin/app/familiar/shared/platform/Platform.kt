@@ -13,6 +13,24 @@ expect fun formatInstant(iso: String, withTime: Boolean = true, utc: Boolean = f
 /** A file the user picked (an uploaded VRM model, in the studio). */
 class PickedFile(val name: String, val bytes: ByteArray)
 
+/**
+ * Pictures for the chat (BACKLOG item 35): the system's photo picker, and turning a JPEG into
+ * something to draw. What's picked comes back shrunk to 1024 pixels at most and re-saved as JPEG,
+ * so what a camera writes beside it (its GPS position) is left behind.
+ */
+interface PicturePicker {
+    /** The picture chosen, shrunk; null if they backed out. Throws with a message to show if it can't be read. */
+    suspend fun pick(): ByteArray?
+
+    /** A JPEG to draw; null if it can't be read. */
+    fun decode(jpeg: ByteArray): androidx.compose.ui.graphics.ImageBitmap?
+}
+
+/** A picture shared to Familiar from another app, shrunk, waiting for the chat to pick it up. */
+object SharedPictures {
+    val pending = kotlinx.coroutines.flow.MutableStateFlow<ByteArray?>(null)
+}
+
 /** The system's file chooser. Null on a platform that doesn't have one wired up yet. */
 interface FilePicker {
     /** What the user picked, or null if they backed out. */

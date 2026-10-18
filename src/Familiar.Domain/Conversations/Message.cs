@@ -37,5 +37,8 @@ public sealed class Message
     /// </summary>
     public string? Links { get; set; }
 
+    /// <summary>For user messages: the picture sent with it (BACKLOG item 35), if any.</summary>
+    public Guid? ImageId { get; set; }
+
     public DateTimeOffset CreatedAt { get; init; }
 }

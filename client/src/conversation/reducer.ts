@@ -33,6 +33,8 @@ export interface ChatMessage {
   tools?: ToolChip[];
   /** Pages it handed over, as cards under the reply (BACKLOG item 34). */
   links?: LinkView[];
+  /** A picture sent with the message (BACKLOG item 35). */
+  imageId?: string;
 }
 
 export type Connection = 'connecting' | 'open' | 'reconnecting';
@@ -90,6 +92,7 @@ function fromView(view: MessageView): ChatMessage {
     emotion: view.emotion ?? undefined,
     interrupted: view.interrupted || undefined,
     links: view.links?.length ? view.links : undefined,
+    imageId: view.imageId ?? undefined,
   };
 }
 

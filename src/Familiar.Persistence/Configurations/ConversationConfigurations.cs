@@ -62,6 +62,18 @@ internal sealed class ConversationConfiguration : IEntityTypeConfiguration<Conve
     }
 }
 
+internal sealed class MessageImageConfiguration : IEntityTypeConfiguration<MessageImage>
+{
+    public void Configure(EntityTypeBuilder<MessageImage> builder)
+    {
+        builder.ToTable("MessageImages");
+        builder.Property(i => i.Id).HasDefaultValueSql("uuidv7()");
+        builder.HasOne<Account>().WithMany().HasForeignKey(i => i.AccountId).OnDelete(DeleteBehavior.Cascade);
+        builder.Property(i => i.Bytes).IsRequired();
+        builder.HasIndex(i => new { i.AccountId, i.CreatedAt });
+    }
+}
+
 internal sealed class MessageConfiguration : IEntityTypeConfiguration<Message>
 {
     public void Configure(EntityTypeBuilder<Message> builder)
@@ -73,6 +85,7 @@ internal sealed class MessageConfiguration : IEntityTypeConfiguration<Message>
         builder.Property(m => m.Emotion).HasConversion<string>().HasMaxLength(16);
         builder.Property(m => m.Content).IsRequired();
         builder.Property(m => m.Links).HasColumnType("jsonb");
+        builder.HasOne<MessageImage>().WithMany().HasForeignKey(m => m.ImageId).OnDelete(DeleteBehavior.SetNull);
 
         // Ids are uuidv7, so they sort by creation; history is read newest-first by id.
         builder.HasIndex(m => new { m.ConversationId, m.Id }).IsDescending(false, true);

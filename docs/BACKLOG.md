@@ -37,6 +37,9 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
   live?". A home typed in before shows as "typed, not picked" until it's picked.
 - **Link cards in the app** (item 34): "give me a link to the Michigan Secretary of State" shows a
   card under the reply; tapping it opens the browser.
+- **Pictures in the app** (item 35): the picture button by the message box opens the photo picker;
+  "what's this?" with a photo; and from Photos or another app, Share → Familiar puts the picture in
+  the chat ready to send. Sent pictures show in the bubbles, there and after reopening.
 - **"Where am I" on the website** (item 24), on the real site over HTTPS with "Look things up" on:
   "what's the weather where I am?". Location itself works there since 2026-10-17 (Settings' "Use my
   location" confirmed): until then the site's nginx sent `Permissions-Policy: geolocation=()`, which
@@ -81,25 +84,7 @@ it knew from the weather, it said "Warren" and guessed Ohio (it's Warren, Michig
 congressional district from memory, then offered to "look up that link" and gave none. Four of eight
 exchanges went on finding out where he lives, which it could have known from the start; the district
 was guessed, not found; and it offered something no tool can do. The order below is the suggested
-order. 32, 33 and 34 are done (BACKLOG-DONE.md).
-
-### 35. Pictures in the chat
-
-The chat model already sees images - `ollama show familiar-chat` lists vision (gemma4 with its
-52M-parameter image encoder) - so no new model.
-
-- **Web:** paste, drop or attach an image; **app:** attach or share to Familiar from another app.
-  Shown in the chat with the message; "what's this plant?", "read this letter", "what does this
-  error say?".
-- **Server:** stored with the message (Postgres, size-capped, shrunk to ~1024 px, location and camera
-  data stripped), sent to the model with that turn only; later turns see "(an image they sent: …)"
-  in its place, so a picture doesn't cost every turn after it. Measure what an image adds before the
-  first word (it isn't cached).
-- **Safety:** text in a picture is someone else's words, like a look-up - a photo of a note saying
-  "ignore your instructions" mustn't act - so a turn with an image asks first before changing
-  anything. The memory pass reads the words, not the pictures.
-- Not voice: hands-free can't send one, and "describe what you see" through the camera is a later
-  idea.
+order. All four (32-35) are done (BACKLOG-DONE.md).
 
 ## Voice and sound
 

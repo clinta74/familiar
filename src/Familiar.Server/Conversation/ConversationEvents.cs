@@ -154,7 +154,8 @@ public sealed record MessageView(
     double? Intensity,
     bool Interrupted,
     DateTimeOffset CreatedAt,
-    IReadOnlyList<LinkView>? Links = null)
+    IReadOnlyList<LinkView>? Links = null,
+    Guid? ImageId = null)
 {
     public static MessageView From(Message message) => new(
         message.Id,
@@ -164,5 +165,6 @@ public sealed record MessageView(
         message.EmotionIntensity,
         message.Interrupted,
         message.CreatedAt,
-        LinkView.Parse(message.Links) is { Count: > 0 } links ? links : null);
+        LinkView.Parse(message.Links) is { Count: > 0 } links ? links : null,
+        message.ImageId);
 }

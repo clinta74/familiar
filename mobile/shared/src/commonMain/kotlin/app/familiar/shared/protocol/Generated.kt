@@ -336,6 +336,14 @@ data class HookTokenView(
     val lastUsedAt: String? = null,
 )
 
+/** A picture as uploaded: its id for the message to name, and its size. */
+@Serializable
+data class ImageView(
+    val id: String,
+    val width: Int,
+    val height: Int,
+)
+
 @Serializable
 data class InterruptRequest(
     /** The reply that was playing when the user interrupted. */
@@ -481,6 +489,7 @@ data class MessageView(
     val interrupted: Boolean,
     val createdAt: String,
     val links: List<LinkView>? = null,
+    val imageId: String? = null,
 )
 
 @Serializable
@@ -630,6 +639,11 @@ data class SendMessageRequest(
     val timeZone: String? = null,
     /** Speak the reply as well as showing it. Spoken messages are always answered aloud. */
     val speak: Boolean? = null,
+    /**
+     * A picture uploaded to /api/conversation/images to send with it (BACKLOG item 35); the text
+     * may then be empty.
+     */
+    val imageId: String? = null,
 )
 
 /**

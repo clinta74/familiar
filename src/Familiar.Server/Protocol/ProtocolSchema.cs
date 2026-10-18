@@ -73,6 +73,7 @@ public static class ProtocolCatalog
 
         // The conversation.
         typeof(SendMessageRequest),
+        typeof(ImageView),
         typeof(InterruptRequest),
         typeof(ConfirmRequest),
         typeof(ToolResultRequest),

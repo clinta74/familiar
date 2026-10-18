@@ -19,6 +19,7 @@ import app.familiar.shared.protocol.HookTokenView
 import app.familiar.shared.protocol.InterruptRequest
 import app.familiar.shared.protocol.JobView
 import app.familiar.shared.protocol.HomeAssistantRequest
+import app.familiar.shared.protocol.ImageView
 import app.familiar.shared.protocol.HomeAssistantView
 import app.familiar.shared.protocol.McpServerRequest
 import app.familiar.shared.protocol.McpServerView
@@ -121,13 +122,20 @@ class FamiliarApi(
 
     suspend fun history(limit: Int = 50): List<MessageView> = call { http.get("api/conversation/messages?limit=$limit") }
 
-    suspend fun send(text: String, timeZone: String, speak: Boolean = false): MessageView =
+    suspend fun send(text: String, timeZone: String, speak: Boolean = false, imageId: String? = null): MessageView =
         call {
             http.post("api/conversation/messages") {
                 contentType(ContentType.Application.Json)
-                setBody(SendMessageRequest(text, timeZone, speak))
+                setBody(SendMessageRequest(text, timeZone, speak, imageId))
             }
         }
+
+    /** A picture to send with a message (BACKLOG item 35), already shrunk to a JPEG. */
+    suspend fun uploadImage(jpeg: ByteArray): ImageView =
+        call { http.post("api/conversation/images") { setBody(ByteArrayContent(jpeg, ContentType.Image.JPEG)) } }
+
+    /** A picture from the chat, for drawing in its bubble. */
+    suspend fun image(id: String): ByteArray = call { http.get("api/conversation/images/$id") }
 
     /**
      * Something said aloud (push-to-talk), as a WAV. The transcribed message, or null when nothing

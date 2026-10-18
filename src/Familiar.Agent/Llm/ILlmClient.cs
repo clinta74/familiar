@@ -18,12 +18,14 @@ public enum ChatRole
 /// <param name="ToolCalls">For an assistant message: the tools it asked for.</param>
 /// <param name="ToolName">For a tool message: which tool answered.</param>
 /// <param name="ToolCallId">For a tool message: which call it answers.</param>
+/// <param name="Images">Pictures with a user message (BACKLOG item 35), as JPEG bytes.</param>
 public sealed record ChatMessage(
     ChatRole Role,
     string Content,
     IReadOnlyList<ToolCall>? ToolCalls = null,
     string? ToolName = null,
-    string? ToolCallId = null);
+    string? ToolCallId = null,
+    IReadOnlyList<byte[]>? Images = null);
 
 /// <summary>A piece of a streamed reply.</summary>
 public abstract record LlmChunk;

@@ -201,9 +201,9 @@ export function HomePage() {
 
   const canSpeak = conversation.speechAvailable && voiceOn;
 
-  const send = useCallback(async (text: string) => {
+  const send = useCallback(async (text: string, picture?: Blob) => {
     player.unlock();
-    await conversation.send(text, canSpeak);
+    await conversation.send(text, canSpeak, picture);
   }, [player, conversation, canSpeak]);
 
   const toggleVoice = useCallback(() => {

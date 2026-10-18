@@ -1,5 +1,5 @@
 import { api, errorFrom } from '../api/client';
-import type { ConfirmRequest, InterruptRequest, SendMessageRequest, ToolResultRequest } from '../protocol/generated';
+import type { ConfirmRequest, ImageView, InterruptRequest, SendMessageRequest, ToolResultRequest } from '../protocol/generated';
 import type { MessageView } from './events';
 
 const timeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -7,9 +7,23 @@ const timeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 export const conversationApi = {
   history: (limit = 50) => api<MessageView[]>(`/api/conversation/messages?limit=${limit}`),
 
-  /** A typed message. `speak` asks for the reply to be spoken as well. */
-  send: (text: string, speak: boolean) =>
-    api<MessageView>('/api/conversation/messages', { body: { text, timeZone: timeZone(), speak } satisfies SendMessageRequest }),
+  /** A typed message, with a picture uploaded first if there is one. `speak` asks for the reply to be spoken as well. */
+  send: (text: string, speak: boolean, imageId?: string) =>
+    api<MessageView>('/api/conversation/messages', {
+      body: { text, timeZone: timeZone(), speak, imageId: imageId ?? null } satisfies SendMessageRequest,
+    }),
+
+  /** A picture to send (BACKLOG item 35), already shrunk to a JPEG: the body is the picture. */
+  uploadImage: async (jpeg: Blob): Promise<ImageView> => {
+    const response = await fetch('/api/conversation/images', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'image/jpeg' },
+      body: jpeg,
+    });
+    if (!response.ok) throw await errorFrom(response);
+    return (await response.json()) as ImageView;
+  },
 
   /**
    * A spoken message: the recording itself is the body. Resolves to the transcribed message, or

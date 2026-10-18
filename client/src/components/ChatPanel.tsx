@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import type { LinkView, ToolConfirmEvent } from '../conversation/events';
+import { isPicture, pictureUrl } from '../conversation/pictures';
 import type { ChatMessage, ToolChip } from '../conversation/reducer';
 
 export interface VoiceControls {
@@ -27,7 +28,8 @@ interface Props {
   /** Thinking or speaking: offer Stop instead of Send. */
   busy: boolean;
   error: string | null;
-  onSend: (text: string) => Promise<void>;
+  /** Send what's typed, with a picture if one was added. */
+  onSend: (text: string, picture?: Blob) => Promise<void>;
   onInterrupt: () => void;
   onStartOver: () => void;
   onTyping: (typing: boolean) => void;
@@ -122,11 +124,40 @@ function SpeakerIcon({ on }: { on: boolean }) {
   );
 }
 
+function PictureIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+      <rect x="3.5" y="5" width="17" height="14" rx="2.5" />
+      <circle cx="9" cy="10" r="1.6" />
+      <path d="M4 17l5-5 4 4 2.5-2.5L20 17" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** The picture about to be sent, small, with a way to take it back. */
+function PicturePreview({ picture, onRemove }: { picture: File; onRemove: () => void }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const made = URL.createObjectURL(picture);
+    setUrl(made);
+    return () => URL.revokeObjectURL(made);
+  }, [picture]);
+  return (
+    <div className="picture-preview">
+      {url && <img src={url} alt="The picture you're about to send" />}
+      <span className="muted small">Goes with your message. Its location and camera details aren't sent.</span>
+      <button type="button" className="link" onClick={onRemove}>Remove</button>
+    </div>
+  );
+}
+
 export function ChatPanel({
   familiarName, messages, busy, error, onSend, onInterrupt, onStartOver, onTyping, voice, confirm, onConfirm,
 }: Props) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [picture, setPicture] = useState<File | null>(null);
+  const pictureInput = useRef<HTMLInputElement>(null);
   const transcript = useRef<HTMLOListElement>(null);
 
   // Follow the conversation, unless the user has scrolled up to read. A conversation that arrives
@@ -147,11 +178,12 @@ export function ChatPanel({
   async function submit(event?: FormEvent) {
     event?.preventDefault();
     const text = draft.trim();
-    if (!text || sending) return;
+    if ((!text && !picture) || sending) return;
     setSending(true);
     try {
-      await onSend(text);
+      await onSend(text, picture ?? undefined);
       setDraft('');
+      setPicture(null);
       onTyping(false);
     } catch {
       // The error is shown from conversation state; keep the draft so it can be resent.
@@ -182,7 +214,8 @@ export function ChatPanel({
                 {m.tools.map((chip) => <Chip key={chip.callId} chip={chip} />)}
               </ul>
             )}
-            {(m.text || !m.tools?.length) && <span className="bubble-text">{m.text}{m.interrupted && '…'}</span>}
+            {m.imageId && <img className="bubble-picture" src={pictureUrl(m.imageId)} alt="A picture you sent" loading="lazy" />}
+            {(m.text || (!m.tools?.length && !m.imageId)) && <span className="bubble-text">{m.text}{m.interrupted && '…'}</span>}
             {m.links && m.links.length > 0 && <LinkCards links={m.links} />}
             {m.role === 'assistant' && m.emotion && emotionLabels[m.emotion] && !m.streaming && (
               <span className="bubble-meta">{emotionLabels[m.emotion]}</span>
@@ -195,7 +228,17 @@ export function ChatPanel({
 
       {error && <p className="error chat-error" role="alert">{error}</p>}
 
-      <form className="composer" onSubmit={submit}>
+      {picture && <PicturePreview picture={picture} onRemove={() => setPicture(null)} />}
+
+      <form
+        className="composer"
+        onSubmit={submit}
+        onDragOver={(e) => { if ([...e.dataTransfer.items].some((i) => i.type.startsWith('image/'))) e.preventDefault(); }}
+        onDrop={(e) => {
+          const dropped = [...e.dataTransfer.files].find(isPicture);
+          if (dropped) { e.preventDefault(); setPicture(dropped); }
+        }}
+      >
         {voice.handsFree.on ? (
           <span
             className={`mic hands-free${voice.handsFree.hearing ? ' hearing' : ''}`}
@@ -217,7 +260,33 @@ export function ChatPanel({
             <MicIcon />
           </button>
         )}
+        <button
+          type="button"
+          className="attach"
+          onClick={() => pictureInput.current?.click()}
+          aria-label="Add a picture"
+          title="Add a picture (or paste one)"
+          disabled={voice.recording || sending}
+        >
+          <PictureIcon />
+        </button>
+        <input
+          ref={pictureInput}
+          id="chat-picture"
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const chosen = e.target.files?.[0];
+            if (chosen && isPicture(chosen)) setPicture(chosen);
+            e.target.value = '';
+          }}
+        />
         <textarea
+          onPaste={(e) => {
+            const pasted = [...e.clipboardData.files].find(isPicture);
+            if (pasted) { e.preventDefault(); setPicture(pasted); }
+          }}
           value={draft}
           onChange={(e) => {
             setDraft(e.target.value);
@@ -234,7 +303,7 @@ export function ChatPanel({
         {busy && !voice.recording ? (
           <button type="button" className="secondary" onClick={onInterrupt}>Stop</button>
         ) : (
-          <button type="submit" disabled={!draft.trim() || sending || voice.recording}>Send</button>
+          <button type="submit" disabled={(!draft.trim() && !picture) || sending || voice.recording} aria-busy={sending}>Send</button>
         )}
       </form>
 

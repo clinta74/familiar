@@ -18,6 +18,8 @@ data class ChatMessage(
     val tools: List<ToolChip> = emptyList(),
     /** Pages it handed over, as cards under the reply (BACKLOG item 34). */
     val links: List<LinkView> = emptyList(),
+    /** A picture sent with the message (BACKLOG item 35). */
+    val imageId: String? = null,
 )
 
 enum class Connection { Connecting, Open, Reconnecting }
@@ -40,6 +42,7 @@ private fun MessageView.toChat() = ChatMessage(
     emotion = emotion,
     interrupted = interrupted,
     links = links.orEmpty(),
+    imageId = imageId,
 )
 
 /**

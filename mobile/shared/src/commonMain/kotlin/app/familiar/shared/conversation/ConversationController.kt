@@ -308,13 +308,15 @@ class ConversationController(
         else -> throw IllegalArgumentException("This phone can't do ${invoke.tool}.")
     }
 
-    fun send(text: String) {
+    /** A typed message, with a picture (already shrunk) if there is one: the picture goes up first. */
+    fun send(text: String, picture: ByteArray? = null) {
         val trimmed = text.trim()
-        if (trimmed.isEmpty()) return
+        if (trimmed.isEmpty() && picture == null) return
         scope.launch {
             _state.update { it.copy(error = null) }
             try {
-                val message = api.send(trimmed, currentTimeZoneId(), speak)
+                val imageId = picture?.let { api.uploadImage(it).id }
+                val message = api.send(trimmed, currentTimeZoneId(), speak, imageId)
                 _state.update { ConversationReducer.apply(it, ServerEvent.Message(message)) }
             } catch (exception: Exception) {
                 if (exception is CancellationException) throw exception

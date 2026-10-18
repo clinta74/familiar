@@ -13,6 +13,7 @@ import app.familiar.shared.platform.DeviceAlarms
 import app.familiar.shared.platform.DeviceCalendar
 import app.familiar.shared.platform.DevicePhone
 import app.familiar.shared.platform.FilePicker
+import app.familiar.shared.platform.PicturePicker
 import app.familiar.shared.platform.SecureStore
 import app.familiar.shared.session.FamiliarSession
 import app.familiar.shared.session.FamiliarSessions
@@ -50,6 +51,8 @@ fun FamiliarApp(
     phone: DevicePhone? = null,
     /** The system's file chooser, for uploading a VRM model in the studio. */
     files: FilePicker? = null,
+    /** The photo picker, for pictures in the chat. */
+    pictures: PicturePicker? = null,
     /** Signed in (or still signed in, on opening): the platform registers for push. */
     onSession: () -> Unit = {},
     /** Extra items for the chat's menu that only the platform can do ("Make Familiar your assistant"). */
@@ -89,7 +92,7 @@ fun FamiliarApp(
             val open = { route: Route -> path = "$path/${route.name}" }
             val back = { path = path.substringBeforeLast('/', Route.Chat.name) }
             when (Route.valueOf(path.substringAfterLast('/'))) {
-                Route.Chat -> ChatScreen(session, actions, open)
+                Route.Chat -> ChatScreen(session, actions, open, pictures)
                 Route.Settings -> SettingsScreen(session, open, back)
                 Route.Familiar -> FamiliarSettingsScreen(session, back)
                 Route.Studio -> StudioScreen(session, files, back)

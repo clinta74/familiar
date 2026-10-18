@@ -12,7 +12,8 @@ namespace Familiar.Server.Conversation;
 /// <param name="Text">What the user typed.</param>
 /// <param name="TimeZone">The user's IANA time zone, for the situation in the prompt.</param>
 /// <param name="Speak">Speak the reply as well as showing it. Spoken messages are always answered aloud.</param>
-public sealed record SendMessageRequest(string? Text, string? TimeZone, bool? Speak = null);
+/// <param name="ImageId">A picture uploaded to /api/conversation/images to send with it (BACKLOG item 35); the text may then be empty.</param>
+public sealed record SendMessageRequest(string? Text, string? TimeZone, bool? Speak = null, Guid? ImageId = null);
 
 /// <param name="ReplyId">The reply that was playing when the user interrupted.</param>
 /// <param name="Heard">What of it they heard: the reply is cut to this.</param>
@@ -45,6 +46,8 @@ public static class ConversationEndpoints
         group.MapPost("/messages", SendAsync).RequireRateLimiting(RateLimiting.Conversation);
         group.MapPost("/audio", SendSpokenAsync).RequireRateLimiting(RateLimiting.Conversation);
         group.MapGet("/audio/{clipId:guid}", ClipAsync);
+        group.MapPost("/images", UploadImageAsync).RequireRateLimiting(RateLimiting.Conversation);
+        group.MapGet("/images/{imageId:guid}", ImageAsync);
         group.MapPost("/interrupt", InterruptAsync);
         group.MapPost("/new", StartOverAsync);
         group.MapPost("/tool-result", (ToolResultRequest request, HttpContext http, DeviceTools devices) =>
@@ -181,17 +184,70 @@ public static class ConversationEndpoints
     private static string From(HttpContext http) => http.User.DeviceId()?.ToString() ?? DeviceCapabilities.FromBrowser;
 
     private static async Task<IResult> SendAsync(
-        SendMessageRequest request, HttpContext http, ConversationTurns turns, TimeProvider clock, CancellationToken ct)
+        SendMessageRequest request, HttpContext http, ConversationTurns turns, ConversationStore store, TimeProvider clock, CancellationToken ct)
     {
         var text = request.Text?.Trim() ?? string.Empty;
-        if (text.Length is 0 or > MaxMessageLength)
+        if ((text.Length == 0 && request.ImageId is null) || text.Length > MaxMessageLength)
         {
             return AuthEndpoints.Error(StatusCodes.Status400BadRequest, $"Messages are 1-{MaxMessageLength} characters.");
         }
 
+        var accountId = http.User.AccountId()!.Value;
+        if (request.ImageId is { } imageId && !await store.OwnsUnsentImageAsync(accountId, imageId, ct))
+        {
+            return AuthEndpoints.Error(StatusCodes.Status400BadRequest, "That picture isn't there any more. Add it again.");
+        }
+
         var turn = new TurnRequest(Zone(request.TimeZone), request.Speak ?? false, clock.GetTimestamp(), From: From(http));
-        var message = await turns.SubmitAsync(http.User.AccountId()!.Value, text, turn, ct);
+        var message = await turns.SubmitAsync(accountId, text, turn, ct, request.ImageId);
         return TypedResults.Accepted((string?)null, MessageView.From(message));
+    }
+
+    /// <summary>
+    /// A picture to send (BACKLOG item 35), as the raw image/jpeg body: checked, its metadata stripped,
+    /// and kept until a message names it - a day at most.
+    /// </summary>
+    private static async Task<IResult> UploadImageAsync(HttpContext http, ConversationStore store, CancellationToken ct)
+    {
+        if (!string.Equals(http.Request.ContentType, "image/jpeg", StringComparison.OrdinalIgnoreCase))
+        {
+            return AuthEndpoints.Error(StatusCodes.Status415UnsupportedMediaType, "Send the picture as an image/jpeg body.");
+        }
+
+        if (http.Request.ContentLength > Domain.Conversations.MessageImage.MaxBytes)
+        {
+            return AuthEndpoints.Error(StatusCodes.Status413PayloadTooLarge, "That picture is too big.");
+        }
+
+        using var buffer = new MemoryStream();
+        await http.Request.Body.CopyToAsync(buffer, ct);
+        if (buffer.Length > Domain.Conversations.MessageImage.MaxBytes)
+        {
+            return AuthEndpoints.Error(StatusCodes.Status413PayloadTooLarge, "That picture is too big.");
+        }
+
+        try
+        {
+            var (bytes, width, height) = ChatImages.Clean(buffer.ToArray());
+            var image = await store.AddImageAsync(http.User.AccountId()!.Value, bytes, width, height, ct);
+            return TypedResults.Ok(new ImageView(image.Id, image.Width, image.Height));
+        }
+        catch (ChatImageException exception)
+        {
+            return AuthEndpoints.Error(StatusCodes.Status400BadRequest, exception.Message);
+        }
+    }
+
+    /// <summary>A picture from the chat, to its owner only.</summary>
+    private static async Task<IResult> ImageAsync(Guid imageId, HttpContext http, ConversationStore store, CancellationToken ct)
+    {
+        if (await store.ImageAsync(http.User.AccountId()!.Value, imageId, ct) is not { } bytes)
+        {
+            return Results.NotFound();
+        }
+
+        http.Response.Headers.CacheControl = "private, max-age=604800";
+        return Results.File(bytes, "image/jpeg");
     }
 
     /// <summary>

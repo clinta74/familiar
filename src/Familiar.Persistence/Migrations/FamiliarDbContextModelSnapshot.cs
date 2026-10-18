@@ -326,6 +326,10 @@ namespace Familiar.Persistence.Migrations
                         .HasColumnType("double precision")
                         .HasColumnName("emotion_intensity");
 
+                    b.Property<Guid?>("ImageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("image_id");
+
                     b.Property<bool>("Interrupted")
                         .HasColumnType("boolean")
                         .HasColumnName("interrupted");
@@ -343,11 +347,52 @@ namespace Familiar.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_messages");
 
+                    b.HasIndex("ImageId")
+                        .HasDatabaseName("ix_messages_image_id");
+
                     b.HasIndex("ConversationId", "Id")
                         .IsDescending(false, true)
                         .HasDatabaseName("ix_messages_conversation_id_id");
 
                     b.ToTable("messages", (string)null);
+                });
+
+            modelBuilder.Entity("Familiar.Domain.Conversations.MessageImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<byte[]>("Bytes")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("bytes");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("integer")
+                        .HasColumnName("height");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("integer")
+                        .HasColumnName("width");
+
+                    b.HasKey("Id")
+                        .HasName("pk_message_images");
+
+                    b.HasIndex("AccountId", "CreatedAt")
+                        .HasDatabaseName("ix_message_images_account_id_created_at");
+
+                    b.ToTable("message_images", (string)null);
                 });
 
             modelBuilder.Entity("Familiar.Domain.Familiars.AvatarAsset", b =>
@@ -1060,6 +1105,22 @@ namespace Familiar.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_messages_conversations_conversation_id");
+
+                    b.HasOne("Familiar.Domain.Conversations.MessageImage", null)
+                        .WithMany()
+                        .HasForeignKey("ImageId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_messages_message_images_image_id");
+                });
+
+            modelBuilder.Entity("Familiar.Domain.Conversations.MessageImage", b =>
+                {
+                    b.HasOne("Familiar.Domain.Accounts.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_message_images_accounts_account_id");
                 });
 
             modelBuilder.Entity("Familiar.Domain.Familiars.AvatarAsset", b =>

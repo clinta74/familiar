@@ -26,6 +26,8 @@ public sealed class FamiliarDbContext(DbContextOptions<FamiliarDbContext> option
 
     public DbSet<Message> Messages => Set<Message>();
 
+    public DbSet<MessageImage> MessageImages => Set<MessageImage>();
+
     public DbSet<ScheduledJob> ScheduledJobs => Set<ScheduledJob>();
 
     public DbSet<ToolInvocation> ToolInvocations => Set<ToolInvocation>();

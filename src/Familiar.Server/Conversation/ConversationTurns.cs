@@ -42,7 +42,7 @@ public sealed class ConversationTurns(
     IHostApplicationLifetime lifetime,
     ILogger<ConversationTurns> logger)
 {
-    public async Task<Message> SubmitAsync(Guid accountId, string text, TurnRequest request, CancellationToken ct)
+    public async Task<Message> SubmitAsync(Guid accountId, string text, TurnRequest request, CancellationToken ct, Guid? imageId = null)
     {
         var channel = hub.For(accountId);
         await channel.TurnGate.WaitAsync(ct);
@@ -56,6 +56,7 @@ public sealed class ConversationTurns(
                 ConversationId = conversation.Id,
                 Role = MessageRole.User,
                 Content = text,
+                ImageId = imageId,
                 CreatedAt = clock.GetUtcNow(),
             }, ct);
 
@@ -412,9 +413,11 @@ public sealed class ConversationTurns(
             var home = Familiars.HomePlaces.HomeOf(profile);
             var situation = await situations.ForAsync(
                 accountId, request.Zone, now, userMessage?.CreatedAt ?? now, ct, profile.LookUps ? profile.HomePlace : null, profile.LookUps ? home : null);
+            // A picture goes to the model with its own message only; later turns are told one was there.
+            var image = userMessage?.ImageId is { } imageId ? await store.ImageAsync(accountId, imageId, ct) : null;
             var context = new PromptContext(
                 profile, username, history, userMessage?.Content ?? "", now, request.Zone, situation.Notes, situation.Memories,
-                Familiars.AppearanceView.Parse(profile.Appearance).Look(), profile.HomePlace);
+                Familiars.AppearanceView.Parse(profile.Appearance).Look(), profile.HomePlace, image);
             var prompt = userMessage is null ? PromptBuilder.BuildUnprompted(context, cue ?? PromptBuilder.GreetingCue) : PromptBuilder.Build(context);
 
             if (request.Speak)
@@ -488,6 +491,8 @@ public sealed class ConversationTurns(
             var runner = scope.ServiceProvider.GetRequiredService<TurnRunner>();
             var toolContext = new ToolContext(accountId, replyId, request.Zone, clock.GetUtcNow(), profile.LookUps, profile.HomePlace, request.From, home,
                 UserLinks(history, userMessage));
+            // Words in a picture are someone else's, like a look-up's: changes after it ask first.
+            toolContext.Turn.OutsideText = image is not null;
             // A greeting gets no tools: it's a hello, not a chance to start doing things.
             var result = userMessage is null
                 ? await runner.RunAsync(prompt, Emit, ct)

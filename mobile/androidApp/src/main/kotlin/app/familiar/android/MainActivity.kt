@@ -1,5 +1,8 @@
 package app.familiar.android
 
+import app.familiar.shared.platform.SharedPictures
+import app.familiar.shared.platform.PicturePicker
+import androidx.activity.result.PickVisualMediaRequest
 import android.Manifest
 import android.app.role.RoleManager
 import android.content.Context
@@ -51,6 +54,36 @@ class MainActivity : ComponentActivity() {
         documentAnswer = null
     }
 
+    private var pictureAnswer: CompletableDeferred<Uri?>? = null
+
+    /** The system's photo picker: no permission needed, and only what's chosen is shared (BACKLOG item 35). */
+    private val photoPicker = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        pictureAnswer?.complete(uri)
+        pictureAnswer = null
+    }
+
+    private val pictures = object : PicturePicker {
+        override suspend fun pick(): ByteArray? {
+            pictureAnswer?.complete(null)
+            val answer = CompletableDeferred<Uri?>().also { pictureAnswer = it }
+            photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            val uri = answer.await() ?: return null
+            return withContext(Dispatchers.IO) { AndroidPictures.shrink(contentResolver, uri) }
+        }
+
+        override fun decode(jpeg: ByteArray) = AndroidPictures.decode(jpeg)
+    }
+
+    /** A picture shared to Familiar from another app: shrunk, and left for the chat to pick up. */
+    private fun takeSharedPicture(intent: Intent) {
+        if (intent.action != Intent.ACTION_SEND || intent.type?.startsWith("image/") != true) return
+        val uri = intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java) ?: return
+        lifecycleScope.launch {
+            runCatching { withContext(Dispatchers.IO) { AndroidPictures.shrink(contentResolver, uri) } }
+                .onSuccess { SharedPictures.pending.value = it }
+        }
+    }
+
     private val files = object : FilePicker {
         override suspend fun pick(): PickedFile? {
             documentAnswer?.complete(null)
@@ -73,6 +106,7 @@ class MainActivity : ComponentActivity() {
         AppServices.init(applicationContext)
         Permissions.activity = this
         listenRequested = Talk.asked(intent)
+        takeSharedPicture(intent)
         setContent {
             FamiliarApp(
                 AppServices.store,
@@ -84,6 +118,7 @@ class MainActivity : ComponentActivity() {
                 AppServices.alarms,
                 AppServices.phone,
                 files,
+                pictures,
                 onSession = {
                     askForNotifications()
                     Push.register(this)
@@ -100,6 +135,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        takeSharedPicture(intent)
         if (Talk.asked(intent)) {
             listenRequested = true
             listenIfAsked()

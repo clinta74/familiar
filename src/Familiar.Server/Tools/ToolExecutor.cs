@@ -143,7 +143,7 @@ public sealed partial class ToolExecutor(
         {
             // After a look-up, outside text has been in the conversation: anything that changes
             // something asks first, so the text can't quietly make it act.
-            if (risk == ToolRisk.WriteExternal || (risk == ToolRisk.WriteOwn && context.Turn.LookUps > 0))
+            if (risk == ToolRisk.WriteExternal || (risk == ToolRisk.WriteOwn && (context.Turn.LookUps > 0 || context.Turn.OutsideText)))
             {
                 approved = await confirmations.AskAsync(context, call, tool.Describe(call.Arguments), ct);
             }
