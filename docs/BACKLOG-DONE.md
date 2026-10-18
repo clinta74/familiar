@@ -85,7 +85,11 @@ restraint 10/10, emotion tags 10/10 - as before - median first token 278 ms (was
 for the model with its draft model, vision encoder and cache (0.35.0: ~8.9 GB); `OLLAMA_KV_CACHE_TYPE`
 is honoured (q8_0 halves the cache). Not done, as not needed now: shorter tool descriptions (each
 round would read ~25% less), offering fewer tools per message (it would break the cache, which needs
-the tools to stay the same), warming the prompt at startup, and speaking from the first clause.
+the tools to stay the same), warming the prompt at startup, and speaking from the first clause. **Follow-up, from the NAS's logs:** a story request
+re-read ~1,000 tokens (1 s) because each user message was replayed without the notes it was first sent
+with, so the prompt stopped matching the cache at the previous message. Now it's replayed exactly as
+sent (`Message.PromptText`), and old history drops out six messages at a time rather than one a turn,
+so the cache holds to the end of the last reply.
 
 ### 5a. ~~Open the chat at its latest message~~ — done (2026-10-03)
 
