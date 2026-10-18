@@ -33,6 +33,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -187,6 +188,7 @@ class FamiliarSession(
             onStopped = {
                 _handsFreeOn.value = false
                 _userSpeaking.value = false
+                if (awaySince != null) letGoLater()
             }
         }
     }
@@ -200,13 +202,33 @@ class FamiliarSession(
     fun foreground(visible: Boolean) {
         if (!visible) {
             if (awaySince == null) awaySince = Clock.System.now()
+            letGoLater()
             return
         }
+        letGo?.cancel()
+        letGo = null
         val away = awaySince ?: return
         awaySince = null
         shownAway.forEach { alarms?.dismissMessage(it) }
         shownAway.clear()
         if (Clock.System.now() - away > 5.seconds || controller.state.value.connection != Connection.Open) controller.resume()
+    }
+
+    private var letGo: kotlinx.coroutines.Job? = null
+
+    /**
+     * Away a while and not talking hands-free, the conversation stream goes - once any reply's done -
+     * and comes back with the app. The phone's push connection keeps the app running in the
+     * background now (BACKLOG item 38), so otherwise this stream would ping every 15 s all day; the
+     * push connection is what hears of things meanwhile.
+     */
+    private fun letGoLater() {
+        letGo?.cancel()
+        letGo = scope.launch {
+            delay(LET_GO_AFTER)
+            while (busy) delay(5.seconds)
+            if (awaySince != null && !_handsFreeOn.value) controller.letGo()
+        }
     }
 
     /** Connects (once); the look is read as soon as the stream is ready. */
@@ -411,6 +433,9 @@ class FamiliarSession(
 
         /** How long after the familiar stops talking an utterance can still be its own voice (the speaker's tail). */
         val ECHO_TAIL = 2.seconds
+
+        /** Long enough to come back from a glance at another app, still connected. */
+        val LET_GO_AFTER = 2.minutes
 
         /** How the familiar looked last time, per account: the avatar starts as that, not a stand-in. */
         fun lookKey(username: String) = "look:$username"

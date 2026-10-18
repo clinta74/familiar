@@ -121,9 +121,11 @@ class MainActivity : ComponentActivity() {
                 pictures,
                 onSession = {
                     askForNotifications()
-                    Push.register(this)
+                    PushConnection.start(this)
                     listenIfAsked()
                 },
+                onSignedOut = { PushConnection.stop(this) },
+                background = PushConnection.setting(applicationContext),
                 actions = assistantActions(),
             )
         }

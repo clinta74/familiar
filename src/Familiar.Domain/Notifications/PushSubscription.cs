@@ -20,8 +20,8 @@ public sealed class PushSubscription
     public string? Auth { get; set; }
 
     /// <summary>
-    /// For a phone (UnifiedPush through ntfy): the signed-in device it belongs to. Signing the device
-    /// out removes it. Phones are also nudged whenever timers change, so their local alarms keep up.
+    /// For a phone, from when phones pushed through ntfy (UnifiedPush): the signed-in device it belonged
+    /// to. Phones now listen on their own stream (BACKLOG item 38); such a row goes when its phone does.
     /// </summary>
     public Guid? DeviceId { get; set; }
 

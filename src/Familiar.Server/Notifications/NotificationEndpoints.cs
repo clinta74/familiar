@@ -71,6 +71,7 @@ public static class NotificationEndpoints
         push.MapGet("/key", async (VapidKeys keys, CancellationToken ct) => new PushKeyResponse(await keys.PublicKeyAsync(ct)));
         push.MapPost("/subscriptions", SubscribeAsync);
         push.MapDelete("/subscriptions", UnsubscribeAsync);
+        push.MapGet("/stream", PhoneStreams.StreamAsync);
 
         routes.MapGet("/api/notifications/recent", RecentAsync).RequireAuthorization();
     }

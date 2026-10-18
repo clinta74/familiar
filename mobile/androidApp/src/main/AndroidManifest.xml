@@ -10,6 +10,9 @@
     <!-- Hands-free: listening with the screen off is a foreground service with a notification. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- Push without the ntfy app: the app's own connection to the server (BACKLOG item 38). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Timers and reminders as the phone's own alarms, which ring offline (M3). USE_EXACT_ALARM
@@ -111,13 +114,16 @@
             </intent-filter>
         </receiver>
 
-        <!-- Woken by the UnifiedPush distributor (the ntfy app) when the server pushes. -->
+        <!-- Keeps the connection the server pushes on while the app's closed (BACKLOG item 38).
+             Special use: no other foreground service type fits a push connection, and the app is
+             sideloaded, not on Google Play, whose review that type would need. -->
         <service
-            android:name=".FamiliarPushService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
-            </intent-filter>
+            android:name=".PushConnectionService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps a connection to the user's own Familiar server, so timers and announcements reach the phone while the app is closed." />
         </service>
 
         <service

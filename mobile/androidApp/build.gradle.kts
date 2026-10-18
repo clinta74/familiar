@@ -116,8 +116,6 @@ androidComponents {
 dependencies {
     implementation(project(":shared"))
     implementation(libs.androidx.activity.compose)
-    // Push through ntfy (UnifiedPush), docs/MOBILE.md §8.
-    implementation(libs.unifiedpush.connector)
     implementation(libs.coroutines.core)
     implementation(libs.compose.runtime)
     implementation(libs.compose.ui)

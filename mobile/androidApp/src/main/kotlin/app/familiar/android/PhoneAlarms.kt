@@ -129,7 +129,12 @@ class AlarmReceiver : BroadcastReceiver() {
         when (intent.action) {
             PhoneAlarms.ACTION_FIRE -> intent.getStringExtra(PhoneAlarms.EXTRA_ID)?.let(alarms::fired)
             PhoneAlarms.ACTION_DISMISS -> intent.getStringExtra(PhoneAlarms.EXTRA_ID)?.let { Alerts.dismiss(context, it) }
-            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED, Intent.ACTION_LOCKED_BOOT_COMPLETED -> alarms.restore()
+            Intent.ACTION_LOCKED_BOOT_COMPLETED -> alarms.restore()
+            // Unlocked, the sign-in can be read: the push connection starts again too (BACKLOG item 38).
+            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> {
+                alarms.restore()
+                PushConnection.start(context)
+            }
         }
     }
 }
@@ -170,6 +175,9 @@ object Alerts {
      * already: the same id replaces it, with the familiar's own words.
      */
     fun message(context: Context, id: String, title: String, body: String) = post(context, id, title, body, ring = false, message = true)
+
+    /** Already seen in the open app: noted, so a later push doesn't show it. */
+    fun seen(context: Context, id: String) = remember(context, id)
 
     fun dismiss(context: Context, id: String) {
         context.getSystemService(NotificationManager::class.java).cancel(id.hashCode())

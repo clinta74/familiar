@@ -30,8 +30,6 @@ import app.familiar.shared.protocol.NameRequest
 import app.familiar.shared.protocol.NewHookTokenView
 import app.familiar.shared.protocol.NewWebhookView
 import app.familiar.shared.protocol.NotificationView
-import app.familiar.shared.protocol.PushKeyResponse
-import app.familiar.shared.protocol.SubscribeRequest
 import app.familiar.shared.protocol.MessageView
 import app.familiar.shared.protocol.SendMessageRequest
 import app.familiar.shared.protocol.ServerEvent
@@ -48,6 +46,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.sse.SSE
 import io.ktor.client.plugins.sse.sse
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -77,6 +76,12 @@ class UnreachableException(message: String, cause: Throwable? = null) : Exceptio
 
 /** One event as it arrived: its id (for Last-Event-ID on reconnect) and what it says. */
 data class StreamEvent(val id: String?, val event: ServerEvent)
+
+/** What the push stream says: it's open, or something changed (BACKLOG item 38). */
+enum class PushSignal { Open, Changed }
+
+/** Two of the push stream's 45 s pings, and a little: longer silent than this, it's gone. */
+const val PUSH_SILENCE_MILLIS = 100_000L
 
 /**
  * Familiar's HTTP API for a phone: sign-in with a device token (PLAN.md §2), then everything with
@@ -314,16 +319,28 @@ class FamiliarApi(
     /** What went off in the last few minutes (for a push, which says only that something did). */
     suspend fun recentNotifications(): List<NotificationView> = call { http.get("api/notifications/recent") }
 
-    /** The server's VAPID key: only pushes signed with it reach this phone. */
-    suspend fun pushKey(): String = call<PushKeyResponse> { http.get("api/push/key") }.publicKey
-
-    /** This phone's push endpoint (on the household's ntfy); replaces the last one. */
-    suspend fun subscribePush(endpoint: String) {
-        call<Unit> {
-            http.post("api/push/subscriptions") {
-                contentType(ContentType.Application.Json)
-                setBody(SubscribeRequest(endpoint))
+    /**
+     * The phone's push stream (BACKLOG item 38), until it ends or fails: [PushSignal.Open] once it's
+     * open, then [PushSignal.Changed] whenever something changed - the timers, or something went off -
+     * and the app asks what. The server pings every 45 s; two missed and the read times out.
+     */
+    fun pushStream(): Flow<PushSignal> = flow {
+        try {
+            http.sse(
+                urlString = "api/push/stream",
+                request = { timeout { socketTimeoutMillis = PUSH_SILENCE_MILLIS } },
+            ) {
+                incoming.collect { event ->
+                    when {
+                        event.event == "changed" -> emit(PushSignal.Changed)
+                        event.comments?.trim() == "open" -> emit(PushSignal.Open)
+                    }
+                }
             }
+        } catch (exception: io.ktor.client.plugins.sse.SSEClientException) {
+            val status = exception.response?.status?.value
+            if (status != null && status >= 400) throw ApiException(status, describe(status, exception.response!!.bodyAsTextOrNull()))
+            throw UnreachableException("Lost the connection to the server.", exception)
         }
     }
 

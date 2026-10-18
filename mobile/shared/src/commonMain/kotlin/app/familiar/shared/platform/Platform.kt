@@ -41,6 +41,16 @@ interface FilePicker {
  * Where the access token and server address are kept: the Android Keystore, the iOS Keychain - never
  * plain preferences (docs/MOBILE.md §1).
  */
+/**
+ * The phone keeping its own connection to the server while the app's closed, so timers set elsewhere
+ * and announcements reach it (BACKLOG item 38). On unless turned off.
+ */
+interface BackgroundConnection {
+    fun isOn(): Boolean
+
+    fun set(on: Boolean)
+}
+
 interface SecureStore {
     fun read(key: String): String?
 

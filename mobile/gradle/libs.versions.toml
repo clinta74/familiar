@@ -8,7 +8,6 @@ serialization = "1.11.0"
 coroutines = "1.11.0"
 activity-compose = "1.13.0"
 onnxruntime = "1.22.0"
-unifiedpush = "3.3.5"
 
 # Android: API 29 (Android 10) up, built against 37 (Compose 1.12 requires it), targeting 36. MOBILE.md §8.
 android-min-sdk = "29"
@@ -31,7 +30,6 @@ coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", ve
 coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
-unifiedpush-connector = { module = "org.unifiedpush.android:connector", version.ref = "unifiedpush" }
 onnxruntime-android = { module = "com.microsoft.onnxruntime:onnxruntime-android", version.ref = "onnxruntime" }
 
 [plugins]

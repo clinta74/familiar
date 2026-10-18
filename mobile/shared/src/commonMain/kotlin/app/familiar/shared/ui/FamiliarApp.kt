@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import app.familiar.shared.auth.Session
+import app.familiar.shared.platform.BackgroundConnection
 import app.familiar.shared.platform.DeviceAlarms
 import app.familiar.shared.platform.DeviceCalendar
 import app.familiar.shared.platform.DevicePhone
@@ -53,8 +54,12 @@ fun FamiliarApp(
     files: FilePicker? = null,
     /** The photo picker, for pictures in the chat. */
     pictures: PicturePicker? = null,
-    /** Signed in (or still signed in, on opening): the platform registers for push. */
+    /** Signed in (or still signed in, on opening): the platform starts listening for pushes. */
     onSession: () -> Unit = {},
+    /** Signed out: the platform stops listening. */
+    onSignedOut: () -> Unit = {},
+    /** Staying connected while closed, to switch off in Devices (null where there's no such thing). */
+    background: BackgroundConnection? = null,
     /** Extra items for the chat's menu that only the platform can do ("Make Familiar your assistant"). */
     actions: List<PlatformAction> = emptyList(),
 ) {
@@ -80,6 +85,7 @@ fun FamiliarApp(
             LaunchedEffect(session) { onSession() }
             LaunchedEffect(ended) {
                 if (ended) {
+                    onSignedOut()
                     auth.clear()
                     FamiliarSessions.close()
                     signedIn = null
@@ -100,7 +106,7 @@ fun FamiliarApp(
                 Route.Calendars -> CalendarsScreen(session, back)
                 Route.Connections -> ConnectionsScreen(session, back)
                 Route.Account -> AccountScreen(session, back)
-                Route.Devices -> DevicesScreen(session, back)
+                Route.Devices -> DevicesScreen(session, background, back)
             }
         }
     }

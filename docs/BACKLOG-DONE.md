@@ -63,6 +63,24 @@ What would actually cut the ~1 s of prefill before the first word:
 - **llama.cpp's `llama-server`** with `cache_prompt`, which also has slot save/restore across
   restarts.
 
+### 38. ~~Push without the ntfy app~~ — done (2026-10-18): the app's own connection
+
+The phone keeps one small stream open to the server from a foreground service (`PushConnectionService`,
+type specialUse, with a quiet "standing by" notification and a "Turn off" button), as the ntfy app
+did, so neither the ntfy app nor the ntfy service is needed. The stream (`GET /api/push/stream`,
+device tokens only) says only "changed", whenever the server would have pushed - a timer set or
+cancelled, one going off, an announcement - with a ping every 45 s, inside nginx's 60 s and the same
+as ntfy's; the app then fetches the pending list and what went off, as before. Reconnects at once on
+a new network, otherwise backing off to 5 minutes; starts at boot and after an update; stops on
+signing out; Settings, Devices, "Stay connected when closed" turns it off. Web Push is browsers only
+now, and a phone's old ntfy subscription goes when it first connects. Found on the way: with the app
+kept running, the conversation stream would have stayed open in the background, pinging every 15 s
+- it now lets go two minutes after the app leaves the front (not while hands-free, nor mid-reply).
+Verified on the emulator (Android 16): the service running as specialUse, an announcement with the
+app in the background shown through it (the server log has the phone fetching what changed), and in
+forced deep Doze with the screen off, unplugged, another arriving within seconds; the conversation
+stream closing two minutes after leaving and reconnecting on return.
+
 ### 37. ~~Faster first words~~ — done (2026-10-18): Ollama 0.40.6, with its threads set
 
 Measured first (the server now logs each round with the model: tools offered, prompt tokens, read

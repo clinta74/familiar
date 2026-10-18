@@ -7,6 +7,7 @@ using System.Text.Json.Nodes;
 using Familiar.Agent.Llm;
 using Familiar.Agent.Tools;
 using Familiar.Agent.Turns;
+using Familiar.Domain.Notifications;
 using Familiar.Domain.Scheduling;
 using Familiar.Domain.Tools;
 using Familiar.Persistence;
@@ -264,36 +265,56 @@ public sealed class ToolTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task A_phone_pushes_through_the_households_ntfy_and_its_endpoint_goes_with_the_device()
+    public async Task A_phone_hears_of_changes_on_its_own_stream_and_its_ntfy_endpoint_goes()
     {
+        // BACKLOG item 38: no ntfy app. The stream says only "changed"; the phone asks what.
         await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
-        (await app.CreateClient().RegisterAsync("pocket")).EnsureSuccessStatusCode();
+        var browser = await SignedInAsync(app, "pocket");
         var login = await app.CreateClient().DeviceLoginAsync("pocket");
         var phone = app.DeviceClient(login.Token);
+        var accountId = login.Account.Id;
 
-        // ntfy is on the local network: accepted because it's the one configured, on its own origin only.
-        foreach (var bad in new[] { "http://192.168.1.20:2587/up1", "https://192.168.1.20:2586/up1", "http://192.168.1.20:2586/", "http://192.168.1.21:2586/up1", "https://printer.local/up1" })
-        {
-            Assert.Equal(HttpStatusCode.BadRequest, (await phone.PostAsJsonAsync("/api/push/subscriptions", new SubscribeRequest(bad, null))).StatusCode);
-        }
-
-        Assert.Equal(HttpStatusCode.NoContent,
-            (await phone.PostAsJsonAsync("/api/push/subscriptions", new SubscribeRequest("http://192.168.1.20:2586/upAAA?up=1", null))).StatusCode);
-        // A new endpoint from the same phone replaces its old one.
-        Assert.Equal(HttpStatusCode.NoContent,
-            (await phone.PostAsJsonAsync("/api/push/subscriptions", new SubscribeRequest("http://192.168.1.20:2586/upBBB?up=1", null))).StatusCode);
-
+        // From when phones pushed through ntfy.
         await using (var db = await Db(app))
         {
-            var subscription = await db.PushSubscriptions.SingleAsync();
-            Assert.Equal(("http://192.168.1.20:2586/upBBB?up=1", login.Device.Id), (subscription.Endpoint, subscription.DeviceId));
+            db.PushSubscriptions.Add(new PushSubscription
+            {
+                AccountId = accountId, Endpoint = "http://192.168.1.20:2586/upAAA?up=1", DeviceId = login.Device.Id, CreatedAt = DateTimeOffset.UtcNow,
+            });
+            await db.SaveChangesAsync();
         }
 
-        // Signing the phone out takes its push endpoint with it.
-        Assert.Equal(HttpStatusCode.NoContent, (await phone.DeleteAsync($"/api/auth/devices/{login.Device.Id}")).StatusCode);
+        // Browsers have Web Push.
+        Assert.Equal(HttpStatusCode.BadRequest, (await browser.GetAsync("/api/push/stream")).StatusCode);
+
+        using var response = await phone.GetAsync("/api/push/stream", HttpCompletionOption.ResponseHeadersRead);
+        Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
+        using var reader = new StreamReader(await response.Content.ReadAsStreamAsync());
+        Assert.Equal(": open", await LineAsync(reader, l => l.StartsWith(':')));
+
+        var phones = app.Services.GetRequiredService<PhoneStreams>();
+        Assert.Equal(1, phones.Listening(accountId));
         await using (var db = await Db(app))
         {
             Assert.Empty(await db.PushSubscriptions.ToListAsync());
+        }
+
+        // Timers changing: phones only.
+        await app.Services.GetRequiredService<PushSender>().NotifyAsync(accountId, default, devicesOnly: true);
+        Assert.Equal("event: changed", await LineAsync(reader, l => l.StartsWith("event:", StringComparison.Ordinal)));
+
+        static async Task<string> LineAsync(StreamReader reader, Func<string, bool> wanted)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            while (await reader.ReadLineAsync(timeout.Token) is { } line)
+            {
+                if (wanted(line))
+                {
+                    return line;
+                }
+            }
+
+            return "(ended)";
         }
     }
 

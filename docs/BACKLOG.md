@@ -26,6 +26,10 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
   live?". A home typed in before shows as "typed, not picked" until it's picked.
 - **Link cards in the app** (item 34): "give me a link to the Michigan Secretary of State" shows a
   card under the reply; tapping it opens the browser.
+- **Push without ntfy** (item 38): after updating the NAS and the app, a quiet "Pip is standing by"
+  notification; with Familiar swiped away, an announcement from Home Assistant comes up, and a timer
+  set on the website rings on the phone. Then after a restart, without opening the app. Then remove
+  ntfy (deploy/TRUENAS.md, "Push to phones").
 - **Pictures in the app** (item 35): the picture button by the message box opens the photo picker;
   "what's this?" with a photo; and from Photos or another app, Share → Familiar puts the picture in
   the chat ready to send. Sent pictures show in the bubbles, there and after reopening.
@@ -82,14 +86,7 @@ Ideas that came up and were set aside - not agreed. Each would need asking about
 
 ## Next, in this order (asked 2026-10-18)
 
-37 is done (BACKLOG-DONE.md).
-
-### 38. Push without the ntfy app
-
-Android push goes through a self-hosted ntfy server and the ntfy app (UnifiedPush). Instead, the app
-keeps its own connection while in the background: a foreground service with its own small
-notification, as hands-free already has. Discussed 2026-10-06 and kept then; now wanted. Mind the
-battery, Doze, and what happens after the phone restarts.
+37 and 38 are done (BACKLOG-DONE.md).
 
 ### 39. Sending texts directly, for hands-free use
 

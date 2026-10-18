@@ -49,8 +49,6 @@ public sealed class FamiliarAppFactory(
 
         // The fakes need no warming, and a warm-up synthesis would show up in tests that count TTS calls.
         builder.UseSetting("Speech:WarmUpOnStart", "false");
-        // Phones push through this ntfy (UnifiedPush); nothing listens there in tests.
-        builder.UseSetting("Push:UnifiedPushServer", "http://192.168.1.20:2586");
 
         // The warm-up talks to Ollama directly (it isn't the faked ILlmClient): never from tests.
         builder.UseSetting("Llm:WarmUp", "false");

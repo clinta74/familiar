@@ -1,5 +1,9 @@
 package app.familiar.shared.ui.settings
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -10,14 +14,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import app.familiar.shared.platform.BackgroundConnection
 import app.familiar.shared.platform.formatInstant
 import app.familiar.shared.protocol.DeviceSummary
 import app.familiar.shared.session.FamiliarSession
 import kotlinx.coroutines.launch
 
-/** The phones signed in to the account; any can be signed out from here, this one included. */
+/**
+ * The phones signed in to the account; any can be signed out from here, this one included. And
+ * whether this one stays connected while the app's closed.
+ */
 @Composable
-fun DevicesScreen(session: FamiliarSession, onBack: () -> Unit) {
+fun DevicesScreen(session: FamiliarSession, background: BackgroundConnection?, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var devices by remember { mutableStateOf<List<DeviceSummary>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -54,6 +64,25 @@ fun DevicesScreen(session: FamiliarSession, onBack: () -> Unit) {
                 }
             }
             Muted("Browsers signed in to the web app aren't listed; changing your password signs them out.")
+            if (background != null) {
+                var on by remember { mutableStateOf(background.isOn()) }
+                Card {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Stay connected when closed", style = MaterialTheme.typography.bodyLarge)
+                            Muted(
+                                "So a timer set on another device rings here, and announcements show, with the app closed. " +
+                                    "Keeps one small connection to your server, with a quiet notification while it does. " +
+                                    "Timers set on this phone ring either way.",
+                            )
+                        }
+                        Switch(checked = on, onCheckedChange = {
+                            background.set(it)
+                            on = it
+                        })
+                    }
+                }
+            }
             error?.let { ErrorText(it) }
         }
     }

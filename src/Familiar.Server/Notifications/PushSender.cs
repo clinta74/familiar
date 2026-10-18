@@ -18,25 +18,8 @@ public sealed class PushOptions
     /// </summary>
     public string Subject { get; init; } = "https://github.com/clinta74/familiar";
 
-    /// <summary>
-    /// The ntfy server phones push through (UnifiedPush), e.g. https://ntfy.example.lan. Endpoints on
-    /// it are accepted even though it's on the local network; nothing else local is.
-    /// </summary>
-    public string? UnifiedPushServer { get; init; }
-
     /// <summary>Whether <paramref name="endpoint"/> may be pushed to.</summary>
-    public bool Accepts(string endpoint) =>
-        PushSender.IsAcceptableEndpoint(endpoint) || IsUnifiedPushEndpoint(endpoint);
-
-    private bool IsUnifiedPushEndpoint(string endpoint) =>
-        endpoint.Length <= 1024
-        && UnifiedPushServer is { Length: > 0 } server
-        && Uri.TryCreate(server, UriKind.Absolute, out var origin)
-        && Uri.TryCreate(endpoint, UriKind.Absolute, out var uri)
-        && uri.Scheme == origin.Scheme
-        && string.Equals(uri.Host, origin.Host, StringComparison.OrdinalIgnoreCase)
-        && uri.Port == origin.Port
-        && uri.AbsolutePath.Length > 1;
+    public bool Accepts(string endpoint) => PushSender.IsAcceptableEndpoint(endpoint);
 }
 
 /// <summary>
@@ -137,23 +120,29 @@ public sealed class PushSender(
     IHttpClientFactory httpFactory,
     VapidKeys keys,
     PushOptions options,
+    PhoneStreams phones,
     IDbContextFactory<FamiliarDbContext> db,
     TimeProvider clock,
     ILogger<PushSender> logger)
 {
-    /// <summary>Something happened: every browser and phone the account has subscribed hears of it.</summary>
+    /// <summary>Something happened: every browser the account has subscribed, and every phone listening, hears of it.</summary>
     /// <param name="accountId">Whose browsers and phones.</param>
     /// <param name="ct">Cancels sending.</param>
     /// <param name="devicesOnly">Just the phones: their timers changed, which browsers don't need waking for.</param>
     public async Task NotifyAsync(Guid accountId, CancellationToken ct, bool devicesOnly = false)
     {
-        await using var context = await db.CreateDbContextAsync(ct);
-        var now = clock.GetUtcNow();
+        // Phones hear on their own stream (BACKLOG item 38), not through a push service.
+        phones.Changed(accountId);
+        if (devicesOnly)
+        {
+            return;
+        }
 
-        // A phone's only while it's still signed in (signed out some other way than here, or expired).
+        await using var context = await db.CreateDbContextAsync(ct);
+
+        // Browsers only: a phone's row is from when phones pushed through ntfy, and goes when it next listens.
         var subscriptions = await context.PushSubscriptions
-            .Where(s => s.AccountId == accountId && (!devicesOnly || s.DeviceId != null))
-            .Where(s => s.DeviceId == null || context.AccessTokens.Any(t => t.Id == s.DeviceId && t.RevokedAt == null && t.ExpiresAt > now))
+            .Where(s => s.AccountId == accountId && s.DeviceId == null)
             .ToListAsync(ct);
 
         if (subscriptions.Count == 0)

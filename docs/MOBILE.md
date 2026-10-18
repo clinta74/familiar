@@ -261,6 +261,16 @@ mode.
   and what went off recently, and shows what it hasn't already. The server pushes phones whenever
   the timers change, as well as when one goes off. `Push:UnifiedPushServer` names the ntfy; it's the
   one local-network address the server will push to. The NAS compose has an `ntfy` service.
+- *Push, since 2026-10-18: the app's own connection (BACKLOG item 38).* No ntfy: a foreground
+  service (`PushConnectionService`, type specialUse - fine sideloaded; Google Play would want it
+  justified) keeps `GET /api/push/stream` open, which says only "changed" (and `: ping` every 45 s,
+  inside the proxy's 60 s, as rare as that allows). On "changed", and on connecting, the app does
+  as before: fetches the pending list and what went off. It reconnects at once when the network
+  changes, otherwise after a wait doubling to 5 minutes; it starts again at boot and after an
+  update; signing out stops it; Settings, Devices, "Stay connected when closed" turns it off. The
+  foreground service keeps its network through Doze. With the app running in the background now,
+  the conversation stream lets go two minutes after the app leaves the front (unless hands-free is
+  on, or a reply is under way), so it doesn't ping every 15 s all day. Web Push is for browsers only.
 - Verified: on an emulator, a timer asked for in the chat became an exact alarm clock and, in
   airplane mode with the app in the background, rang ("Pip: time's up - Your tea timer is done.")
   until Dismiss; and against a real ntfy, setting and cancelling a timer each put a content-free

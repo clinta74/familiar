@@ -78,6 +78,7 @@ builder.Services.AddSingleton<Scheduler>();
 builder.Services.AddFamiliarTools();
 builder.Services.AddSingleton<VapidKeys>();
 builder.Services.AddHttpClient(nameof(PushSender), http => http.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddSingleton<PhoneStreams>();
 builder.Services.AddSingleton<PushSender>();
 builder.Services.AddHostedService<SchedulerLoop>();
 

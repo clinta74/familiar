@@ -155,39 +155,18 @@ The model now takes about 9.4 GB with its draft model and picture encoder (8.9 b
 the 3060 is near its 12 GB. If speech-to-text fails with "CUDA out of memory" again, the fallbacks in
 order: a smaller context (`num_ctx` 6144 in the Modelfile), or speech on the CPU.
 
-## Push to phones (ntfy)
+## Push to phones
 
 With the app open, messages arrive on its own connection; while it's in the background they come up
-as notifications. When Android has put the app to sleep or it's closed, only a push wakes it - for
-announcements (a hook's "speak"), timers and reminders. Push goes through the `ntfy` service in the
-YAML, and is off until it has an address.
+as notifications. With it closed, the app keeps one small connection of its own to the server (a
+quiet "standing by" notification shows while it does), and hears on it when a timer changes or an
+announcement comes - nothing to set up on the NAS (BACKLOG item 38). It can be turned off on the
+phone: Settings, Devices, "Stay connected when closed".
 
-1. In the YAML, give both settings the same value - the address the **phone** reaches ntfy at.
-   Behind a reverse proxy (Nginx Proxy Manager), ntfy needs **a hostname of its own**, e.g.
-   `push.example.net` forwarding to the NAS on port 2586 with websockets on and a certificate: it
-   can't run under a path like `/push` on Familiar's host (it builds the phones' push addresses from
-   its base URL, and doesn't support a path in it).
-
-   ```yaml
-     ntfy:
-       environment:
-         NTFY_BASE_URL: https://push.example.net
-         NTFY_BEHIND_PROXY: 'true'
-     server:
-       environment:
-         Push__UnifiedPushServer: https://push.example.net
-   ```
-
-   Without a proxy it's `http://<nas-address>:2586` for both, and `NTFY_BEHIND_PROXY` stays
-   `'false'`. Either way the two must match exactly (scheme, host and port): ntfy builds each phone's
-   push address from `NTFY_BASE_URL`, and the server only pushes to that host. Not `localhost` -
-   that's the phone itself. The server container must be able to reach the address too.
-
-   To check the proxy: `https://push.example.net/v1/health` says `{"healthy":true}`. (`/v1/config`
-   always shows an empty `base_url` - that's for ntfy's web page - so it doesn't show the setting.)
-2. Update the app so the containers restart.
-3. On the phone: install the ntfy app and set its default server (Settings, Default server) to the
-   same address. Then open Familiar; it registers with ntfy by itself.
+Until 2026-10-18 this went through an `ntfy` service and the ntfy app. Neither is needed now: once
+the phones have the new app, delete the `ntfy` service and the `Push__UnifiedPushServer` setting
+from the YAML (the template no longer has them), the `push.` host in Nginx Proxy Manager, the
+`data/ntfy` folder, and the ntfy app on the phones.
 
 To check: set a one-minute timer, close Familiar (swipe it away), and the timer still rings; or send
 an announcement from Home Assistant with the app closed, and a notification comes up.

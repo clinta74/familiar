@@ -206,6 +206,16 @@ class ConversationController(
         reconnect()
     }
 
+    /**
+     * Drops the connection there is, and - with [holdWhileAway] - makes no other until [resume]: for
+     * the app having been in the background a while.
+     */
+    fun letGo() {
+        if (stream == null) return
+        kicked = false
+        connection?.cancel()
+    }
+
     fun stop() {
         stream?.cancel()
         stream = null
