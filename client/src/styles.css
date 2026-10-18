@@ -1200,12 +1200,19 @@ pre.snippet {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 14px;
 }
 
+/* Every user the same shape: who on the left, what can be done on the right - never beside one and below the next. */
 .user-row {
   display: grid;
-  gap: 6px;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.user-row:first-child {
+  border-top: none;
+  padding-top: 0;
 }
 
 .user-row.disabled strong {
@@ -1214,15 +1221,37 @@ pre.snippet {
 }
 
 .user-summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 6px 20px;
 }
 
 .user-meta {
   display: block;
+  overflow-wrap: anywhere;
+}
+
+.user-summary .row-actions {
+  justify-content: flex-end;
+  gap: 4px 14px;
+  padding-top: 2px;
+}
+
+.user-summary .row-actions button.link {
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 0;
+}
+
+@media (max-width: 640px) {
+  .user-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .user-summary .row-actions {
+    justify-content: flex-start;
+  }
 }
 
 .badge {
