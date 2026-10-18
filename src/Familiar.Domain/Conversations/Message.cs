@@ -31,5 +31,11 @@ public sealed class Message
     /// </summary>
     public bool Interrupted { get; set; }
 
+    /// <summary>
+    /// For assistant messages: pages it handed over, as JSON (url, title), shown as cards under the
+    /// reply (BACKLOG item 34). Null when there were none.
+    /// </summary>
+    public string? Links { get; set; }
+
     public DateTimeOffset CreatedAt { get; init; }
 }

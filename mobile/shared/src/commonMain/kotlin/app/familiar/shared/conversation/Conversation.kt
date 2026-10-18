@@ -1,5 +1,6 @@
 package app.familiar.shared.conversation
 
+import app.familiar.shared.protocol.LinkView
 import app.familiar.shared.protocol.MessageView
 import app.familiar.shared.protocol.ServerEvent
 
@@ -15,6 +16,8 @@ data class ChatMessage(
     /** The reply is still arriving. */
     val streaming: Boolean = false,
     val tools: List<ToolChip> = emptyList(),
+    /** Pages it handed over, as cards under the reply (BACKLOG item 34). */
+    val links: List<LinkView> = emptyList(),
 )
 
 enum class Connection { Connecting, Open, Reconnecting }
@@ -36,6 +39,7 @@ private fun MessageView.toChat() = ChatMessage(
     text = text,
     emotion = emotion,
     interrupted = interrupted,
+    links = links.orEmpty(),
 )
 
 /**
@@ -93,7 +97,10 @@ object ConversationReducer {
         is ServerEvent.ReplyEnd -> {
             val end = event.end
             val existing = state.messages.find { it.id == end.id }
-            val done = ChatMessage(end.id, fromUser = false, text = end.text, emotion = end.emotion, interrupted = end.interrupted, tools = existing?.tools.orEmpty())
+            val done = ChatMessage(
+                end.id, fromUser = false, text = end.text, emotion = end.emotion, interrupted = end.interrupted,
+                tools = existing?.tools.orEmpty(), links = end.links.orEmpty(),
+            )
             state.copy(messages = if (existing != null) state.messages.map { if (it.id == end.id) done else it } else state.messages + done)
         }
 

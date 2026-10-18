@@ -27,6 +27,9 @@ public sealed record SoundMade(SoundEffect Sound) : TurnEvent;
 /// </summary>
 public sealed record TagIgnored(string Tag) : TurnEvent;
 
+/// <summary>The reply shows the user a page its tools found, by its number (BACKLOG item 34).</summary>
+public sealed record LinkShared(int Number) : TurnEvent;
+
 /// <summary>A tool is about to run.</summary>
 public sealed record ToolStarted(string CallId, string Tool) : TurnEvent;
 
@@ -114,6 +117,9 @@ public sealed partial class TurnRunner(ILlmClient llm)
                         break;
                     case IgnoredTag ignored:
                         await emit(new TagIgnored(ignored.Tag));
+                        break;
+                    case LinkToken link:
+                        await emit(new LinkShared(link.Number));
                         break;
                 }
             }

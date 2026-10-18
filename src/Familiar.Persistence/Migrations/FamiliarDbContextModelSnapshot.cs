@@ -330,6 +330,10 @@ namespace Familiar.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("interrupted");
 
+                    b.Property<string>("Links")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("links");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(16)

@@ -33,6 +33,18 @@ describe('conversationReducer', () => {
     expect(ended.messages[1]).toEqual({ id: 'a1', role: 'assistant', text: 'Hello there!', emotion: 'joy', interrupted: undefined });
   });
 
+  it('keeps the pages a reply handed over, live and from history (BACKLOG item 34)', () => {
+    const link = { url: 'https://en.wikipedia.org/wiki/Petrichor', title: 'Petrichor', site: 'en.wikipedia.org' };
+    const live = run(
+      { type: 'replyStart', id: 'a1' },
+      { type: 'replyEnd', end: { id: 'a1', text: 'Here you go.', emotion: 'joy', intensity: 0.5, interrupted: false, links: [link] } },
+    );
+    expect(live.messages[0]?.links).toEqual([link]);
+
+    const loaded = run({ type: 'history', messages: [{ ...user('a1', 'Here you go.'), role: 'assistant', links: [link] }] });
+    expect(loaded.messages[0]?.links).toEqual([link]);
+  });
+
   it('ignores events it has already applied, as a reconnect replays them', () => {
     const once = run({ type: 'message', message: user('u1', 'Hi') }, { type: 'replyStart', id: 'a1' });
     const twice = run(

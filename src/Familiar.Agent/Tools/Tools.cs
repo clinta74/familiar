@@ -24,9 +24,13 @@ public sealed record ToolCall(string Id, string Name, JsonObject Arguments);
 /// The place they picked as home in Settings, when they have (BACKLOG item 32): the look-ups use it
 /// as it is rather than finding <paramref name="HomePlace"/> by name again, and guessing which Warren.
 /// </param>
+/// <param name="UserLinks">
+/// The web addresses the user wrote in their recent messages: the only pages read_link may read
+/// (BACKLOG item 34), so text from elsewhere can't send it to one.
+/// </param>
 public sealed record ToolContext(
     Guid AccountId, Guid ReplyId, TimeZoneInfo Zone, DateTimeOffset Now, bool LookUps = false, string? HomePlace = null, string? From = null,
-    HomeLocation? Home = null)
+    HomeLocation? Home = null, IReadOnlyList<string>? UserLinks = null)
 {
     /// <summary>What this reply's tools have done so far.</summary>
     public ToolTurn Turn { get; } = new();
@@ -45,7 +49,15 @@ public sealed record HomeLocation(string Label, string Name, string Region, stri
 public sealed class ToolTurn
 {
     public int LookUps { get; set; }
+
+    /// <summary>The pages its tools found, numbered from 1 in order: what "[link:2]" in the reply means.</summary>
+    public List<LinkRef> Links { get; } = [];
 }
+
+/// <summary>A web page a tool found - its source, an official site - that the familiar may hand over (BACKLOG item 34).</summary>
+/// <param name="Url">Its address: http or https, from the tool, never from the model.</param>
+/// <param name="Title">What to call it on the card: "Michigan's 10th congressional district".</param>
+public sealed record LinkRef(string Url, string Title);
 
 /// <summary>
 /// What a tool did. <see cref="Data"/> goes back to the model, which turns it into speech;
@@ -53,6 +65,9 @@ public sealed class ToolTurn
 /// </summary>
 public sealed record ToolResult(bool Ok, JsonObject Data, string? Summary)
 {
+    /// <summary>Pages the familiar may show the user. The model sees them by number and title, never their addresses.</summary>
+    public IReadOnlyList<LinkRef> Links { get; init; } = [];
+
     public static ToolResult Success(JsonObject data, string summary) => new(true, data, summary);
 
     /// <summary>The model is told why, so it can say so or ask the user something.</summary>

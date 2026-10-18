@@ -21,6 +21,7 @@ export type {
   SoundEffect,
   SoundEvent,
   ReplyEndEvent,
+  LinkView,
   ReplyStartEvent,
   ReplyTruncatedEvent,
   SpokenWord,

@@ -14,6 +14,9 @@ public sealed record GestureToken(Gesture Gesture) : ExpressionToken;
 
 public sealed record SoundToken(SoundEffect Sound) : ExpressionToken;
 
+/// <summary>"[link:2]": show the user the second page this reply's tools found (BACKLOG item 34).</summary>
+public sealed record LinkToken(int Number) : ExpressionToken;
+
 /// <summary>A tag that is clearly a tag but means nothing we can show. Neither spoken nor acted.</summary>
 public sealed record IgnoredTag(string Tag) : ExpressionToken;
 
@@ -155,6 +158,14 @@ public sealed class ExpressionParser
             return Enum.TryParse<SoundEffect>(value.Replace("-", string.Empty, StringComparison.Ordinal), ignoreCase: true, out var sound)
                 && Enum.IsDefined(sound) && !int.TryParse(value, out _)
                 ? new SoundToken(sound)
+                : new IgnoredTag(tag);
+        }
+
+        // "[link:n]": a page a tool found, shown as a card; never read out, whatever n is.
+        if (name.Equals("link", StringComparison.OrdinalIgnoreCase))
+        {
+            return int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var number) && number is > 0 and < 100
+                ? new LinkToken(number)
                 : new IgnoredTag(tag);
         }
 

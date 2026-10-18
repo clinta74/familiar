@@ -1,5 +1,8 @@
 package app.familiar.shared.ui
 
+import app.familiar.shared.protocol.LinkView
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalUriHandler
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.runtime.snapshotFlow
@@ -344,6 +347,24 @@ fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyLi
     }
 }
 
+/** A page the familiar handed over (BACKLOG item 34): tapped, it opens in the browser. */
+@Composable
+private fun LinkCard(link: LinkView) {
+    val opener = LocalUriHandler.current
+    val shape = RoundedCornerShape(10.dp)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .border(1.dp, MaterialTheme.colorScheme.outline, shape)
+            .clickable { runCatching { opener.openUri(link.url) } }
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+    ) {
+        Text(link.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        Text(link.site, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
 @Composable
 private fun Bubble(message: ChatMessage) {
     val shape = RoundedCornerShape(16.dp)
@@ -369,6 +390,7 @@ private fun Bubble(message: ChatMessage) {
                     color = if (message.fromUser) colors.onPrimary else colors.onSurface,
                 )
             }
+            message.links.filter { it.url.startsWith("https://") || it.url.startsWith("http://") }.forEach { LinkCard(it) }
             val label = message.emotion?.let { emotionLabels[it] }
             if (!message.fromUser && label != null && !message.streaming) {
                 Text(label, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)

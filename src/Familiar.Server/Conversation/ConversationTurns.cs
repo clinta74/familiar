@@ -432,6 +432,8 @@ public sealed class ConversationTurns(
                     ct);
             }
 
+            var shared = new List<int>();
+
             ValueTask Emit(TurnEvent turnEvent)
             {
                 switch (turnEvent)
@@ -467,6 +469,10 @@ public sealed class ConversationTurns(
                         logger.TagIgnored(ignored.Tag);
                         break;
 
+                    case LinkShared link:
+                        shared.Add(link.Number);
+                        break;
+
                     case ToolStarted tool:
                         channel.Publish(EventTypes.ToolStarted, new ToolStartedEvent(replyId, tool.CallId, tool.Tool));
                         break;
@@ -480,11 +486,18 @@ public sealed class ConversationTurns(
             }
 
             var runner = scope.ServiceProvider.GetRequiredService<TurnRunner>();
-            var toolContext = new ToolContext(accountId, replyId, request.Zone, clock.GetUtcNow(), profile.LookUps, profile.HomePlace, request.From, home);
+            var toolContext = new ToolContext(accountId, replyId, request.Zone, clock.GetUtcNow(), profile.LookUps, profile.HomePlace, request.From, home,
+                UserLinks(history, userMessage));
             // A greeting gets no tools: it's a hello, not a chance to start doing things.
             var result = userMessage is null
                 ? await runner.RunAsync(prompt, Emit, ct)
                 : await runner.RunAsync(prompt, Emit, ct, tools, toolContext);
+
+            // The pages it handed over, by the numbers its tools gave them; a number no tool gave is dropped.
+            var links = shared.Distinct()
+                .Where(n => n <= toolContext.Turn.Links.Count)
+                .Select(n => LinkView.From(toolContext.Turn.Links[n - 1]))
+                .ToList();
 
             if (started || result.Text.Length > 0)
             {
@@ -498,11 +511,12 @@ public sealed class ConversationTurns(
                     Emotion = result.Emotion,
                     EmotionIntensity = result.Intensity,
                     Interrupted = result.Interrupted,
+                    Links = LinkView.Serialize(links),
                     CreatedAt = clock.GetUtcNow(),
                 }, CancellationToken.None);
 
                 channel.Publish(EventTypes.ReplyEnd,
-                    new ReplyEndEvent(replyId, result.Text, result.Emotion, result.Intensity, result.Interrupted));
+                    new ReplyEndEvent(replyId, result.Text, result.Emotion, result.Intensity, result.Interrupted, links.Count > 0 ? links : null));
                 webhooks.Raise(accountId, Hooks.WebhookEvents.Reply, new
                 {
                     id = replyId,
@@ -557,4 +571,16 @@ public sealed class ConversationTurns(
             }
         }
     }
+
+    /// <summary>How many of the user's recent messages a link may come from: "read that page I sent" a little later.</summary>
+    private const int LinkMessages = 6;
+
+    /// <summary>
+    /// The web addresses the user wrote in this message and their last few (BACKLOG item 34): the only
+    /// pages read_link may read. Written by the user, not found in a page or a look-up.
+    /// </summary>
+    internal static IReadOnlyList<string> UserLinks(IReadOnlyList<Message> history, Message? userMessage) =>
+        [.. history.Where(m => m.Role == MessageRole.User).TakeLast(LinkMessages).Append(userMessage).OfType<Message>()
+            .SelectMany(m => Agent.Tools.WebAddresses.In(m.Content))
+            .Distinct()];
 }

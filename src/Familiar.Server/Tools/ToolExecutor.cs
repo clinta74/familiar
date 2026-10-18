@@ -76,7 +76,7 @@ public sealed class ToolConfirmations(ConversationHub hub, TimeProvider clock)
 /// Runs the familiar's tools for a turn: looks the tool up, asks the user first if it reaches outside
 /// Familiar, turns failures into something the model can explain, and records every call.
 /// </summary>
-public sealed class ToolExecutor(
+public sealed partial class ToolExecutor(
     IEnumerable<ITool> tools,
     ToolConfirmations confirmations,
     IDbContextFactory<FamiliarDbContext> db,
@@ -160,7 +160,7 @@ public sealed class ToolExecutor(
             }
             else
             {
-                result = await tool.InvokeAsync(context, call.Arguments, ct);
+                result = Numbered(await tool.InvokeAsync(context, call.Arguments, ct), context.Turn);
                 outcome = result.Ok ? ToolOutcome.Succeeded : ToolOutcome.Failed;
             }
         }
@@ -197,6 +197,51 @@ public sealed class ToolExecutor(
             outcome = outcome.ToString().ToLowerInvariant(),
             summary = result.Summary,
         });
+
+        return result;
+    }
+}
+
+public sealed partial class ToolExecutor
+{
+    /// <summary>The most pages a reply can offer: plenty to choose from, few enough to say.</summary>
+    public const int MaxLinksPerReply = 9;
+
+    /// <summary>
+    /// A result's pages numbered for the reply (BACKLOG item 34), and listed in what the model reads by
+    /// number, title and site - never the address, so the only way to hand one over is "[link:n]", and
+    /// what it hands over is what a tool found.
+    /// </summary>
+    internal static ToolResult Numbered(ToolResult result, ToolTurn turn)
+    {
+        var listed = new JsonArray();
+        foreach (var link in result.Links)
+        {
+            if (!Uri.TryCreate(link.Url, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+            {
+                continue;
+            }
+
+            var index = turn.Links.FindIndex(l => l.Url == link.Url);
+            if (index < 0)
+            {
+                if (turn.Links.Count >= MaxLinksPerReply)
+                {
+                    break;
+                }
+
+                turn.Links.Add(link);
+                index = turn.Links.Count - 1;
+            }
+
+            listed.Add(new JsonObject { ["link"] = index + 1, ["title"] = link.Title, ["site"] = uri.Host });
+        }
+
+        if (listed.Count > 0)
+        {
+            result.Data["links"] = listed;
+            result.Data["how_to_link"] = "To give the user one of these pages, put [link:n] with its number in your reply.";
+        }
 
         return result;
     }
@@ -242,6 +287,9 @@ public static class ToolRegistration
         services.AddSingleton<ITool, LookUps.AirQualityTool>();
         services.AddSingleton<ITool, LookUps.ExchangeRateTool>();
         services.AddSingleton<ITool, LookUps.HomeAreaTool>();
+        LookUps.LinkReader.Register(services);
+        services.AddSingleton<LookUps.LinkReader>();
+        services.AddSingleton<ITool, LookUps.ReadLinkTool>();
 
         // Done by the phone, while one that can is connected (BACKLOG item 21).
         services.AddSingleton<ITool, Devices.SendTextTool>();

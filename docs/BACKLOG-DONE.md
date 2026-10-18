@@ -63,6 +63,32 @@ What would actually cut the ~1 s of prefill before the first word:
 - **llama.cpp's `llama-server`** with `cache_prompt`, which also has slot save/restore across
   restarts.
 
+### 34. ~~Links: given, and read~~ — done (2026-10-18)
+
+In the elections chat it offered to "look up that link" and gave none. **Handing a page over:** a
+tool's result can carry pages (`ToolResult.Links`): `look_up` gives its article - at the part read,
+with `find` - and the official website from Wikidata (P856) when there is one; `read_link` gives
+the page it read. The executor numbers them for the reply and lists them to the model by number,
+title and site, never the address (`ToolExecutor.Numbered`); the model writes `[link:1]`, which is
+stripped from speech like the emotion tags, and the server turns it into a card - only a number a
+tool gave, so the model can't invent an address. Cards ride on `reply.end` and are stored with the
+message (`Message.Links`), so history keeps them; web and app show them under the reply, opening the
+browser. **Reading a link:** `read_link` reads a page the user gave - only addresses in their own
+last few messages (`ToolContext.UserLinks`), so a look-up or a page can't send it anywhere. Public
+internet only: checked as written, and again on connecting against every address the name resolves
+to (`LinkReader.ConnectPublicAsync`), so neither "http://192.168.1.10" nor a public name pointing at
+the house gets in; redirects followed by hand (three at most) and checked the same; http(s) on the
+usual ports, no passwords in the address; pages and plain text only, 2 MB and 10 seconds at most;
+scripts, menus and footers gone, the article or main part kept, 4,000 characters, labelled as
+reference text. A look-up like the others: off unless look-ups are on, one of the reply's three, and
+changes after it ask first. Tried on the real model, home Warren, Michigan: "give me a link to the
+Michigan Secretary of State" - a card for michigan.gov/sos, twice; "who are the candidates? give me
+something to read more" - the names and a card for the district's part of the article; "what does
+https://example.com say?" read and summed up; a home-network address refused. Two wording fixes from
+that: it said it had no way to give links (the rule now says to look the page up), and it wrote
+"read more at [link:1]", leaving "at ." when the tag was stripped (it now says "I've put the page
+below"). The card shown in the web chat in the browser; the app's is on the Fold to check.
+
 ### 36. ~~Settings on the website as pages, like the app~~ — done (2026-10-17)
 
 Asked 2026-10-17: the web Settings had grown into one long page. **Built:** `/settings` is now a

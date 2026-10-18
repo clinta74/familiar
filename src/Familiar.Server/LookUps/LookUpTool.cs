@@ -72,8 +72,9 @@ public sealed partial class LookUpTool(IHttpClientFactory http, IMemoryCache cac
         "Facts about a person, place, thing or event, from Wikipedia and Wikidata. Your own knowledge may be out of date: " +
         "use this for anything that could have changed - openings, completions, records, who holds an office, recent events - " +
         "and for figures like populations, heights and dates. With find, it reads that part of the article instead: who's " +
-        "standing in a district, a list, a table of results or a climate - anything past its first paragraph. Not for news, " +
-        "events, opening hours or prices: say you can't look those up.",
+        "standing in a district, a list, a table of results or a climate - anything past its first paragraph. The result " +
+        "includes its page, and the official website when there is one, to hand to the user. Not for news, events, opening " +
+        "hours or prices: say you can't look those up.",
         ToolSchema.Object(
             ("topic", ToolSchema.String(
                 "What to look up. Its exact name if you're sure of it (\"Mount Everest\", \"2026 United States House of " +
@@ -143,10 +144,23 @@ public sealed partial class LookUpTool(IHttpClientFactory http, IMemoryCache cac
             facts["facts"] = new JsonObject(found.Facts.Select(f => KeyValuePair.Create(f.Key, (JsonNode?)f.Value)));
         }
 
-        return ToolResult.Success(LookUpText.Result("Wikipedia and Wikidata", facts), $"Looked up: {found.Title}");
+        // Its article, and its official site if Wikidata has one, for the familiar to hand over (BACKLOG item 34).
+        List<LinkRef> links = [new(Article(found.Title), found.Title)];
+        if (found.Website is { } website)
+        {
+            links.Add(new(website, $"{found.Title}: official website"));
+        }
+
+        return ToolResult.Success(LookUpText.Result("Wikipedia and Wikidata", facts), $"Looked up: {found.Title}") with { Links = links };
     }
 
-    private sealed record Found(string Title, string Description, string Summary, string Edited, bool Ambiguous, IReadOnlyDictionary<string, string> Facts);
+    private sealed record Found(
+        string Title, string Description, string Summary, string Edited, bool Ambiguous, IReadOnlyDictionary<string, string> Facts, string? Website = null);
+
+    /// <summary>An article's address, at a part of it if given: Wikipedia's anchors are headings with underscores.</summary>
+    private static string Article(string title, string? heading = null) =>
+        $"https://en.wikipedia.org/wiki/{Uri.EscapeDataString(title.Replace(' ', '_'))}" +
+        (heading is null ? "" : $"#{Uri.EscapeDataString(heading.Replace(' ', '_'))}");
 
     /// <summary>The part of [found]'s article that [find] names; or, when no heading fits, what parts there are.</summary>
     private async Task<ToolResult> SectionAsync(Found found, string find, IEnumerable<string> extra, CancellationToken ct)
@@ -191,7 +205,7 @@ public sealed partial class LookUpTool(IHttpClientFactory http, IMemoryCache cac
             ["part"] = section.Path,
             ["text"] = text,
             ["as_of"] = found.Edited,
-        }), $"Looked up: {found.Title} › {section.Heading}");
+        }), $"Looked up: {found.Title} › {section.Heading}") with { Links = [new(Article(found.Title, section.Heading), $"{found.Title} › {section.Heading}")] };
     }
 
     private HttpClient Client() => http.CreateClient(nameof(LookUps));
@@ -216,9 +230,9 @@ public sealed partial class LookUpTool(IHttpClientFactory http, IMemoryCache cac
             ? at.ToString("d MMMM yyyy", CultureInfo.InvariantCulture)
             : string.Empty;
         var ambiguous = page["type"]?.GetValue<string>() == "disambiguation";
-        var facts = !ambiguous && page["wikibase_item"]?.GetValue<string>() is { } item && EntityId().IsMatch(item)
+        var (facts, website) = !ambiguous && page["wikibase_item"]?.GetValue<string>() is { } item && EntityId().IsMatch(item)
             ? await WikidataAsync(item, ct)
-            : new Dictionary<string, string>();
+            : (new Dictionary<string, string>(), null);
 
         return new Found(
             title,
@@ -226,17 +240,26 @@ public sealed partial class LookUpTool(IHttpClientFactory http, IMemoryCache cac
             LookUpText.Clean(page["extract"]?.GetValue<string>(), MaxSummary),
             edited,
             ambiguous,
-            facts);
+            facts,
+            website);
     }
 
-    /// <summary>The chosen properties of a Wikidata entry, in words: dates by their precision, amounts with units, items by name.</summary>
-    private async Task<Dictionary<string, string>> WikidataAsync(string item, CancellationToken ct)
+    /// <summary>
+    /// The chosen properties of a Wikidata entry, in words: dates by their precision, amounts with units,
+    /// items by name; and its official website (P856), an address never shown to the model.
+    /// </summary>
+    private async Task<(Dictionary<string, string> Facts, string? Website)> WikidataAsync(string item, CancellationToken ct)
     {
         var entity = (await GetJsonAsync($"https://www.wikidata.org/w/api.php?action=wbgetentities&ids={item}&props=claims&format=json", ct))?["entities"]?[item];
         if (entity?["claims"] is not JsonObject claims)
         {
-            return [];
+            return ([], null);
         }
+
+        var website = (claims["P856"] as JsonArray)?.OfType<JsonObject>()
+            .Where(s => s["rank"]?.GetValue<string>() != "deprecated")
+            .Select(s => s["mainsnak"]?["datavalue"]?["value"]?.GetValue<string>())
+            .FirstOrDefault(u => Uri.TryCreate(u, UriKind.Absolute, out var site) && (site.Scheme == Uri.UriSchemeHttps || site.Scheme == Uri.UriSchemeHttp));
 
         var chosen = new List<(string Name, List<JsonObject> Values)>();
         foreach (var (id, name) in Properties)
@@ -288,7 +311,7 @@ public sealed partial class LookUpTool(IHttpClientFactory http, IMemoryCache cac
             }
         }
 
-        return facts;
+        return (facts, website);
     }
 
     private static string? Words(JsonObject datavalue, Dictionary<string, string> names)

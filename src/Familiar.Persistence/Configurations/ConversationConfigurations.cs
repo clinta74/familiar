@@ -72,6 +72,7 @@ internal sealed class MessageConfiguration : IEntityTypeConfiguration<Message>
         builder.Property(m => m.Role).HasConversion<string>().HasMaxLength(16).IsRequired();
         builder.Property(m => m.Emotion).HasConversion<string>().HasMaxLength(16);
         builder.Property(m => m.Content).IsRequired();
+        builder.Property(m => m.Links).HasColumnType("jsonb");
 
         // Ids are uuidv7, so they sort by creation; history is read newest-first by id.
         builder.HasIndex(m => new { m.ConversationId, m.Id }).IsDescending(false, true);

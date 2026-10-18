@@ -377,6 +377,17 @@ data class JobsEvent(
     val jobs: List<JobView>,
 )
 
+/** A page the familiar handed over: a card to tap, never read aloud. */
+@Serializable
+data class LinkView(
+    /** Its address, http or https. */
+    val url: String,
+    /** What it is: "Michigan's 10th congressional district". */
+    val title: String,
+    /** Where it is: "en.wikipedia.org". */
+    val site: String,
+)
+
 /** The plush llama's colours, as #rrggbb. Shading is derived from these by the client. */
 @Serializable
 data class LlamaColours(
@@ -469,6 +480,7 @@ data class MessageView(
     val intensity: Double? = null,
     val interrupted: Boolean,
     val createdAt: String,
+    val links: List<LinkView>? = null,
 )
 
 @Serializable
@@ -572,13 +584,21 @@ data class ReplyDeltaEvent(
     val text: String,
 )
 
+/** The reply as said, once it has finished (or was cut off). */
 @Serializable
 data class ReplyEndEvent(
+    /** The reply. */
     val id: String,
+    /** Everything said, tags removed. */
     val text: String,
+    /** Its emotion. */
     val emotion: String,
+    /** How strongly, 0-1. */
     val intensity: Double,
+    /** The user cut it off. */
     val interrupted: Boolean,
+    /** Pages it handed over, shown as cards under the reply (BACKLOG item 34). */
+    val links: List<LinkView>? = null,
 )
 
 @Serializable

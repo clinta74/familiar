@@ -1371,3 +1371,40 @@ pre.snippet {
   justify-self: start;
   text-decoration: none;
 }
+
+/* Pages the familiar handed over (BACKLOG item 34): a card each under the reply, never read aloud. */
+.link-cards {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  white-space: normal;
+}
+
+.link-cards a {
+  display: grid;
+  gap: 1px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+
+.link-cards a:hover,
+.link-cards a:focus-visible {
+  border-color: var(--accent);
+}
+
+.link-cards strong {
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.link-cards span {
+  font-size: 0.78rem;
+  color: var(--muted);
+}

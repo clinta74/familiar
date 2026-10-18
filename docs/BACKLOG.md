@@ -35,6 +35,8 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
 - **Where you live, picked** (item 32): in the app, Settings → Your familiar → Where you live:
   search for the town and pick it, or "Use my location"; then "do I need a coat?" and "where do I
   live?". A home typed in before shows as "typed, not picked" until it's picked.
+- **Link cards in the app** (item 34): "give me a link to the Michigan Secretary of State" shows a
+  card under the reply; tapping it opens the browser.
 - **"Where am I" on the website** (item 24), on the real site over HTTPS with "Look things up" on:
   "what's the weather where I am?". Location itself works there since 2026-10-17 (Settings' "Use my
   location" confirmed): until then the site's nginx sent `Permissions-Policy: geolocation=()`, which
@@ -79,22 +81,7 @@ it knew from the weather, it said "Warren" and guessed Ohio (it's Warren, Michig
 congressional district from memory, then offered to "look up that link" and gave none. Four of eight
 exchanges went on finding out where he lives, which it could have known from the start; the district
 was guessed, not found; and it offered something no tool can do. The order below is the suggested
-order. 32 and 33 are done (BACKLOG-DONE.md).
-
-### 34. Links: given, and read
-
-Two things "a web link" can mean, both useful:
-
-- **The familiar hands over a link.** A reply can carry link cards - title and site, tappable,
-  shown under the message and never read aloud ("Michigan Secretary of State - Voter Information").
-  Only links a tool returned in that reply can be shown: look-up results carry their source page, and
-  the model refers to one by number (`[link:1]`, stripped like the emotion tags); it can never write
-  an address of its own. A short built-in list of official sites (state election offices, the
-  Census) can be a tool result too.
-- **The familiar reads a link you give it.** Paste a link into chat and it can read the page: public
-  http(s) only (never the LAN or the server itself), a size and time limit, text only (no scripts),
-  trimmed, and labelled as text from that site, not instructions - a look-up, so after it anything
-  that changes something asks first. Off with "Look things up".
+order. 32, 33 and 34 are done (BACKLOG-DONE.md).
 
 ### 35. Pictures in the chat
 

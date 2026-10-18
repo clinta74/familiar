@@ -307,6 +307,16 @@ export interface JobsEvent {
   jobs: JobView[];
 }
 
+/** A page the familiar handed over: a card to tap, never read aloud. */
+export interface LinkView {
+  /** Its address, http or https. */
+  url: string;
+  /** What it is: "Michigan's 10th congressional district". */
+  title: string;
+  /** Where it is: "en.wikipedia.org". */
+  site: string;
+}
+
 /** The plush llama's colours, as #rrggbb. Shading is derived from these by the client. */
 export interface LlamaColours {
   /** The fleece. */
@@ -383,6 +393,7 @@ export interface MessageView {
   intensity: number | null;
   interrupted: boolean;
   createdAt: string;
+  links?: LinkView[] | null;
 }
 
 export interface NameRequest {
@@ -476,12 +487,20 @@ export interface ReplyDeltaEvent {
   text: string;
 }
 
+/** The reply as said, once it has finished (or was cut off). */
 export interface ReplyEndEvent {
+  /** The reply. */
   id: string;
+  /** Everything said, tags removed. */
   text: string;
+  /** Its emotion. */
   emotion: Emotion;
+  /** How strongly, 0-1. */
   intensity: number;
+  /** The user cut it off. */
   interrupted: boolean;
+  /** Pages it handed over, shown as cards under the reply (BACKLOG item 34). */
+  links?: LinkView[] | null;
 }
 
 export interface ReplyStartEvent {

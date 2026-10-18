@@ -57,7 +57,32 @@ public sealed record ReplyStartEvent(Guid Id);
 
 public sealed record ReplyDeltaEvent(Guid Id, string Text);
 
-public sealed record ReplyEndEvent(Guid Id, string Text, Emotion Emotion, double Intensity, bool Interrupted);
+/// <summary>The reply as said, once it has finished (or was cut off).</summary>
+/// <param name="Id">The reply.</param>
+/// <param name="Text">Everything said, tags removed.</param>
+/// <param name="Emotion">Its emotion.</param>
+/// <param name="Intensity">How strongly, 0-1.</param>
+/// <param name="Interrupted">The user cut it off.</param>
+/// <param name="Links">Pages it handed over, shown as cards under the reply (BACKLOG item 34).</param>
+public sealed record ReplyEndEvent(Guid Id, string Text, Emotion Emotion, double Intensity, bool Interrupted, IReadOnlyList<LinkView>? Links = null);
+
+/// <summary>A page the familiar handed over: a card to tap, never read aloud.</summary>
+/// <param name="Url">Its address, http or https.</param>
+/// <param name="Title">What it is: "Michigan's 10th congressional district".</param>
+/// <param name="Site">Where it is: "en.wikipedia.org".</param>
+public sealed record LinkView(string Url, string Title, string Site)
+{
+    private static readonly System.Text.Json.JsonSerializerOptions Json = new(System.Text.Json.JsonSerializerDefaults.Web);
+
+    public static LinkView From(Familiar.Agent.Tools.LinkRef link) => new(link.Url, link.Title, new Uri(link.Url).Host);
+
+    /// <summary>A message's stored links; empty if it has none.</summary>
+    public static IReadOnlyList<LinkView> Parse(string? json) =>
+        string.IsNullOrEmpty(json) ? [] : System.Text.Json.JsonSerializer.Deserialize<List<LinkView>>(json, Json) ?? [];
+
+    public static string? Serialize(IReadOnlyList<LinkView> links) =>
+        links.Count == 0 ? null : System.Text.Json.JsonSerializer.Serialize(links, Json);
+}
 
 public sealed record ExpressionEvent(Emotion Emotion, double Intensity);
 
@@ -128,7 +153,8 @@ public sealed record MessageView(
     Emotion? Emotion,
     double? Intensity,
     bool Interrupted,
-    DateTimeOffset CreatedAt)
+    DateTimeOffset CreatedAt,
+    IReadOnlyList<LinkView>? Links = null)
 {
     public static MessageView From(Message message) => new(
         message.Id,
@@ -137,5 +163,6 @@ public sealed record MessageView(
         message.Emotion,
         message.EmotionIntensity,
         message.Interrupted,
-        message.CreatedAt);
+        message.CreatedAt,
+        LinkView.Parse(message.Links) is { Count: > 0 } links ? links : null);
 }

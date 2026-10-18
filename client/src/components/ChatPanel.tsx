@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import type { ToolConfirmEvent } from '../conversation/events';
+import type { LinkView, ToolConfirmEvent } from '../conversation/events';
 import type { ChatMessage, ToolChip } from '../conversation/reducer';
 
 export interface VoiceControls {
@@ -53,6 +53,27 @@ const toolDoing: Record<string, string> = {
   list_scheduled: 'Checking your timers',
   cancel_scheduled: 'Cancelling',
 };
+
+/**
+ * Pages the familiar handed over (BACKLOG item 34): a card each, opened in a new tab. They come from
+ * its tools, never written by the model; and only http(s) is ever a link.
+ */
+function LinkCards({ links }: { links: LinkView[] }) {
+  const safe = links.filter((l) => /^https?:\/\//i.test(l.url));
+  if (safe.length === 0) return null;
+  return (
+    <ul className="link-cards" aria-label="Pages">
+      {safe.map((l) => (
+        <li key={l.url}>
+          <a href={l.url} target="_blank" rel="noopener noreferrer">
+            <strong>{l.title}</strong>
+            <span>{l.site}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function Chip({ chip }: { chip: ToolChip }) {
   const doing = toolDoing[chip.tool] ?? chip.tool.replace(/_/g, ' ');
@@ -162,6 +183,7 @@ export function ChatPanel({
               </ul>
             )}
             {(m.text || !m.tools?.length) && <span className="bubble-text">{m.text}{m.interrupted && '…'}</span>}
+            {m.links && m.links.length > 0 && <LinkCards links={m.links} />}
             {m.role === 'assistant' && m.emotion && emotionLabels[m.emotion] && !m.streaming && (
               <span className="bubble-meta">{emotionLabels[m.emotion]}</span>
             )}

@@ -2,6 +2,7 @@ import type { Emotion } from '../avatar/types';
 import type {
   FamiliarState,
   JobView,
+  LinkView,
   MessageView,
   ReadyEvent,
   ReplyEndEvent,
@@ -30,6 +31,8 @@ export interface ChatMessage {
   streaming?: boolean;
   /** Tools it used, in order. */
   tools?: ToolChip[];
+  /** Pages it handed over, as cards under the reply (BACKLOG item 34). */
+  links?: LinkView[];
 }
 
 export type Connection = 'connecting' | 'open' | 'reconnecting';
@@ -86,6 +89,7 @@ function fromView(view: MessageView): ChatMessage {
     text: view.text,
     emotion: view.emotion ?? undefined,
     interrupted: view.interrupted || undefined,
+    links: view.links?.length ? view.links : undefined,
   };
 }
 
@@ -172,6 +176,7 @@ export function conversationReducer(state: ConversationState, action: Conversati
         emotion: end.emotion,
         interrupted: end.interrupted || undefined,
         tools: existing?.tools,
+        links: end.links?.length ? end.links : undefined,
       };
       const exists = existing !== undefined;
       return {
