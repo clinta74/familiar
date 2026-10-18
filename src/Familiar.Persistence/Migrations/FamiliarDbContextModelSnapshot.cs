@@ -338,6 +338,10 @@ namespace Familiar.Persistence.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("links");
 
+                    b.Property<string>("PromptText")
+                        .HasColumnType("text")
+                        .HasColumnName("prompt_text");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(16)

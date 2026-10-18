@@ -1,10 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
 using Familiar.Domain.Conversations;
+using Familiar.Agent.Llm;
 using Familiar.Domain.Expression;
+using Familiar.Persistence;
 using Familiar.Server.Conversation;
 using Familiar.Server.Familiars;
 using Familiar.Server.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Familiar.Server.Tests;
 
@@ -67,6 +71,57 @@ public sealed class ConversationTests(PostgresFixture postgres)
         var prompt = app.Llm.LastPrompt!;
         Assert.Contains("You are Bramble, Al's familiar", prompt[0].Content, StringComparison.Ordinal);
         Assert.Matches(@"^\(\w+ \w+, \d+ \w+ \d{4}, [a-z' -]+ \(\d{1,2}:\d\d [AP]M\)\. This is the first time you've talked\) Hello$", prompt[^1].Content);
+    }
+
+    [Fact]
+    public async Task Each_turns_prompt_starts_with_the_last_one_and_its_reply()
+    {
+        // BACKLOG item 37: so the model server's cache holds to the end of the last reply.
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        var client = await SignedInAsync(app);
+        await using var stream = await SseClient.ConnectAsync(client);
+        await stream.ReadUntilAsync(EventTypes.Ready);
+
+        await SayAsync(client, "Hello");
+        await stream.ReadUntilStateAsync(FamiliarState.Idle);
+        await SayAsync(client, "Tell me a story");
+        await stream.ReadUntilStateAsync(FamiliarState.Idle);
+        var second = app.Llm.LastPrompt!;
+        await SayAsync(client, "Another one");
+        await stream.ReadUntilStateAsync(FamiliarState.Idle);
+        var third = app.Llm.LastPrompt!;
+
+        Assert.Equal(second, third.Take(second.Count));
+        Assert.Equal(ChatRole.Assistant, third[second.Count].Role);
+    }
+
+    [Fact]
+    public async Task The_oldest_history_drops_out_a_few_messages_at_a_time()
+    {
+        // BACKLOG item 37: one a turn, the history's start - and so the cached prompt - changed every turn.
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        await SignedInAsync(app, "steps");
+        Guid accountId;
+        await using (var db = await app.Services.GetRequiredService<IDbContextFactory<FamiliarDbContext>>().CreateDbContextAsync())
+        {
+            accountId = await db.Accounts.Where(a => a.Username == "steps").Select(a => a.Id).SingleAsync();
+        }
+
+        var store = app.Services.GetRequiredService<ConversationStore>();
+        var conversation = await store.StartAsync(accountId, default);
+        var start = DateTimeOffset.UtcNow;
+        var firsts = new List<string>();
+        for (var i = 0; i < 34; i++)
+        {
+            await store.AddAsync(new Message { ConversationId = conversation.Id, Role = MessageRole.User, Content = $"m{i}", CreatedAt = start.AddSeconds(i) }, default);
+            var history = await store.HistoryAsync(conversation.Id, Guid.Empty, 20, default);
+            Assert.InRange(history.Count, Math.Min(i + 1, 20), 20 + ConversationStore.HistoryStep - 1);
+            firsts.Add(history[0].Content);
+        }
+
+        // m0 until there are 26, then m6 until 32, then m12.
+        Assert.Equal(["m0", "m6", "m12"], firsts.Distinct());
+        Assert.Equal(25, firsts.Count(f => f == "m0"));
     }
 
     [Fact]

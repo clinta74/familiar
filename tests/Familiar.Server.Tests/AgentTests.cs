@@ -177,6 +177,24 @@ public sealed class PromptBuilderTests
     }
 
     [Fact]
+    public void A_kept_user_message_is_replayed_as_it_was_first_given()
+    {
+        // BACKLOG item 37: replayed bare, it no longer matched what the model server had cached, and
+        // every turn re-read from the last message on.
+        Message[] history =
+        [
+            new() { Role = MessageRole.User, Content = "Hi", PromptText = "(Thursday night. A note) Hi", CreatedAt = default },
+            new() { Role = MessageRole.Assistant, Content = "Hello!", CreatedAt = default },
+            new() { Role = MessageRole.User, Content = "Older", CreatedAt = default },
+        ];
+
+        var prompt = PromptBuilder.Build(Context(history));
+
+        Assert.Equal("(Thursday night. A note) Hi", prompt[2].Content);
+        Assert.Equal("Older", prompt[4].Content);
+    }
+
+    [Fact]
     public void The_system_message_does_not_change_from_turn_to_turn()
     {
         // The cached prompt prefix depends on it (PLAN.md §4.3).

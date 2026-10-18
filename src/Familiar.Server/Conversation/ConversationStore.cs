@@ -45,18 +45,32 @@ public sealed class ConversationStore(IDbContextFactory<FamiliarDbContext> facto
         return message;
     }
 
-    /// <summary>The <paramref name="limit"/> messages before <paramref name="excluding"/>, oldest first.</summary>
+    /// <summary>How many older messages drop out of the history at a time (BACKLOG item 37).</summary>
+    public const int HistoryStep = 6;
+
+    /// <summary>
+    /// The messages before <paramref name="excluding"/>, oldest first: at least <paramref name="limit"/>
+    /// of them, and fewer than <paramref name="limit"/> + <see cref="HistoryStep"/>. The oldest drop out
+    /// <see cref="HistoryStep"/> at a time rather than one a turn, so the history's start - and so the
+    /// prompt the model server has cached - stays the same for several turns (BACKLOG item 37).
+    /// </summary>
     public async Task<IReadOnlyList<Message>> HistoryAsync(Guid conversationId, Guid excluding, int limit, CancellationToken ct)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
-        var recent = await db.Messages.AsNoTracking()
-            .Where(m => m.ConversationId == conversationId && m.Id != excluding)
-            .OrderByDescending(m => m.CreatedAt).ThenByDescending(m => m.Id)
-            .Take(limit)
+        var messages = db.Messages.AsNoTracking().Where(m => m.ConversationId == conversationId && m.Id != excluding);
+        var count = await messages.CountAsync(ct);
+        var skip = count <= limit ? 0 : (count - limit) / HistoryStep * HistoryStep;
+        return await messages
+            .OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)
+            .Skip(skip)
             .ToListAsync(ct);
+    }
 
-        recent.Reverse();
-        return recent;
+    /// <summary>A user message's words as the model was given them (see <see cref="Message.PromptText"/>).</summary>
+    public async Task SetPromptTextAsync(Guid messageId, string promptText, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        await db.Messages.Where(m => m.Id == messageId).ExecuteUpdateAsync(m => m.SetProperty(x => x.PromptText, promptText), ct);
     }
 
     /// <summary>The current conversation's latest messages, oldest first, for a client opening the app.</summary>

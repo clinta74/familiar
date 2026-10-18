@@ -125,9 +125,12 @@ public static class PromptBuilder
 
             previous = message.CreatedAt;
             // A picture is sent with its own turn only (BACKLOG item 35): after that, the words say one
-            // was there, and the reply to it says what it was.
+            // was there, and the reply to it says what it was. Any other user message goes as it was
+            // first given, notes and all (BACKLOG item 37): the same prompt as last turn, so the model
+            // server's cache holds.
             messages.Add(message.Role == MessageRole.User
-                ? new ChatMessage(ChatRole.User, message.ImageId is null ? message.Content : $"{PictureSent} {message.Content}".TrimEnd())
+                ? new ChatMessage(ChatRole.User, message.PromptText
+                    ?? (message.ImageId is null ? message.Content : $"{PictureSent} {message.Content}".TrimEnd()))
                 : new ChatMessage(ChatRole.Assistant, AsTheModelWroteIt(message)));
         }
 

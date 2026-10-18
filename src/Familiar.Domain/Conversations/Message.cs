@@ -40,5 +40,12 @@ public sealed class Message
     /// <summary>For user messages: the picture sent with it (BACKLOG item 35), if any.</summary>
     public Guid? ImageId { get; set; }
 
+    /// <summary>
+    /// For user messages: the words exactly as the model was given them, with the notes in front
+    /// ("(Sunday afternoon, 3:05 PM. …) tell me a story"). Replayed so in later turns, the prompt is
+    /// the same as the one the model server cached up to the end of its reply (BACKLOG item 37).
+    /// </summary>
+    public string? PromptText { get; set; }
+
     public DateTimeOffset CreatedAt { get; init; }
 }

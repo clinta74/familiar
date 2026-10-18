@@ -420,6 +420,13 @@ public sealed class ConversationTurns(
                 Familiars.AppearanceView.Parse(profile.Appearance).Look(), profile.HomePlace, image);
             var prompt = userMessage is null ? PromptBuilder.BuildUnprompted(context, cue ?? PromptBuilder.GreetingCue) : PromptBuilder.Build(context);
 
+            // Kept as the model got it, so later turns replay it the same and the server's cache holds
+            // to the end of this reply (BACKLOG item 37). Not a picture's: later turns say one was there.
+            if (userMessage is not null && image is null)
+            {
+                await store.SetPromptTextAsync(userMessage.Id, prompt[^1].Content, ct);
+            }
+
             if (request.Speak)
             {
                 voice = new VoicePipeline(
