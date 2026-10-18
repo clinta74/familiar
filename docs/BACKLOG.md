@@ -36,7 +36,9 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
   search for the town and pick it, or "Use my location"; then "do I need a coat?" and "where do I
   live?". A home typed in before shows as "typed, not picked" until it's picked.
 - **"Where am I" on the website** (item 24), on the real site over HTTPS with "Look things up" on:
-  the browser asks once to allow location; then "what's the weather where I am?".
+  "what's the weather where I am?". Location itself works there since 2026-10-17 (Settings' "Use my
+  location" confirmed): until then the site's nginx sent `Permissions-Policy: geolocation=()`, which
+  blocked it whatever the browser allowed.
 
 ---
 
