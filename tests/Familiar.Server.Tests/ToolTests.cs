@@ -88,6 +88,9 @@ public sealed class ToolTests(PostgresFixture postgres)
         var notify = events[^1].Payload<NotifyEvent>();
         Assert.Equal("Your 1 second timer is done!", notify.Text);
 
+        // Gone from the list on every screen showing it, not left at 0:00.
+        Assert.Empty(events.Last(e => e.Type == EventTypes.Jobs).Payload<JobsEvent>().Jobs);
+
         var rest = await stream.ReadUntilStateAsync(FamiliarState.Idle);
         Assert.Equal(notify.Text, rest.Single(e => e.Type == EventTypes.ReplyEnd).Payload<ReplyEndEvent>().Text);
         Assert.Contains(rest, e => e.Type == EventTypes.Gesture);

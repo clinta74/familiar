@@ -167,8 +167,12 @@ export function useConversation(handlers: ConversationHandlers, options: { speak
   );
   const startOver = useCallback(() => void conversationApi.startOver().catch(() => undefined), []);
 
-  /** The jobs event that follows updates the list on every device. */
-  const cancelJob = useCallback((id: string) => void conversationApi.cancelJob(id).catch(() => undefined), []);
+  /**
+   * The jobs event that follows updates the list on every device. If it's gone already - it went
+   * off, or was cancelled elsewhere - there's no such event: the list is fetched instead.
+   */
+  const cancelJob = useCallback((id: string) => void conversationApi.cancelJob(id).catch(() =>
+    conversationApi.jobs().then((jobs) => dispatch({ type: 'jobs', jobs })).catch(() => undefined)), []);
 
   const answerConfirm = useCallback((callId: string, approve: boolean) => {
     dispatch({ type: 'confirmed', callId });

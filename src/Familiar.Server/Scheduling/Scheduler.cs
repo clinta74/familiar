@@ -59,12 +59,18 @@ public sealed class Scheduler(SchedulerStore store, SchedulerSignal signal, Conv
 
     public async Task PublishAsync(Guid accountId, CancellationToken ct)
     {
-        var pending = await store.PendingAsync(accountId, null, ct);
-        hub.For(accountId).Publish(EventTypes.Jobs, new JobsEvent([.. pending.Select(JobView.From)]));
+        await PublishListAsync(accountId, ct);
 
         // Phones that aren't connected keep their own alarms for these (so they ring offline): tell
         // them to catch up. In the background - a slow push service mustn't hold up the tool.
         _ = Task.Run(() => push.NotifyAsync(accountId, CancellationToken.None, devicesOnly: true), CancellationToken.None);
+    }
+
+    /// <summary>The pending list, to every open tab and app: when one goes off, without a push of its own.</summary>
+    public async Task PublishListAsync(Guid accountId, CancellationToken ct)
+    {
+        var pending = await store.PendingAsync(accountId, null, ct);
+        hub.For(accountId).Publish(EventTypes.Jobs, new JobsEvent([.. pending.Select(JobView.From)]));
     }
 }
 
@@ -76,6 +82,7 @@ public sealed class Scheduler(SchedulerStore store, SchedulerSignal signal, Conv
 public sealed class SchedulerLoop(
     SchedulerStore store,
     SchedulerSignal signal,
+    Scheduler scheduler,
     ConversationTurns turns,
     PushSender push,
     Hooks.WebhookDispatcher webhooks,
@@ -118,6 +125,9 @@ public sealed class SchedulerLoop(
     {
         var text = Spoken.Announcement(job, clock.GetUtcNow());
         logger.JobFired(job.Kind, job.Id, (long)(clock.GetUtcNow() - job.DueAt).TotalSeconds);
+
+        // Off the timers list everywhere: it was left at 0:00, and cancelling it found nothing.
+        await scheduler.PublishListAsync(job.AccountId, ct);
 
         // Both, always: the push is how a closed tab or a locked phone hears about it, and the service
         // worker stays quiet when a familiar window is already showing it.

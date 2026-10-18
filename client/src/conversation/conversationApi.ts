@@ -1,5 +1,5 @@
 import { api, errorFrom } from '../api/client';
-import type { ConfirmRequest, ImageView, InterruptRequest, SendMessageRequest, ToolResultRequest } from '../protocol/generated';
+import type { ConfirmRequest, ImageView, InterruptRequest, JobView, SendMessageRequest, ToolResultRequest } from '../protocol/generated';
 import type { MessageView } from './events';
 
 const timeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -50,6 +50,7 @@ export const conversationApi = {
   startOver: () => api<void>('/api/conversation/new', { method: 'POST' }),
 
   cancelJob: (id: string) => api<void>(`/api/jobs/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  jobs: () => api<JobView[]>('/api/jobs'),
 
   /** What this browser did when the server asked it to (`tool.invoke`): where it is. */
   toolResult: (result: ToolResultRequest) => api<void>('/api/conversation/tool-result', { body: result }),
