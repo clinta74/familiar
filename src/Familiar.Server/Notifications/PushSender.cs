@@ -19,7 +19,8 @@ public sealed class PushOptions
     public string Subject { get; init; } = "https://github.com/clinta74/familiar";
 
     /// <summary>Whether <paramref name="endpoint"/> may be pushed to.</summary>
-    public bool Accepts(string endpoint) => PushSender.IsAcceptableEndpoint(endpoint);
+    public bool Accepts(string endpoint) =>
+        PushSender.IsAcceptableEndpoint(endpoint) && !endpoint.EndsWith(PushSender.UnifiedPushSuffix, StringComparison.Ordinal);
 }
 
 /// <summary>
@@ -125,6 +126,9 @@ public sealed class PushSender(
     TimeProvider clock,
     ILogger<PushSender> logger)
 {
+    /// <summary>How a UnifiedPush address from ntfy ends; browsers' never do.</summary>
+    internal const string UnifiedPushSuffix = "?up=1";
+
     /// <summary>Something happened: every browser the account has subscribed, and every phone listening, hears of it.</summary>
     /// <param name="accountId">Whose browsers and phones.</param>
     /// <param name="ct">Cancels sending.</param>
@@ -140,9 +144,13 @@ public sealed class PushSender(
 
         await using var context = await db.CreateDbContextAsync(ct);
 
-        // Browsers only: a phone's row is from when phones pushed through ntfy, and goes when it next listens.
+        // Browsers only. What's left from when phones pushed through ntfy goes: a phone's row, and any
+        // UnifiedPush address ("…/upAbc?up=1" - never a browser's), which ntfy no longer answers.
+        await context.PushSubscriptions
+            .Where(s => s.AccountId == accountId && (s.DeviceId != null || s.Endpoint.EndsWith(UnifiedPushSuffix)))
+            .ExecuteDeleteAsync(ct);
         var subscriptions = await context.PushSubscriptions
-            .Where(s => s.AccountId == accountId && s.DeviceId == null)
+            .Where(s => s.AccountId == accountId)
             .ToListAsync(ct);
 
         if (subscriptions.Count == 0)

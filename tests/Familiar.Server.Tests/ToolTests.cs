@@ -303,6 +303,21 @@ public sealed class ToolTests(PostgresFixture postgres)
         await app.Services.GetRequiredService<PushSender>().NotifyAsync(accountId, default, devicesOnly: true);
         Assert.Equal("event: changed", await LineAsync(reader, l => l.StartsWith("event:", StringComparison.Ordinal)));
 
+        // An ntfy address with no phone to go with it isn't taken for a browser's: it goes too.
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await browser.PostAsJsonAsync("/api/push/subscriptions", new SubscribeRequest("https://push.example.net/upBBB?up=1", null))).StatusCode);
+        await using (var db = await Db(app))
+        {
+            db.PushSubscriptions.Add(new PushSubscription { AccountId = accountId, Endpoint = "https://push.example.net/upCCC?up=1", CreatedAt = DateTimeOffset.UtcNow });
+            await db.SaveChangesAsync();
+        }
+
+        await app.Services.GetRequiredService<PushSender>().NotifyAsync(accountId, default);
+        await using (var db = await Db(app))
+        {
+            Assert.Empty(await db.PushSubscriptions.ToListAsync());
+        }
+
         static async Task<string> LineAsync(StreamReader reader, Func<string, bool> wanted)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
