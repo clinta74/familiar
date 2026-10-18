@@ -13,19 +13,8 @@ number: **37**.
 Built and tested on the emulator or the dev box, not yet seen on the real phone or site. Tick each off here
 (or open an item if it doesn't work).
 
-- **Texts and calls** (item 21; directions and "where am I" confirmed 2026-10-09): Messages or the
-  dialler opens ready; with Familiar in the background, a notification to tap.
-- **Sound effects in a conversation in the app** (item 14; they play in the studio, 2026-10-09): ask
-  for one by name ("play a drumroll"), or tell it a joke.
-- **The sleepy avatar** (item 18): it dozes after a few minutes, and wakes on a tap or when the app
-  comes back to the front.
-- **Alarms after a restart** (MOBILE.md, M3): a timer or reminder set, the phone restarted, and it
-  still rings.
-- **The home-screen widget** (`NextUpWidget`).
-- **The 3D avatar appearing faster** (item 28): from opening the app to the character showing.
-- **Hands-free hearing you** (item 27): answers that repeat the familiar's words ("yes, set the timer")
-  get through; if one still vanishes, the NAS log says why ("Ignored a transcript that was the
-  familiar's own voice", or no transcript at all).
+**The newest (items 29-35)**
+
 - **Home Assistant** (item 29), against the real one: Settings → Connections → Home Assistant, its
   address as the NAS reaches it and a long-lived access token (your Home Assistant profile →
   Security); the devices exposed to Assist should be listed. Then "turn on the kitchen light", a
@@ -40,6 +29,28 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
 - **Pictures in the app** (item 35): the picture button by the message box opens the photo picker;
   "what's this?" with a photo; and from Photos or another app, Share → Familiar puts the picture in
   the chat ready to send. Sent pictures show in the bubbles, there and after reopening.
+
+**The phone**
+
+- **Texts and calls** (item 21; directions and "where am I" confirmed 2026-10-09): Messages or the
+  dialler opens ready; with Familiar in the background, a notification to tap.
+- **Alarms after a restart** (MOBILE.md, M3): a timer or reminder set, the phone restarted, and it
+  still rings.
+- **The home-screen widget** (`NextUpWidget`).
+
+**Talking and the avatar**
+
+- **Hands-free hearing you** (item 27): answers that repeat the familiar's words ("yes, set the timer")
+  get through; if one still vanishes, the NAS log says why ("Ignored a transcript that was the
+  familiar's own voice", or no transcript at all).
+- **Sound effects in a conversation in the app** (item 14; they play in the studio, 2026-10-09): ask
+  for one by name ("play a drumroll"), or tell it a joke.
+- **The sleepy avatar** (item 18): it dozes after a few minutes, and wakes on a tap or when the app
+  comes back to the front.
+- **The 3D avatar appearing faster** (item 28): from opening the app to the character showing.
+
+**The website**
+
 - **"Where am I" on the website** (item 24), on the real site over HTTPS with "Look things up" on:
   "what's the weather where I am?". Location itself works there since 2026-10-17 (Settings' "Use my
   location" confirmed): until then the site's nginx sent `Permissions-Policy: geolocation=()`, which
@@ -75,16 +86,6 @@ Ideas that came up and were set aside - not agreed. Each would need asking about
   hundred replies offline against it.
 
 ---
-
-## Knowing more, showing more
-
-Asked 2026-10-17, from a chat about the elections. Asked "who are the candidates for me?", it asked
-which races; asked to look where he was, the browser refused location and it stopped there; reminded
-it knew from the weather, it said "Warren" and guessed Ohio (it's Warren, Michigan), then gave a
-congressional district from memory, then offered to "look up that link" and gave none. Four of eight
-exchanges went on finding out where he lives, which it could have known from the start; the district
-was guessed, not found; and it offered something no tool can do. The order below is the suggested
-order. All four (32-35) are done (BACKLOG-DONE.md).
 
 ## Voice and sound
 
