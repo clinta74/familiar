@@ -23,6 +23,8 @@ public sealed class LookUpHosts : DelegatingHandler
         // The town at some coordinates, for Settings' "use my current location" only (BACKLOG item 32):
         // Open-Meteo can't go from coordinates to a name. Never a model's tool.
         "nominatim.openstreetmap.org",
+        // The official areas where they live (home_area, BACKLOG item 33): counties, districts.
+        "geocoding.geo.census.gov",
     };
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

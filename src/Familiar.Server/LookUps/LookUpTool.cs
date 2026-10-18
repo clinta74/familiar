@@ -13,6 +13,8 @@ namespace Familiar.Server.LookUps;
 /// the key facts from its Wikidata entry (each article names its entry, so it's one tool for both).
 /// A topic in, short plain text and dated facts out; never a page. For anything that may have
 /// changed since the model learned it: it said a bridge "should open in 2025" a year after it opened.
+/// With "find", one part of the article instead (BACKLOG item 33): a district's candidates, a city's
+/// climate, a band's albums - what the opening paragraph never has.
 /// </summary>
 public sealed partial class LookUpTool(IHttpClientFactory http, IMemoryCache cache) : ITool
 {
@@ -69,10 +71,17 @@ public sealed partial class LookUpTool(IHttpClientFactory http, IMemoryCache cac
         "look_up",
         "Facts about a person, place, thing or event, from Wikipedia and Wikidata. Your own knowledge may be out of date: " +
         "use this for anything that could have changed - openings, completions, records, who holds an office, recent events - " +
-        "and for figures like populations, heights and dates.",
-        ToolSchema.Object(("topic", ToolSchema.String(
-            "What to look up. Its exact name if you're sure of it (\"Mount Everest\"); otherwise the user's own words " +
-            "(\"new bridge from Canada to Michigan\") - a guessed name finds the wrong thing."))),
+        "and for figures like populations, heights and dates. With find, it reads that part of the article instead: who's " +
+        "standing in a district, a list, a table of results or a climate - anything past its first paragraph. Not for news, " +
+        "events, opening hours or prices: say you can't look those up.",
+        ToolSchema.Object(
+            ("topic", ToolSchema.String(
+                "What to look up. Its exact name if you're sure of it (\"Mount Everest\", \"2026 United States House of " +
+                "Representatives elections in Michigan\"); otherwise the user's own words (\"new bridge from Canada to Michigan\") " +
+                "- a guessed name finds the wrong thing.")),
+            ("find", ToolSchema.String(
+                "Optional: the part of the article to read, in a few words - \"District 10\", \"Results\", \"Climate\", " +
+                "\"Discography\". Leave out for the summary."))),
         ToolRisk.LookUp);
 
     public string Describe(JsonObject arguments) => $"Look up {ToolArgs.String(arguments, "topic")}";
@@ -109,6 +118,14 @@ public sealed partial class LookUpTool(IHttpClientFactory http, IMemoryCache cac
             return ToolResult.Failure($"\"{found.Title}\" could mean several things. Ask the user which one they mean.", $"Looked up: {found.Title}");
         }
 
+        if (ToolArgs.String(arguments, "find") is { Length: > 0 } find)
+        {
+            // The topic's words beyond the article's title say which part too: asked for "Candidates" in
+            // "... elections in Michigan's 10th congressional district", it's District 10 that's meant.
+            var extra = WikipediaSections.Words(topic).Except(WikipediaSections.Words(found.Title));
+            return await SectionAsync(found, find.Length > 100 ? find[..100] : find, extra, ct);
+        }
+
         var facts = new JsonObject
         {
             ["ok"] = true,
@@ -130,6 +147,52 @@ public sealed partial class LookUpTool(IHttpClientFactory http, IMemoryCache cac
     }
 
     private sealed record Found(string Title, string Description, string Summary, string Edited, bool Ambiguous, IReadOnlyDictionary<string, string> Facts);
+
+    /// <summary>The part of [found]'s article that [find] names; or, when no heading fits, what parts there are.</summary>
+    private async Task<ToolResult> SectionAsync(Found found, string find, IEnumerable<string> extra, CancellationToken ct)
+    {
+        var page = Uri.EscapeDataString(found.Title);
+        IReadOnlyList<WikipediaSections.Section> outline;
+        try
+        {
+            outline = await cache.GetOrCreateAsync($"lookup-sections:{found.Title}", async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(6);
+                var parsed = await GetJsonAsync($"https://en.wikipedia.org/w/api.php?action=parse&page={page}&prop=sections&redirects=1&format=json", ct);
+                return parsed?["parse"]?["sections"] is JsonArray sections ? WikipediaSections.Outline(sections) : [];
+            }) ?? [];
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable)
+        {
+            return ToolResult.Failure("Wikipedia is busy just now. Say you couldn't look it up and they could ask again in a minute.", "Wikipedia busy");
+        }
+
+        if ((WikipediaSections.Best(outline, find + " " + string.Join(' ', extra)) ?? WikipediaSections.Best(outline, find)) is not { } section)
+        {
+            var parts = string.Join("; ", outline.Where(s => s.Level <= 3).Select(s => s.Heading).Distinct().Take(40));
+            // Its opening paragraph too: it often says what was asked ("currently represented by ...").
+            return ToolResult.Failure(
+                $"\"{found.Title}\" has no part about \"{find}\". It begins: \"{found.Summary}\" Its parts are: {parts}. If that " +
+                "doesn't answer it, call look_up again with one of those parts as find.", $"Looked up: {found.Title}");
+        }
+
+        var text = await cache.GetOrCreateAsync($"lookup-section:{found.Title}:{section.Index}", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(6);
+            var parsed = await GetJsonAsync(
+                $"https://en.wikipedia.org/w/api.php?action=parse&page={page}&section={section.Index}&prop=text&redirects=1&disableeditsection=1&disablelimitreport=1&format=json", ct);
+            return parsed?["parse"]?["text"]?["*"]?.GetValue<string>() is { } html ? WikipediaSections.Text(html) : "";
+        }) ?? "";
+
+        return ToolResult.Success(LookUpText.Result("Wikipedia", new JsonObject
+        {
+            ["ok"] = true,
+            ["title"] = found.Title,
+            ["part"] = section.Path,
+            ["text"] = text,
+            ["as_of"] = found.Edited,
+        }), $"Looked up: {found.Title} › {section.Heading}");
+    }
 
     private HttpClient Client() => http.CreateClient(nameof(LookUps));
 

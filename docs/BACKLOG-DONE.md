@@ -517,6 +517,38 @@ geocoding; "what's on near me" searched with Warren in mind; "who are the candid
 longer asks where they live or guesses a state - it asked which election once, and once said it
 hadn't the district details rather than inventing them (finding them is item 33).
 
+### 33. ~~Find local facts, not guess them~~ — done (2026-10-17)
+
+The elections chat's district was made up, and the candidates couldn't be found: `look_up` read only
+an article's opening paragraph. Built general-purpose rather than for elections:
+
+- **`look_up` reads a part of an article** with `find` ("District 10", "Climate", "Discography"):
+  the part is chosen by the words of its headings and those above it ("Michigan's 10th district"
+  finds "District 10"), plus the topic's words beyond the article's title (asked for "Candidates" in
+  "... elections in Michigan's 10th congressional district", it's District 10). Tables come a row to a
+  line, references and links go, and every heading under the part is kept with a short share of the
+  room - a long one keeps its first lines and its last, where the sitting office-holder and the totals
+  are. No part fits: the answer has the article's opening paragraph and its parts, for one more try.
+  Wikipedia only (`WikipediaSections`), labelled as reference text like every look-up.
+- **`home_area`**: the official areas where they live, from the US Census Bureau's geocoder (one
+  more allow-listed host, no key) - state, county, city or township, congressional and state
+  legislative districts, school district, ZIP area - named the way Wikipedia names them ("Michigan's
+  10th congressional district", "Michigan's 11th Senate district", "California's 10th State Assembly
+  district"; "Michigan Senate District 11" found the US Senate election). For home's coordinates, to
+  about a kilometre, and it says a district near a boundary may be the neighbouring one. US only.
+- **The rule:** only offer what a tool can do; facts that change - office-holders, candidates,
+  districts, laws, prices - come from a look-up, never memory, or it says it doesn't know.
+- **Three look-ups a reply**, not two: where they live, then what's asked, then once more with a
+  better name.
+- Not done: running a round's look-ups in parallel. A reply's look-ups came one after another because
+  each depends on the last (the district, then its candidates), not because a round held several.
+
+Tried on the real model, home Warren, Michigan: "who are the candidates for me?" - Mike Bouchard Jr.
+and Christina Hines for the 10th district, three times out of three after the fixes; "who is my state
+senator?" Veronica Klinefelt; "who represents me in congress?" John James, Republican since 2023;
+"what county?" Macomb; "what school district?" from the Census; and not local, Detroit's climate in
+July and Taylor Swift's albums from their articles' sections.
+
 ---
 
 ## Avatars

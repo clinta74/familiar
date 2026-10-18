@@ -79,25 +79,7 @@ it knew from the weather, it said "Warren" and guessed Ohio (it's Warren, Michig
 congressional district from memory, then offered to "look up that link" and gave none. Four of eight
 exchanges went on finding out where he lives, which it could have known from the start; the district
 was guessed, not found; and it offered something no tool can do. The order below is the suggested
-order. 32 is done (BACKLOG-DONE.md).
-
-### 33. Find local facts, not guess them
-
-The district was made up and the candidates weren't found: `look_up` returns an article's opening
-paragraph, and a list of candidates is in a table further down.
-
-- **A rule:** never offer what no tool can do ("would you like me to look up that link?"); and civic
-  facts - districts, candidates, polling places, deadlines - only from a look-up, never memory.
-- **`look_up` reads a section:** given an article and what to find ("Michigan's 10th district" in "2026
-  United States House of Representatives elections in Michigan"), it returns that section's text and
-  table rows, trimmed, with the article's last-edited date. Wikipedia only, so the same safety.
-- **Where they live, officially** (US): the Census Bureau's geocoder (free, no key) gives the county,
-  congressional and state legislative districts for home's coordinates - one more allow-listed host.
-  Elsewhere, the region from item 32.
-- **Faster:** the look-ups in one round run in parallel rather than one after another, and each tool's
-  description says what it can't answer, so the model doesn't spend a round finding out. The time
-  lost in that chat was mostly exchanges, not milliseconds; 32 and the rule above save those.
-- A general web search stays parked; if this still leaves gaps, it's the next thing to reconsider.
+order. 32 and 33 are done (BACKLOG-DONE.md).
 
 ### 34. Links: given, and read
 

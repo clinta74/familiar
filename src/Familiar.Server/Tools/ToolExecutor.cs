@@ -90,7 +90,7 @@ public sealed class ToolExecutor(
     private readonly Dictionary<string, ITool> _tools = tools.ToDictionary(t => t.Definition.Name, StringComparer.Ordinal);
 
     /// <summary>At most this many look-ups a reply: enough to answer, not enough to go wandering.</summary>
-    public const int MaxLookUpsPerReply = 2;
+    public const int MaxLookUpsPerReply = 3;
 
     /// <summary>The built-in tools, the same for everyone.</summary>
     public IReadOnlyList<ToolDefinition> BuiltIn => [.. _tools.Values.Select(t => t.Definition)];
@@ -241,6 +241,7 @@ public static class ToolRegistration
         services.AddSingleton<ITool, LookUps.HolidaysTool>();
         services.AddSingleton<ITool, LookUps.AirQualityTool>();
         services.AddSingleton<ITool, LookUps.ExchangeRateTool>();
+        services.AddSingleton<ITool, LookUps.HomeAreaTool>();
 
         // Done by the phone, while one that can is connected (BACKLOG item 21).
         services.AddSingleton<ITool, Devices.SendTextTool>();

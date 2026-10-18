@@ -95,7 +95,8 @@ export function FamiliarSettings() {
           Look things up
           <span className="muted">
             {' '}— the weather, air quality and pollen (Open-Meteo), what words mean (Wiktionary), facts and figures (Wikipedia,
-            Wikidata), public holidays (Nager.Date) and exchange rates (Frankfurter). Only those; what you ask goes to them,
+            Wikidata), public holidays (Nager.Date), exchange rates (Frankfurter) and, in the US, your county and districts (the
+            Census Bureau). Only those; what you ask goes to them,
             nothing else about you. Sums and unit conversions are worked out here either way.
           </span>
         </span>

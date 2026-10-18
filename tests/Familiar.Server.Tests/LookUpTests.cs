@@ -59,6 +59,33 @@ internal sealed class OutsideServices : HttpMessageHandler
         {"lat":"42.49","lon":"-83.02","address":{"city":"Warren","county":"Macomb County","state":"Michigan","country":"United States","country_code":"us"}}
         """;
 
+    /// <summary>An article's sections, as the parse API lists them (BACKLOG item 33).</summary>
+    public string Sections { get; set; } = """
+        {"parse":{"title":"Gordie Howe International Bridge","sections":[
+          {"index":"1","level":"2","line":"History"},{"index":"2","level":"3","line":"Planning"},
+          {"index":"3","level":"2","line":"District 10"},{"index":"4","level":"3","line":"Republican primary"},
+          {"index":"5","level":"4","line":"Nominee"},{"index":"6","level":"3","line":"General election"},
+          {"index":"7","level":"4","line":"Results"},{"index":"8","level":"2","line":"References"}]}}
+        """;
+
+    /// <summary>One section's HTML: an infobox table, a paragraph, a list, a reference and an edit link.</summary>
+    public string SectionText { get; set; } = """
+        {"parse":{"text":{"*":"<div class=\"mw-heading mw-heading2\"><h2 id=\"District_10\">District 10</h2><span class=\"mw-editsection\">[edit]</span></div><table class=\"infobox\"><tr><th>Nominee</th><td>Mike Bouchard Jr.</td><td>Christina Hines</td></tr><tr><th>Party</th><td>Republican</td><td>Democratic</td></tr></table><p>The 10th district takes in <a href=\"/wiki/Warren\">Warren</a> and Sterling Heights.<sup class=\"reference\">[1]</sup> See https://evil.example/x.</p><div class=\"mw-heading mw-heading3\"><h3>Republican primary</h3></div><h4>Nominee</h4><ul><li>Michael Bouchard Jr., Army captain</li></ul><h4>Endorsements</h4><ul><li>A</li><li>B</li></ul>"}}}
+        """;
+
+    /// <summary>The Census geocoder at Warren, Michigan.</summary>
+    public string Census { get; set; } = """
+        {"result":{"geographies":{
+          "States":[{"NAME":"Michigan"}],"Counties":[{"NAME":"Macomb County"}],
+          "Incorporated Places":[{"NAME":"Warren city"}],"County Subdivisions":[{"NAME":"Warren city"}],
+          "120th Congressional Districts":[{"NAME":"Congressional District 10"}],
+          "2026 State Legislative Districts - Upper":[{"NAME":"State Senate District 11"}],
+          "2026 State Legislative Districts - Lower":[{"NAME":"State House District 14"}],
+          "Unified School Districts":[{"NAME":"Center Line Public Schools"}],
+          "2020 Census ZIP Code Tabulation Areas":[{"NAME":"ZCTA5 48089"}],
+          "Census Tracts":[{"NAME":"Census Tract 2626"}]}}}
+        """;
+
     /// <summary>Wikipedia answers "busy" (429) when set.</summary>
     public bool WikipediaBusy { get; set; }
 
@@ -123,7 +150,10 @@ internal sealed class OutsideServices : HttpMessageHandler
             "en.wikipedia.org" when uri.AbsolutePath.EndsWith("/Prime_Minister_of_Canada", StringComparison.Ordinal) => (HttpStatusCode.OK, OfficeSummary),
             "en.wikipedia.org" when uri.AbsolutePath.EndsWith("/Mercury", StringComparison.Ordinal) =>
                 (HttpStatusCode.OK, """{"type":"disambiguation","title":"Mercury","extract":"Mercury may refer to:"}"""),
+            "en.wikipedia.org" when query.Contains("prop=sections", StringComparison.Ordinal) => (HttpStatusCode.OK, Sections),
+            "en.wikipedia.org" when query.Contains("prop=text", StringComparison.Ordinal) => (HttpStatusCode.OK, SectionText),
             "en.wikipedia.org" => (HttpStatusCode.OK, BridgeSummary),
+            "geocoding.geo.census.gov" => (HttpStatusCode.OK, Census),
             "www.wikidata.org" when query.Contains("props=labels", StringComparison.Ordinal) => (HttpStatusCode.OK, Labels),
             "www.wikidata.org" when query.Contains("Q839078", StringComparison.Ordinal) => (HttpStatusCode.OK, OfficeClaims),
             "www.wikidata.org" => (HttpStatusCode.OK, BridgeClaims),
@@ -563,13 +593,15 @@ public sealed class LookUpTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Two_look_ups_a_reply_and_no_more()
+    public async Task Three_look_ups_a_reply_and_no_more()
     {
+        // Three: where they live, then what's asked, then once more with a better name (BACKLOG item 33).
         var (app, client, outside) = await StartAsync(postgres, lookUps: true);
         await using (app)
         {
             app.Llm.ThenCall("define", """{"word": "petrichor"}""")
                 .ThenCall("get_weather", """{"place": "Portland, Maine"}""")
+                .ThenCall("air_quality", """{"place": "Portland, Maine"}""")
                 .ThenCall("get_weather", """{"place": "Paris"}""")
                 .ThenSay("[relaxed:0.5] Here's what I found.");
             await using var stream = await SseClient.ConnectAsync(client);
@@ -579,8 +611,8 @@ public sealed class LookUpTests(PostgresFixture postgres)
             await stream.ReadUntilStateAsync(FamiliarState.Idle);
 
             var results = app.Llm.LastPrompt!.Where(m => m.Role == ChatRole.Tool).Select(m => m.Content).ToList();
-            Assert.Equal(3, results.Count);
-            Assert.Contains("enough looking up", results[2], StringComparison.Ordinal);
+            Assert.Equal(4, results.Count);
+            Assert.Contains("enough looking up", results[3], StringComparison.Ordinal);
             Assert.DoesNotContain(outside.Asked, u => u.Query.Contains("Paris", StringComparison.Ordinal));
         }
     }
