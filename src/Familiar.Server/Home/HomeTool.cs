@@ -31,7 +31,9 @@ public sealed partial class HomeTool(HomeAssistant home, HomeAssistantLink link)
         "home",
         "Works the user's smart home through Home Assistant: switches lights and plugs on and off, sets a light's " +
         "brightness or colour, sets the heating, opens and closes blinds, locks doors, plays and pauses media, and " +
-        "says how things are. Never guess how anything in the house is - a temperature, whether something's on - ask it. " +
+        "reads its sensors - temperatures inside and out, a weather station, humidity, doors and windows. Never guess " +
+        "how anything in the house is - a temperature, whether something's on - ask it; and when the user asks what " +
+        "Home Assistant or a sensor says, check before ever saying you can't see it. " +
         "do: say the command simply, as you would to a smart speaker, naming the device or room (\"turn off the " +
         "kitchen light\", \"set the desk lamp brightness to 50%\", \"set the desk lamp to green\", \"is the garage door open\"); " +
         "each change is a new call, and say the device's name, never \"it\". check: how things are " +
@@ -216,7 +218,8 @@ public sealed partial class HomeTool(HomeAssistant home, HomeAssistantLink link)
         {
             if (listed.Length + room.Length > MaxListed)
             {
-                listed.Append("and more. ");
+                // Rooms past the cut - and devices in no room, listed last - are still there to check.
+                listed.Append("And more not listed here: check finds them by name. ");
                 break;
             }
 
