@@ -4,7 +4,7 @@ Work that's agreed but not finished, in the order it'll be done. Bigger designs 
 [PLAN.md](PLAN.md) and [MOBILE.md](MOBILE.md). When an item ships, move it to
 [BACKLOG-DONE.md](BACKLOG-DONE.md) under the same number - code comments cite items by number
 ("BACKLOG item 21") - and say what was built and how it was checked. New items take the next
-number: **37**.
+number: **41**.
 
 ---
 
@@ -64,15 +64,8 @@ Ideas that came up and were set aside - not agreed. Each would need asking about
 
 - **General web search** (SearXNG on the NAS, safe search strict, titles and snippets only) - only if
   the narrow look-ups leave gaps (item 15).
-- **Faster first words** (items 5 and 11): shorter tool descriptions; a model whose prompt cache
-  Ollama reuses; starting to speak at the first clause rather than the first whole sentence.
-- **Push without ntfy:** the app keeping its own connection in the background (a foreground service
-  with its own notification), only if dropping the ntfy app is wanted. Discussed 2026-10-06; ntfy
-  kept.
-- **Sending texts directly** (`SEND_SMS`), after a confirmation, for hands-free use (item 21).
 - **Singing:** Kokoro's speech pitched to a tune, for short set pieces like "happy birthday"
   (item 14's original notes).
-- **30 fps when idle**, if battery matters in long hands-free sessions (item 8).
 - **A "System One" decision model** (typed choice / yes-no answers with calibrated probabilities, no
   text): TypeSafe's Jev, and the open ones listed at github.com/yanng981/awesome-system-one. Looked
   at 2026-10-16 and set aside: Jev is cloud-only, against keeping everything on our hardware; none of
@@ -86,6 +79,39 @@ Ideas that came up and were set aside - not agreed. Each would need asking about
   hundred replies offline against it.
 
 ---
+
+## Next, in this order (asked 2026-10-18)
+
+### 37. Faster first words
+
+From the end of what's said to the familiar's first word, the model's reading of the prompt is the
+biggest part, and it's paid in full every turn: gemma4 on Ollama re-reads the whole prompt each time
+(item 5, measured 2026-10-03: 0.7-1.0 s for ~1,250 tokens then; there are more tools now). Measure
+first - prompt tokens, what the tool definitions cost, prefill and first-token time, on the dev box
+and the NAS - then the options, cheapest first: shorter tool descriptions, and offering fewer tools
+when a message plainly needs none or few; whether a newer Ollama (or a setting) keeps gemma4's cache;
+a model whose cache Ollama reuses (the bake-off re-run: tools, restraint, tags); starting to speak at
+the first clause rather than the first whole sentence.
+
+### 38. Push without the ntfy app
+
+Android push goes through a self-hosted ntfy server and the ntfy app (UnifiedPush). Instead, the app
+keeps its own connection while in the background: a foreground service with its own small
+notification, as hands-free already has. Discussed 2026-10-06 and kept then; now wanted. Mind the
+battery, Doze, and what happens after the phone restarts.
+
+### 39. Sending texts directly, for hands-free use
+
+`send_text` opens Messages ready to send (item 21), which needs hands. With `SEND_SMS`, the app could
+send it itself - only after a spoken confirmation that reads back who it's to and what it says, and
+never from a turn with outside text in it (a look-up, a picture). Google Play restricts `SEND_SMS` to
+default SMS apps; Familiar is sideloaded, so it doesn't apply, but say so in MOBILE.md.
+
+### 40. Lower frame rate when idle
+
+The avatar draws at full rate all the time. When nothing's moving - no speech, no gesture, only
+breathing and blinks - 30 fps (or less) would do, and save battery in long hands-free sessions with
+the screen on (item 8 measured the 3D cost on the Fold).
 
 ## Voice and sound
 
