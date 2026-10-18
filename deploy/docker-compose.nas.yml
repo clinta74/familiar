@@ -105,8 +105,11 @@ services:
   #
   # After first start, build the derived model from any machine with Docker access to the NAS:
   #     DOCKER_HOST=ssh://nas sh tools/ollama/create-models.sh
+  # Pinned (BACKLOG item 37): 0.40.6 runs gemma4 through llama.cpp's server, which reuses the
+  # prompt cache between turns and generates ~3x faster - first words in half the time of 0.35.0.
+  # A new version is a choice, with the bake-off re-run: "latest" changed the model underneath us.
   ollama:
-    image: ollama/ollama:${OLLAMA_TAG:-latest}
+    image: ollama/ollama:${OLLAMA_TAG:-0.40.6}
     container_name: familiar-ollama
     restart: always
     networks: [familiar]
@@ -116,6 +119,14 @@ services:
       OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-1}
       # Leave cores for muwbta's game loop when inference falls back to the CPU.
       OLLAMA_NUM_THREAD: ${OLLAMA_THREADS:-4}
+      # Ollama 0.40 runs gemma4 in llama.cpp's server, which ignores OLLAMA_NUM_THREAD and starts a
+      # thread per core: twenty threads in a four-CPU limit were throttled, and every turn's prompt
+      # took 0.9-1.3 s where 0.5 s will do (BACKLOG item 37). It reads LLAMA_ARG_* instead.
+      LLAMA_ARG_THREADS: ${OLLAMA_THREADS:-4}
+      LLAMA_ARG_THREADS_BATCH: ${OLLAMA_THREADS:-4}
+      # Its prompt-cache restore points are 320 MB each in RAM, 32 by default: past the memory limit.
+      # A conversation only grows at its end, so the last few are all that's ever used.
+      LLAMA_ARG_CTX_CHECKPOINTS: 4
     cpus: ${OLLAMA_CPUS:-4.0}
     mem_limit: ${OLLAMA_MEMORY:-12g}
     volumes:

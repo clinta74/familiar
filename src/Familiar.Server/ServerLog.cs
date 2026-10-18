@@ -84,6 +84,10 @@ internal static partial class ServerLog
     [LoggerMessage(53, LogLevel.Information, "Turn: transcribe {TranscribeMs} ms, first text {FirstTextMs} ms, first audio {FirstAudioMs} ms, total {TotalMs} ms")]
     public static partial void TurnTiming(this ILogger logger, long transcribeMs, long firstTextMs, long firstAudioMs, long totalMs);
 
+    // Where the first words' time goes (BACKLOG item 37): what the model read, and how long it took to start.
+    [LoggerMessage(112, LogLevel.Information, "Model round {Round}: {Tools} tools, prompt {PromptTokens} tokens read in {PromptMs} ms, first output {FirstOutputMs} ms, {OutputTokens} tokens out in {OutputMs} ms")]
+    public static partial void ModelRound(this ILogger logger, int round, int tools, int promptTokens, long promptMs, long firstOutputMs, int outputTokens, long outputMs);
+
     [LoggerMessage(60, LogLevel.Information, "Tools: {Tools}")]
     public static partial void ToolsConfigured(this ILogger logger, string tools);
 

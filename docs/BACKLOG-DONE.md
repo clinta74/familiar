@@ -63,6 +63,30 @@ What would actually cut the ~1 s of prefill before the first word:
 - **llama.cpp's `llama-server`** with `cache_prompt`, which also has slot save/restore across
   restarts.
 
+### 37. ~~Faster first words~~ — done (2026-10-18): Ollama 0.40.6, with its threads set
+
+Measured first (the server now logs each round with the model: tools offered, prompt tokens, read
+time, first output - event 112). On the dev box with Ollama 0.35.0 the prompt had grown to ~3,900
+tokens - 19 tools' definitions 2,826 of them (dates 355, look_up 284, create_reminder 230...), the
+system message 1,012 - and gemma4 re-read all of it every round: ~0.9 s to read, so a reply that uses
+a tool (two rounds) took 3.1-3.7 s to its first words, a chat reply 1.4 s. The "cached" count Ollama
+reports didn't mean the reading was skipped: gemma4's sliding-window attention defeated the cache.
+**Ollama 0.40.6** runs gemma4 in llama.cpp's server, which keeps restore points ("checkpoints") and
+reuses them, and runs gemma4's draft model for speculative decoding - generation went from 37 to 115
+tokens a second. Two settings were needed: llama-server ignores `OLLAMA_NUM_THREAD` and started a
+thread per core (20) inside the container's 4-CPU limit, which throttled it back to 0.9-1.3 s a turn
+(`LLAMA_ARG_THREADS`/`_BATCH` 4 fixed it); and each restore point is 320 MB of RAM, 32 by default -
+past the 12 GB limit - so `LLAMA_ARG_CTX_CHECKPOINTS` 4 (the last few are all a growing conversation
+uses). Pinned to 0.40.6 in both compose files (and the NAS's YAML): "latest" changes the model
+underneath. **Results, dev box, real Familiar turns:** a chat reply's first words 1.38 → 0.62 s,
+"thanks!" 1.36 → 0.59 s, "set a timer" 3.68 → 1.39 s, the weather 3.08 → 1.19 s; follow-up turns in a
+conversation read their ~4,000-token prompt in 0.45-0.55 s, steadily. Bake-off on 0.40.6: tools 12/12,
+restraint 10/10, emotion tags 10/10 - as before - median first token 278 ms (was 395). GPU: ~9.4 GB
+for the model with its draft model, vision encoder and cache (0.35.0: ~8.9 GB); `OLLAMA_KV_CACHE_TYPE`
+is honoured (q8_0 halves the cache). Not done, as not needed now: shorter tool descriptions (each
+round would read ~25% less), offering fewer tools per message (it would break the cache, which needs
+the tools to stay the same), warming the prompt at startup, and speaking from the first clause.
+
 ### 5a. ~~Open the chat at its latest message~~ — done (2026-10-03)
 
 A conversation that arrives all at once (restored, reloaded after a resync, a new one) opens at its

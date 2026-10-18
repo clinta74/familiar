@@ -133,6 +133,28 @@ docker exec familiar-backup familiar-backup --once
 `./backups`, and start it; the old folder is untouched. If the database itself is the problem,
 `before-move.dump` restores with `pg_restore`.
 
+## Upgrading Ollama (0.40.6, BACKLOG item 37)
+
+0.40.6 halves the wait for the familiar's first words: it reuses the prompt between turns and
+generates about three times faster. In the app's YAML (already changed in
+`docker-compose.beta.nas.yml`): the image `ollama/ollama:0.40.6`, and beside `OLLAMA_NUM_THREAD`:
+
+```yaml
+      LLAMA_ARG_THREADS: 4
+      LLAMA_ARG_THREADS_BATCH: 4
+      LLAMA_ARG_CTX_CHECKPOINTS: 4
+```
+
+Without the first two it starts a thread per core inside the four-CPU limit and is throttled back
+to the old speed; without the third its prompt-cache restore points (320 MB each, 32 by default) grow
+past the memory limit. Then redeploy, and rebuild the derived model once from a machine with Docker
+access: `DOCKER_HOST=ssh://nas sh tools/ollama/create-models.sh`.
+
+Check the GPU afterwards, with a conversation going and speech used once: `nvidia-smi` on the NAS.
+The model now takes about 9.4 GB with its draft model and picture encoder (8.9 before), so with speech
+the 3060 is near its 12 GB. If speech-to-text fails with "CUDA out of memory" again, the fallbacks in
+order: a smaller context (`num_ctx` 6144 in the Modelfile), or speech on the CPU.
+
 ## Push to phones (ntfy)
 
 With the app open, messages arrive on its own connection; while it's in the background they come up

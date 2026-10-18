@@ -476,6 +476,10 @@ public sealed class ConversationTurns(
                         shared.Add(link.Number);
                         break;
 
+                    case RoundUsage usage:
+                        logger.ModelRound(usage.Round, usage.Tools, usage.PromptTokens, (long)usage.PromptMs, (long)usage.FirstTextMs, usage.OutputTokens, (long)usage.OutputMs);
+                        break;
+
                     case ToolStarted tool:
                         channel.Publish(EventTypes.ToolStarted, new ToolStartedEvent(replyId, tool.CallId, tool.Tool));
                         break;

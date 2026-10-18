@@ -35,6 +35,12 @@ public sealed record TextChunk(string Text) : LlmChunk;
 /// <summary>The model wants tools run before it carries on.</summary>
 public sealed record ToolCallsChunk(IReadOnlyList<ToolCall> Calls) : LlmChunk;
 
+/// <summary>
+/// What a round cost, as the model server reports it at the end (BACKLOG item 37): the prompt's
+/// tokens, how many it actually read (the rest came from its cache), and how long that took.
+/// </summary>
+public sealed record UsageChunk(int PromptTokens, int PromptRead, double PromptMs, int OutputTokens, double OutputMs) : LlmChunk;
+
 /// <summary>A streaming chat model that can call tools.</summary>
 public interface ILlmClient
 {

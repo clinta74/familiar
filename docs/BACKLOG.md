@@ -82,16 +82,7 @@ Ideas that came up and were set aside - not agreed. Each would need asking about
 
 ## Next, in this order (asked 2026-10-18)
 
-### 37. Faster first words
-
-From the end of what's said to the familiar's first word, the model's reading of the prompt is the
-biggest part, and it's paid in full every turn: gemma4 on Ollama re-reads the whole prompt each time
-(item 5, measured 2026-10-03: 0.7-1.0 s for ~1,250 tokens then; there are more tools now). Measure
-first - prompt tokens, what the tool definitions cost, prefill and first-token time, on the dev box
-and the NAS - then the options, cheapest first: shorter tool descriptions, and offering fewer tools
-when a message plainly needs none or few; whether a newer Ollama (or a setting) keeps gemma4's cache;
-a model whose cache Ollama reuses (the bake-off re-run: tools, restraint, tags); starting to speak at
-the first clause rather than the first whole sentence.
+37 is done (BACKLOG-DONE.md).
 
 ### 38. Push without the ntfy app
 

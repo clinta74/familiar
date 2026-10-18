@@ -81,11 +81,19 @@ public sealed class OllamaClient(HttpClient http, LlmOptions options) : ILlmClie
 
                 if (chunk?["done"]?.GetValue<bool>() == true)
                 {
+                    // Ollama counts only the prompt tokens it evaluated; the rest were its cache's.
+                    var read = Int(chunk["prompt_eval_count"]);
+                    yield return new UsageChunk(
+                        Int(chunk["prompt_eval_count"]), read, Ms(chunk["prompt_eval_duration"]), Int(chunk["eval_count"]), Ms(chunk["eval_duration"]));
                     yield break;
                 }
             }
         }
     }
+
+    private static int Int(JsonNode? node) => node is JsonValue v && v.TryGetValue<long>(out var n) ? (int)n : 0;
+
+    private static double Ms(JsonNode? node) => node is JsonValue v && v.TryGetValue<long>(out var ns) ? ns / 1e6 : 0;
 
     public async Task<JsonObject> CompleteJsonAsync(IReadOnlyList<ChatMessage> messages, JsonObject schema, CancellationToken ct)
     {

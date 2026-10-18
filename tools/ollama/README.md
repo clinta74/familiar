@@ -51,6 +51,13 @@ Record the results here with the date and Ollama version, then put the winner in
 
 ### Results
 
+**2026-10-18, dev box, Ollama 0.40.6** (BACKLOG item 37): `familiar-chat` again, after the upgrade -
+tools 12/12, restraint 10/10, emotion tag 10/10, prompt 1,667 tok/s, **generation 114.8 tok/s**,
+median first token **278 ms**. 0.40 runs gemma4 in llama.cpp's server with its draft model, and reuses
+the prompt cache between turns (0.35.0 re-read the whole prompt every time). It needs
+`LLAMA_ARG_THREADS` set (it ignores `OLLAMA_NUM_THREAD`) and `LLAMA_ARG_CTX_CHECKPOINTS` kept low:
+see the compose files. Rebuild `familiar-chat` after upgrading (`create-models.sh`).
+
 **2026-10-01, dev box (RTX 5070 Ti 16 GB, WSL2), Ollama 0.35.0, num_ctx 8192, 2 runs × 11 cases.**
 Winner: **`gemma4:12b`**, now the base of `familiar-chat`.
 

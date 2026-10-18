@@ -27,6 +27,9 @@ public sealed record SoundMade(SoundEffect Sound) : TurnEvent;
 /// </summary>
 public sealed record TagIgnored(string Tag) : TurnEvent;
 
+/// <summary>What one round with the model cost (BACKLOG item 37): for the log, to see where the first words' time goes.</summary>
+public sealed record RoundUsage(int Round, int PromptTokens, double PromptMs, int OutputTokens, double OutputMs, double FirstTextMs, int Tools) : TurnEvent;
+
 /// <summary>The reply shows the user a page its tools found, by its number (BACKLOG item 34).</summary>
 public sealed record LinkShared(int Number) : TurnEvent;
 
@@ -137,6 +140,8 @@ public sealed partial class TurnRunner(ILlmClient llm)
             {
                 var calls = new List<ToolCall>();
                 var raw = new StringBuilder();
+                var roundStarted = System.Diagnostics.Stopwatch.GetTimestamp();
+                double? firstText = null;
 
                 // The last round gets no tools: the model has to say something.
                 var offered = round < MaxToolRounds ? definitions : null;
@@ -146,11 +151,16 @@ public sealed partial class TurnRunner(ILlmClient llm)
                     switch (chunk)
                     {
                         case TextChunk fragment:
+                            firstText ??= System.Diagnostics.Stopwatch.GetElapsedTime(roundStarted).TotalMilliseconds;
                             raw.Append(fragment.Text);
                             await Handle(parser.Feed(fragment.Text));
                             break;
                         case ToolCallsChunk requested:
+                            firstText ??= System.Diagnostics.Stopwatch.GetElapsedTime(roundStarted).TotalMilliseconds;
                             calls.AddRange(requested.Calls);
+                            break;
+                        case UsageChunk usage:
+                            await emit(new RoundUsage(round, usage.PromptTokens, usage.PromptMs, usage.OutputTokens, usage.OutputMs, firstText ?? -1, offered?.Count ?? 0));
                             break;
                     }
                 }
