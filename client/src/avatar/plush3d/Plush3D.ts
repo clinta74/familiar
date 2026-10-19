@@ -735,7 +735,10 @@ export abstract class Plush3D extends PlushCharacter {
     this.toy.rotation.y = this.turn;
     this.floorShadow.scale.setScalar(1 - pose.hop * 0.15);
     this.bob.position.y = -(pose.dy - bodyDy) * S;
-    this.pivot.rotation.set(face.gazeY * 0.16, face.gazeX * 0.32, -pose.rotate * deg, 'YXZ');
+    // A nod tips the head forward on the neck; a shake turns it, keeping only a little of the rock
+    // the flat characters do instead.
+    this.pivot.rotation.set(face.gazeY * 0.16 + pose.nod * deg, face.gazeX * 0.32 + pose.shake * deg,
+      -(pose.rotate - pose.shake * (8 / 18) * 0.7) * deg, 'YXZ');
     this.head.scale.set(1 - pose.squash, 1 + pose.squash, 1 - pose.squash * 0.5);
 
     // Arms, bent at the elbow: resting with the paws forward on the tummy; out with the forearms

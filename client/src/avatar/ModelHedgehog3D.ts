@@ -22,6 +22,8 @@ const SCALE = 1.15;
 const PIVOT_Y = 100;
 const SHIFT = -GROUND / S - 6 - (8 + 96) * SCALE;
 const deg = Math.PI / 180;
+/** How much longer the prickles grow, at most, standing up. */
+const MAX_BRISTLE = 0.3;
 
 /** The plush hedgehog on all fours, modelled in Blender (tools/models/hedgehog.py). */
 export const hedgehogModel: ModelSpec = {
@@ -60,8 +62,10 @@ export const hedgehogModel: ModelSpec = {
   }),
   animate: (pose, node, hedgehog) => {
     const { face } = pose;
-    // Prickles: lying flat when sad, standing up when startled or cross.
-    hedgehog.bristle.value = Math.max(0.45, (12 + face.earLift * 8 + pose.mood.angry * 6) / 12);
+    // Prickles: lying flat when sad, standing up when startled or cross - but only so far: the fur
+    // is twelve layers, and stretched much longer they part into a ragged, see-through halo.
+    const raise = (face.earLift * 8 + pose.mood.angry * 6) / 12;
+    hedgehog.bristle.value = raise >= 0 ? 1 + Math.min(1, raise) * MAX_BRISTLE : Math.max(0.45, 1 + raise);
 
     // The little ears tip up with interest and droop back when it's down.
     for (const [name, side] of [['ear_L', -1], ['ear_R', 1]] as const) {

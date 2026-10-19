@@ -60,6 +60,8 @@ const MOMENTS: Moment[] = [
   { label: 'three-quarter', turn: 0.7 },
   { label: 'side', turn: 1.45 },
   { label: 'shake', gesture: 'shake', at: 0.5 },
+  { label: 'nod', gesture: 'nod', at: 0.25 },
+  { label: 'nod-side', gesture: 'nod', at: 0.25, turn: 1.2 },
   { label: 'excited', emotion: 'joy', gesture: 'excited', at: 0.5 },
   { label: 'yawn', gesture: 'yawn', at: 0.45 },
   { label: 'yawn-wide', gesture: 'yawn', at: 0.6 },

@@ -175,8 +175,11 @@ export class ModelPlush3D extends Plush3D {
       this.head.scale.setScalar(this.spec.head.scale);
       if (this.spec.head.rock) {
         this.pivot.scale.set(1 + pose.squash * 0.6, 1 - pose.squash * 0.6, 1 + pose.squash * 0.6);
-        this.pivot.rotation.x *= 0.4;
-        this.pivot.rotation.y *= 0.6;
+        // Looking about moves the whole of it less; a shake as much as anyone's head, and a nod
+        // most of the way (all of it tips, front paws and all).
+        const deg = Math.PI / 180;
+        this.pivot.rotation.x = pose.face.gazeY * 0.16 * 0.4 + pose.nod * 0.6 * deg;
+        this.pivot.rotation.y = pose.face.gazeX * 0.32 * 0.6 + pose.shake * deg;
       }
     }
 

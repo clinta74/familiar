@@ -51,6 +51,13 @@ export interface Pose {
   dy: number;
   squash: number;
   rotate: number;
+  /**
+   * A nod: how far the head tips forward on the neck, in degrees. The 3D characters tip; the flat
+   * ones can't, and dip (it's in dy too).
+   */
+  nod: number;
+  /** A shake: how far the head turns, in degrees (3D). The flat ones rock instead (it's in rotate). */
+  shake: number;
   browBoost: number;
   /** Extra swing for ears (or spines, or horns) beyond what earLift sets. */
   earWiggle: number;
@@ -327,6 +334,8 @@ export abstract class PlushCharacter implements AvatarDriver {
     let squash = breath * 0.01 * (1 + drowsy);
     let hop = 0;
     let rotate = -5 * drowsy * motion;
+    let nod = 0;
+    let shake = 0;
     let browBoost = 0;
     let earWiggle = 0;
     let pawLift: number | null = null;
@@ -360,10 +369,16 @@ export abstract class PlushCharacter implements AvatarDriver {
         gesture = { name: this.gesture.name, u };
         const env = Math.sin(Math.PI * u);
         switch (this.gesture.name) {
-          case 'nod':
-            dy += Math.sin(u * Math.PI * 4) * 7 * motion;
+          case 'nod': {
+            // Twice: the head tips forward and comes back up - a nod, not a bounce.
+            const dip = (1 - Math.cos(u * Math.PI * 4)) / 2;
+            nod += dip * 16 * motion;
+            dy += dip * 4 * motion;
             break;
+          }
           case 'shake':
+            // The head turns side to side (the flat ones rock, which is all they can do).
+            shake += Math.sin(u * Math.PI * 6) * 18 * env * motion;
             rotate += Math.sin(u * Math.PI * 6) * 8 * env * motion;
             earWiggle += Math.sin(u * Math.PI * 6) * 10 * env * motion;
             break;
@@ -419,7 +434,7 @@ export abstract class PlushCharacter implements AvatarDriver {
       t, now, motion,
       state: this.state, emotion: this.emotion, intensity: this.intensity,
       face: this.face, mood: this.mood, voice: this.voice,
-      breath, hop, dy, squash, rotate, browBoost, earWiggle, pawLift, pawAngle, blink, wink, gesture, drowsy,
+      breath, hop, dy, squash, rotate, nod, shake, browBoost, earWiggle, pawLift, pawAngle, blink, wink, gesture, drowsy,
     };
   }
 }
