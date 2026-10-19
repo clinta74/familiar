@@ -413,6 +413,29 @@ def foreleg(body, suffix, shoulder, radius, end, coat="wool", fur=0.07, paw_coat
     return arm
 
 
+def held_arm(body, suffix, shoulder, elbow, paw, radius, coat="wool", fur=0.04, paw_coat="ear", lumps=0.006):
+    """
+    A short front arm held up off the ground, as a plush otter's: from a shoulder high under the
+    neck, out and down a little to the elbow, then in to a paw held in front of the chest. Thick and
+    soft, as a toy's are. Nodes arm_<suffix> at the shoulder and forearm_<suffix> at the elbow, as
+    foreleg's, so it waves the same way; the runtime should rest it as modelled (arms 0, 0, 0).
+    """
+    arm = node(f"arm_{suffix}", shoulder, body)
+    upper = blob(f"arm_{suffix}_upper", [
+        *chain([shoulder, elbow], [radius * 1.2, radius * 1.05], 6),
+        ball(elbow, radius * 1.05),
+    ], lumps=lumps, faces=1100)
+    role(parent_to(upper, arm), "fur", coat, fur)
+    forearm = node(f"forearm_{suffix}", elbow, arm)
+    lower = blob(f"forearm_{suffix}_fur", [*chain([elbow, paw], [radius, radius * 0.95], 6)], lumps=lumps, faces=900)
+    role(parent_to(lower, forearm), "fur", coat, fur)
+    # The paw: a dark round mitten at the end, a little flattened against the chest.
+    px, py, pz = paw
+    mitten = blob(f"forearm_{suffix}_paw", [ellipsoid((px, py - radius * 0.1, pz + radius * 0.2), (radius * 1.15, radius * 1.05, radius * 1.0))], faces=600)
+    role(parent_to(mitten, forearm), "fur", paw_coat, 0.03)
+    return arm
+
+
 def limb_masses(shoulder, radius, foot, foot_radii, haunches=True, reach=0.0, end="paw"):
     """
     Metaball elements for the torso, both sides, so the legs grow out of it rather than being

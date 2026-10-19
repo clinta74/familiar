@@ -39,7 +39,8 @@ up, z towards the viewer; 1 unit = 100 units of the 2D drawing, ground at y −2
   `claw`, `thread`.
 - `fur_mask(mesh, fn)` sets how long the fur grows over a part, 0–1 per vertex (none inside an ear's
   cup, none over a face set into a fur ball).
-- `foreleg` and `hind_foot` make the legs every sitting character shares.
+- `foreleg` and `hind_foot` make the legs most sitting characters share; `held_arm` a short arm held
+  up off the ground instead (the otter's, paws at its chest).
 
 The runtime finds parts by name: `head`, `body`, `tuft`, `ear_L`/`ear_R`, `arm_L`/`arm_R` with
 `forearm_L`/`forearm_R`, `foot_L`/`foot_R`, `tail`, and whatever a character's spec animates

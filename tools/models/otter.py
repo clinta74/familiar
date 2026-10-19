@@ -1,8 +1,10 @@
 """
 The plush otter, sitting up: sleek, short fur; a broad round head with little ears set low; a face
 that comes forward into two big whisker pads and a chin, under a big dark nose, with whiskers; a cream
-chest; dark paws and feet; and a thick tapering tail curled round on the ground to its right.
-Proportions as the 2D otter (client/src/avatar/PlushOtterAvatar.ts).
+chest; short arms from shoulders high under the neck, held up with the dark paws together in front
+of the chest, as the toy's are (2026-10-18; they stood to the ground before); dark feet; and a thick
+tapering tail curled round on the ground to its right. Proportions as the 2D otter
+(client/src/avatar/PlushOtterAvatar.ts).
 """
 
 import math
@@ -10,10 +12,16 @@ import math
 from blendkit import (ball, blob, capsule, chain, ellipsoid, fur_mask, node, parent_to, place, role,
                       shaped, surface, tuft)
 
-from blendkit import foreleg, hind_leg, limb_masses  # noqa: E402
+from blendkit import held_arm, hind_leg  # noqa: E402
 
 FRAME = (-0.35, 1.95)
 FACE = (0, -0.08, 0.55, 0.52)
+
+# The right arm (the left mirrors it): a shoulder just under the neck, the elbow out at the side of
+# the chest, the paw in front of it, beside the other.
+SHOULDER = (0.3, -0.7, 0.1)
+ELBOW = (0.36, -0.98, 0.3)
+PAW = (0.1, -0.9, 0.5)
 
 
 def build():
@@ -67,15 +75,17 @@ def build():
         capsule((0, -0.4, -0.12), (0, -0.85, -0.08), 0.38),
         ellipsoid((0, -1.12, -0.04), (0.47, 0.56, 0.42)),
         ellipsoid((0, -1.64, -0.12), (0.47, 0.52, 0.5)),
-        *limb_masses((0.2, -0.98, 0.3), 0.095, (0.5, -2.1, 0.1), (0.18, 0.11, 0.29), haunches=False, reach=0.24, end="paw"),
+        # Rounded shoulders high under the neck, for the arms to grow out of.
+        *(ellipsoid((side * SHOULDER[0] * 0.92, SHOULDER[1] + 0.02, SHOULDER[2] - 0.06), (0.16, 0.2, 0.17)) for side in (-1, 1)),
     ], lumps=0.006, faces=5000)
     role(parent_to(torso, body), "fur", "wool", 0.035)
     chest = blob("chest", [ellipsoid((0, -1.22, 0.3), (0.36, 0.62, 0.18))], faces=2000)
     role(parent_to(chest, body), "fur", "face", 0.04)
 
-    # Front legs standing to the ground in front, with dark paws; dark webbed hind feet at the sides.
+    # Short arms held up, the dark paws together in front of the chest; dark webbed hind feet at the sides.
     for side, suffix in ((-1, "L"), (1, "R")):
-        foreleg(body, suffix, (side * 0.2, -0.98, 0.3), 0.095, "paw", "wool", 0.03, "ear", lumps=0.004, reach=0.24)
+        held_arm(body, suffix, (side * SHOULDER[0], SHOULDER[1], SHOULDER[2]), (side * ELBOW[0], ELBOW[1], ELBOW[2]),
+                 (side * PAW[0], PAW[1], PAW[2]), 0.1, "wool", 0.03, "ear", lumps=0.004)
         hind_leg(body, suffix, (side * 0.5, -2.1, 0.1), (0.18, 0.11, 0.29), 0.24, "wool", 0.03, "ear", 0.025, lumps=0.006)
 
     # The thick tail, tapering, curled round on the ground to the right.

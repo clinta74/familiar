@@ -254,7 +254,8 @@ parts on pivots with properties saying what each part is. The runtime
   face (mouth, cheeks, muzzle colours, a fox's cream cheeks); button or googly eyes with lids (a big
   smile turns them into stitched arches), thread brows and tears placed by raycasting that surface.
 - **Bodies:** front legs standing to the ground in front, as a sitting dog's, bending at the elbow to
-  wave; hind feet at the sides. The body breathes, slumps when sad and hops; nods, shakes and tilts
+  wave; hind feet at the sides. Not a rule: the otter holds short arms up, paws together at its chest,
+  as the toy does (2026-10-18). The body breathes, slumps when sad and hops; nods, shakes and tilts
   are the head's alone, which also turns to look where its eyes would.
 - **Each character's spec** (`Model<Name>3D.ts`): its face layout (the 2D one), how its ears swing,
   tails, whiskers, horns, bristling, colour quirks.

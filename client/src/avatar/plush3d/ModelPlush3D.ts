@@ -28,8 +28,11 @@ export interface ModelSpec {
   ears?: { rest: number; droop: number; turn?: number };
   /** How far the feet's toes turn out, in degrees. */
   splay?: number;
-  /** How the arms rest (Plush3D.armRest): front legs standing to the ground rest nearly straight. */
-  arms?: { lean: number; bend: number; out: number };
+  /**
+   * How the arms rest (Plush3D.armRest): front legs standing to the ground rest nearly straight.
+   * `wave` turns the elbow for waving, if the forearm doesn't hang straight down to start with.
+   */
+  arms?: { lean: number; bend: number; out: number; wave?: number };
   /** Where the accessories go; `node` finds a part of the model by name. */
   anchors: (node: (name: string) => THREE.Object3D) => Anchors;
   /** Fur options for particular meshes, by name: prickles that bristle, say. */

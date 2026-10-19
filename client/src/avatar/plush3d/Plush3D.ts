@@ -476,7 +476,8 @@ export abstract class Plush3D extends PlushCharacter {
    * (radians), and out from the body (degrees). Paws on the tummy by default; standing front legs
    * (ModelSpec.arms) rest nearly straight.
    */
-  protected armRest = { lean: 0.3, bend: 0.55, out: -6 };
+  /** `wave`: the elbow's turn (degrees) with the paw up, for an arm that doesn't hang straight down. */
+  protected armRest: { lean: number; bend: number; out: number; wave?: number } = { lean: 0.3, bend: 0.55, out: -6 };
 
   /** Each arm: the shoulder (the upper arm swings from it) and the elbow (the forearm bends at it). */
   private arms: { shoulder: THREE.Group; elbow: THREE.Group }[] = [];
@@ -750,7 +751,7 @@ export abstract class Plush3D extends PlushCharacter {
       const out = rest.out + shrug * 32 + lift * 78 + pose.breath;
       shoulder.rotation.set(-rest.lean * (1 - lift) - shrug * 0.2, 0, side * out * deg);
       const bend = rest.bend + shrug * 0.6;
-      elbow.rotation.set(-bend * (1 - lift), 0, side * (lift * (102 - pose.pawAngle)) * deg);
+      elbow.rotation.set(-bend * (1 - lift), 0, side * (lift * ((rest.wave ?? 102) - pose.pawAngle)) * deg);
     });
     this.feet.forEach((foot, i) => {
       const side = i === 0 ? -1 : 1;
