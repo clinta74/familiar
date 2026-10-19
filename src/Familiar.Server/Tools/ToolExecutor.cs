@@ -292,6 +292,7 @@ public static class ToolRegistration
         services.AddSingleton<ITool, LookUps.ReadLinkTool>();
 
         // Done by the phone, while one that can is connected (BACKLOG item 21).
+        services.AddSingleton<Devices.TextDrafts>();
         services.AddSingleton<ITool, Devices.SendTextTool>();
         services.AddSingleton<ITool, Devices.CallTool>();
         services.AddSingleton<ITool, Devices.NavigateTool>();

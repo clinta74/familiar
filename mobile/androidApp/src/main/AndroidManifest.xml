@@ -22,9 +22,13 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <!-- Texts and calls to a contact by name, matched on the phone; asked the first time (BACKLOG
-         item 21). Messages and the dialler are opened for the user to send or call: no SEND_SMS
-         or CALL_PHONE. -->
+         item 21). Messages and the dialler are opened for the user to send or call: no CALL_PHONE. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Sending a text itself, for hands-free (BACKLOG item 39): asked when switched on in Settings,
+         Devices, and used only for a text read back and said yes to. Google Play allows it only to
+         the default texting app; Familiar is sideloaded, so it doesn't apply. -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <!-- "Where am I", and the weather here: roughly, the town; asked the first time. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 

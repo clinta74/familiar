@@ -53,41 +53,137 @@ public abstract class PhoneTool(DeviceTools devices) : ITool, IPhoneTool
     protected static string? Said(JsonObject result, string name) => result[name]?.GetValue<string>();
 }
 
-public sealed class SendTextTool(DeviceTools devices) : PhoneTool(devices)
+/// <summary>
+/// send_text: Messages opens with the text written, for the user to tap Send - or, on a phone allowed
+/// to send texts itself (BACKLOG item 39), for hands-free: the first call only reads it back ("Send
+/// 'running late' to Mum's mobile?"), and the phone sends it when the user's next words are a yes
+/// (TextDrafts) - the words read back and no others. Never by itself in a turn with someone else's
+/// words in it (a look-up, a picture): then it's Messages, and Send is theirs to tap.
+/// </summary>
+public sealed class SendTextTool(DeviceTools devices, TextDrafts drafts) : PhoneTool(devices)
 {
     internal const int MaxMessage = 600;
+
+    private readonly DeviceTools _devices = devices;
 
     public override string Capability => DeviceCapabilities.Text;
 
     public override ToolDefinition Definition { get; } = new(
         "send_text",
-        "Writes a text message for the user to send from their phone: Messages opens with it written, and they tap Send. " +
-        "Use when they ask you to text someone. Give the person as they'd say it (\"Mum\", \"Sam Kim\") or a phone number; " +
-        "their phone finds the contact.",
+        "Texts someone from the user's phone. Use when they ask you to text someone. Give the person as they'd say it " +
+        "(\"Mum\", \"Sam Kim\") or a phone number; their phone finds the contact. Either Messages opens with it written and " +
+        "they tap Send, or - if their phone sends texts itself - it isn't sent yet: it's read back to them, and when they say " +
+        "yes, call send_text again with send true. Never say a text was sent unless it says so.",
         ToolSchema.Object(
             ["to", "message"],
             ("to", ToolSchema.String("Who to text: a contact's name as the user said it, or a phone number.")),
-            ("message", ToolSchema.String("The text, in the user's voice, as they asked for it."))),
+            ("message", ToolSchema.String("The text, in the user's voice, as they asked for it.")),
+            ("send", ToolSchema.Boolean("True only when they've just said yes to the text you read back."))),
         ToolRisk.WriteOwn);
 
     public override string Describe(JsonObject arguments) => $"Text {ToolArgs.String(arguments, "to")}: \"{ToolArgs.String(arguments, "message")}\"";
 
-    public override Task<ToolResult> InvokeAsync(ToolContext context, JsonObject arguments, CancellationToken ct)
+    public override async Task<ToolResult> InvokeAsync(ToolContext context, JsonObject arguments, CancellationToken ct)
     {
-        var to = ToolArgs.Label(arguments, "to", 80);
-        var message = ToolArgs.String(arguments, "message");
-        if (to is null || string.IsNullOrWhiteSpace(message))
+        // Sending what they said yes to: the text read back, whatever this call says. Asked to send
+        // with no yes behind it (the model jumping ahead, on "text Sam I'm late"), it's read back
+        // like any first call - or, with nothing to read back, it says why not.
+        // After a yes, the same words again without send are the same text: sent, not read back again.
+        var send = ToolArgs.Bool(arguments, "send") == true;
+        if (drafts.Approved(context.AccountId, context.ReplyId) is { } approved
+            && (send || string.Equals(ToolArgs.String(arguments, "message")?.Trim(), approved.Message, StringComparison.Ordinal)))
         {
-            return Task.FromResult(ToolResult.Failure("Say who to text and what to say."));
+            return await SendAsync(context, ct);
+        }
+
+        var to = ToolArgs.Label(arguments, "to", 80);
+        var message = ToolArgs.String(arguments, "message")?.Trim();
+        if (to is null || string.IsNullOrEmpty(message))
+        {
+            return send
+                ? ToolResult.Failure("Not sent: they haven't just said yes to a text read back. Call send_text without send to read it back first.", "Not sent")
+                : ToolResult.Failure("Say who to text and what to say.");
         }
 
         if (message.Length > MaxMessage)
         {
-            return Task.FromResult(ToolResult.Failure($"That's too long for a text (over {MaxMessage} characters). Make it shorter."));
+            return ToolResult.Failure($"That's too long for a text (over {MaxMessage} characters). Make it shorter.");
         }
 
-        return AskPhoneAsync(context, new JsonObject { ["to"] = to, ["message"] = message }, r => $"Text to {Said(r, "to") ?? to}", ct);
+        if (CanSendItself(context))
+        {
+            return await ReadBackAsync(context, to, message, ct);
+        }
+
+        return await AskPhoneAsync(context, new JsonObject { ["to"] = to, ["message"] = message }, r => $"Text to {Said(r, "to") ?? to}", ct);
     }
+
+    /// <summary>A phone that can send it is here, and nobody else's words are in this turn.</summary>
+    private bool CanSendItself(ToolContext context) =>
+        !context.Turn.OutsideText && context.Turn.LookUps == 0
+        && _devices.Find(context.AccountId, DeviceCapabilities.SendText, context.From, browsers: false) is not null;
+
+    /// <summary>The phone finds the contact; the text waits, read back, for a yes.</summary>
+    private async Task<ToolResult> ReadBackAsync(ToolContext context, string to, string message, CancellationToken ct)
+    {
+        var answer = await _devices.InvokeAsync(context.AccountId, DeviceCapabilities.SendText, DeviceCapabilities.SendText,
+            new JsonObject { ["to"] = to, ["message"] = message, ["check"] = true }, ct, context.From, browsers: false);
+        if (answer is null)
+        {
+            return ToolResult.Failure("Their phone didn't answer: Familiar has to be open on it (it can be in the background). Say so.", "Phone didn't answer");
+        }
+
+        if (!answer.Ok)
+        {
+            return ToolResult.Failure(answer.Error ?? "The phone couldn't do that. Say so.", "Phone couldn't");
+        }
+
+        var name = Said(answer.Result, "to") ?? to;
+        var label = Said(answer.Result, "label");
+        var who = string.IsNullOrEmpty(label) || PhoneNumber(name) ? name : $"{name}'s {label.ToLowerInvariant()}";
+        drafts.Hold(context.AccountId, to, name, message);
+        var ask = $"Send \"{message}\" to {who}?";
+
+        // Said as it is, not in the model's words: it left out what the text says (2026-10-18), and a
+        // yes to that would send words the user never heard.
+        return ToolResult.Success(new JsonObject
+        {
+            ["ok"] = true,
+            ["sent"] = false,
+            ["asked"] = ask,
+            ["note"] = "Not sent yet: they've been asked. Send it only when they say yes, with send_text and send true. " +
+                "If they want it changed, call send_text with the new words.",
+        }, $"Text to {name}: waiting for yes") with { FinalWords = ask };
+    }
+
+    private async Task<ToolResult> SendAsync(ToolContext context, CancellationToken ct)
+    {
+        // Their yes, just now, in their own words, to the text read back - and nobody else's words since.
+        if (drafts.Approved(context.AccountId, context.ReplyId) is not { } draft || context.Turn.OutsideText || context.Turn.LookUps > 0)
+        {
+            return ToolResult.Failure(
+                "Not sent: they haven't just said yes to it being read back. Call send_text without send to read it back first.",
+                "Not sent");
+        }
+
+        drafts.Done(context.AccountId);
+        var answer = await _devices.InvokeAsync(context.AccountId, DeviceCapabilities.SendText, DeviceCapabilities.SendText,
+            new JsonObject { ["to"] = draft.To, ["message"] = draft.Message, ["expect"] = draft.Name }, ct, context.From, browsers: false);
+        if (answer is null)
+        {
+            return ToolResult.Failure("Not sent: their phone didn't answer (Familiar has to be open on it). Say so.", "Phone didn't answer");
+        }
+
+        if (!answer.Ok)
+        {
+            return ToolResult.Failure($"Not sent: {answer.Error ?? "the phone couldn't send it."} Say so.", "Not sent");
+        }
+
+        return ToolResult.Success(new JsonObject { ["ok"] = true, ["sent"] = true, ["to"] = draft.Name }, $"Texted {draft.Name}");
+    }
+
+    private static bool PhoneNumber(string text) =>
+        text.Count(char.IsDigit) >= 3 && text.All(c => char.IsDigit(c) || "+ -().#*".Contains(c, StringComparison.Ordinal));
 }
 
 public sealed class CallTool(DeviceTools devices) : PhoneTool(devices)

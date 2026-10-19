@@ -70,6 +70,78 @@ public sealed class PhoneToolsTests(PostgresFixture postgres)
         Assert.Contains("Messages", told, StringComparison.Ordinal);
     }
 
+    private static async Task<ToolInvokeEvent> AnswerAsync(HttpClient phone, SseClient stream, JsonObject result)
+    {
+        var invoke = (await stream.ReadUntilAsync(EventTypes.ToolInvoke))[^1].Payload<ToolInvokeEvent>();
+        Assert.Equal(HttpStatusCode.NoContent, (await phone.PostAsJsonAsync("/api/conversation/tool-result", new ToolResultRequest(invoke.CallId, true, result))).StatusCode);
+        return invoke;
+    }
+
+    [Fact]
+    public async Task A_phone_that_sends_texts_itself_reads_back_and_sends_on_a_plain_yes()
+    {
+        // BACKLOG item 39: hands-free, the yes is spoken. What's sent is what was read back, not what the model asks then.
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        app.Llm
+            .ThenCall("send_text", """{"to": "Sam", "message": "Running ten minutes late"}""")
+            .ThenCall("send_text", """{"to": "Sam", "message": "Something else entirely", "send": true}""").ThenSay("[joy:0.4] Sent.");
+        var (browser, phone) = await SignedInAsync(app);
+        await using var phoneStream = await SseClient.ConnectAsync(phone, capabilities: "phone.text,phone.text.send");
+        await phoneStream.ReadUntilAsync(EventTypes.Ready);
+
+        await browser.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("text Sam I'm running ten minutes late", "UTC"));
+        var check = await AnswerAsync(phone, phoneStream, new JsonObject { ["to"] = "Sam Kim", ["label"] = "Mobile" });
+        Assert.Equal(("phone.text.send", true), (check.Tool, check.Arguments["check"]!.GetValue<bool>()));
+
+        // Read back as it is, not in the model's words: who it's to and what it says.
+        var asked = await phoneStream.ReadUntilStateAsync(FamiliarState.Idle);
+        Assert.Equal("Send \"Running ten minutes late\" to Sam Kim's mobile?", asked.Single(e => e.Type == EventTypes.ReplyEnd).Payload<ReplyEndEvent>().Text);
+
+        await browser.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("Yes, please.", "UTC"));
+        var send = await AnswerAsync(phone, phoneStream, new JsonObject { ["to"] = "Sam Kim", ["sent"] = true });
+        Assert.Equal(("phone.text.send", "Running ten minutes late", "Sam Kim"),
+            (send.Tool, send.Arguments["message"]!.GetValue<string>(), send.Arguments["expect"]!.GetValue<string>()));
+        Assert.Null(send.Arguments["check"]);
+        await phoneStream.ReadUntilStateAsync(FamiliarState.Idle);
+        Assert.Contains("\"sent\":true", app.Llm.LastPrompt!.Last(m => m.Role == ChatRole.Tool).Content, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Yes, but say twenty minutes")]
+    [InlineData("no")]
+    public async Task Anything_but_a_plain_yes_sends_nothing(string said)
+    {
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync());
+        app.Llm
+            .ThenCall("send_text", """{"to": "Sam", "message": "Running late"}""")
+            .ThenCall("send_text", """{"to": "Sam", "message": "Running late", "send": true}""").ThenSay("[neutral:0.4] Okay.");
+        var (browser, phone) = await SignedInAsync(app);
+        await using var phoneStream = await SseClient.ConnectAsync(phone, capabilities: "phone.text,phone.text.send");
+        await phoneStream.ReadUntilAsync(EventTypes.Ready);
+
+        await browser.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("text Sam I'm running late", "UTC"));
+        await AnswerAsync(phone, phoneStream, new JsonObject { ["to"] = "Sam" });
+        await phoneStream.ReadUntilStateAsync(FamiliarState.Idle);
+
+        // Asked to send anyway, it's read back again - a check, never a send.
+        await browser.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest(said, "UTC"));
+        var again = await AnswerAsync(phone, phoneStream, new JsonObject { ["to"] = "Sam" });
+        Assert.True(again.Arguments["check"]!.GetValue<bool>());
+        var events = await phoneStream.ReadUntilStateAsync(FamiliarState.Idle);
+        Assert.Equal("Send \"Running late\" to Sam?", events.Single(e => e.Type == EventTypes.ReplyEnd).Payload<ReplyEndEvent>().Text);
+    }
+
+    [Theory]
+    [InlineData("yes", true)]
+    [InlineData("Yeah, send it!", true)]
+    [InlineData("OK please", true)]
+    [InlineData("go ahead", true)]
+    [InlineData("Yes, but say twenty minutes", false)]
+    [InlineData("yes to Mum instead", false)]
+    [InlineData("no", false)]
+    [InlineData("what does it say?", false)]
+    public void Only_a_plain_yes_is_a_yes(string said, bool yes) => Assert.Equal(yes, TextDrafts.IsYes(said));
+
     [Fact]
     public async Task What_the_phone_couldnt_do_is_passed_on()
     {

@@ -25,6 +25,9 @@ object Capabilities {
 
     /** Texts, calls, directions and where the phone is (BACKLOG item 21); the tool has the same name. */
     const val PHONE_TEXT = "phone.text"
+
+    /** Sending a text itself, once it's been read back and they've said yes (BACKLOG item 39). */
+    const val PHONE_TEXT_SEND = "phone.text.send"
     const val PHONE_CALL = "phone.call"
     const val MAPS_NAVIGATE = "maps.navigate"
     const val LOCATION_READ = "location.read"

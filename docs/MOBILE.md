@@ -62,7 +62,8 @@ and allow Chrome DevTools.
 | Be the assistant | **`RoleManager.ROLE_ASSISTANT`** + `VoiceInteractionService` | User can set Familiar as default digital assistant: long-press home / power, assist gesture. |
 | Timers & alarms | `AlarmManager.setAlarmClock` / exact alarms | Rings offline. Exact alarms need `SCHEDULE_EXACT_ALARM` (user-granted on 14+) — or fall back to handing off via `AlarmClock.ACTION_SET_TIMER` to the system clock app. |
 | Calendar | `CalendarContract` | Reads/writes every synced account (Google, Exchange, DAVx⁵ CalDAV). Uploads a rolling window for situation awareness (PLAN.md §6.4). |
-| Notifications | FCM (or UnifiedPush/ntfy) + notification channels | Content-free wake → fetch (PLAN.md §6.2). Full-screen intent for an alarm ringing. |
+| Notifications | The app's own connection, a foreground service (BACKLOG item 38; ntfy before) + notification channels | Content-free wake → fetch (PLAN.md §6.2). Full-screen intent for an alarm ringing. |
+| Texts, hands-free | `SmsManager`, `SEND_SMS` (switched on in Settings, Devices) | BACKLOG item 39: a text read back word for word by the server ("Send 'running late' to Mum's mobile?") and sent only on a plain yes as the user's very next words, never in a turn with a look-up or a picture. Google Play allows `SEND_SMS` only to the default texting app; Familiar is sideloaded, so it doesn't apply - on Play it would have to open Messages, as it does with the switch off. Android keeps the sent text in Messages' history. |
 | Situation | Location (coarse, opt-in), DND state, battery, connectivity, headset connected, activity recognition | Each is a stream capability (PLAN.md §3.1) and a separate permission; none required. |
 | Quick access | App shortcuts, Quick Settings tile, home-screen widget (next reminder, talk button) | |
 | Wake word *(later)* | On-device (e.g. openWakeWord) inside the foreground service | A v1 non-goal; native makes it possible. Battery cost to measure. |

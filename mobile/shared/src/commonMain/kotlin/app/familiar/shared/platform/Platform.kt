@@ -124,6 +124,21 @@ interface DevicePhone {
      * Throws with a message to show when it can't say (not allowed, location off).
      */
     suspend fun position(): Pair<Double, Double>
+
+    /** Whether this phone could send texts itself (it has a phone line), for Settings to offer it. */
+    val canSendTexts: Boolean get() = false
+
+    /**
+     * Whether it sends texts itself, without Messages (BACKLOG item 39): switched on, and allowed. The
+     * familiar reads each one back and sends it only when the user says yes.
+     */
+    fun sendsTexts(): Boolean = false
+
+    /** Switches sending texts itself on (asking for the permission) or off; whether it's on now. */
+    suspend fun sendTexts(on: Boolean): Boolean = false
+
+    /** Sends a text; throws with what to tell the user if it didn't go. */
+    suspend fun sendText(number: String, message: String): Unit = throw IllegalStateException("This phone can't send texts itself.")
 }
 
 /** A contact's number, and what kind it is ("mobile", "work"). */

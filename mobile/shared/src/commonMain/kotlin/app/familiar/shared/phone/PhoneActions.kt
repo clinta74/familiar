@@ -8,6 +8,7 @@ import app.familiar.shared.platform.PhoneContact
 import app.familiar.shared.protocol.Capabilities
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.add
@@ -21,9 +22,10 @@ import kotlinx.serialization.json.putJsonArray
  * phone; what goes back is their name and how it was handed off, never the number.
  */
 class PhoneActions(private val phone: DevicePhone) {
-    /** What this phone offers the server. */
-    val capabilities: Set<String> =
-        setOf(Capabilities.PHONE_TEXT, Capabilities.PHONE_CALL, Capabilities.MAPS_NAVIGATE, Capabilities.LOCATION_READ, Capabilities.CONTACTS_READ)
+    /** What this phone offers the server: sending texts itself only when the user has switched it on. */
+    val capabilities: Set<String>
+        get() = setOf(Capabilities.PHONE_TEXT, Capabilities.PHONE_CALL, Capabilities.MAPS_NAVIGATE, Capabilities.LOCATION_READ, Capabilities.CONTACTS_READ) +
+            (if (phone.sendsTexts()) setOf(Capabilities.PHONE_TEXT_SEND) else emptySet())
 
     /** Carries out [tool]; a failure throws with what to tell the user. */
     suspend fun perform(tool: String, arguments: JsonObject): JsonObject {
@@ -33,6 +35,28 @@ class PhoneActions(private val phone: DevicePhone) {
                 val (name, number) = resolve(text("to") ?: fail("Say who to text."))
                 val how = phone.handOff(HandOff.Text(name, number, text("message") ?: fail("Say what the text should say.")))
                 handedOff(name, how, "Messages opened with the text written; they tap Send.", "Messages with the text written")
+            }
+
+            // Hands-free texting (BACKLOG item 39): first who it's to, for the familiar to read back
+            // ("check"); then, once the user's said yes, sent - to the contact read back, or not at all.
+            Capabilities.PHONE_TEXT_SEND -> {
+                val to = text("to") ?: fail("Say who to text.")
+                val contact = contact(to)
+                val message = text("message") ?: fail("Say what the text should say.")
+                if (arguments["check"]?.jsonPrimitive?.booleanOrNull == true) {
+                    buildJsonObject {
+                        put("to", contact.name)
+                        put("label", contact.label)
+                    }
+                } else {
+                    text("expect")?.let { if (it != contact.name) fail("\"$to\" is ${contact.name} now, not $it, so it wasn't sent. Read it back again.") }
+                    if (!phone.sendsTexts()) fail("This phone isn't set to send texts itself any more, so it wasn't sent.")
+                    phone.sendText(contact.number, message)
+                    buildJsonObject {
+                        put("to", contact.name)
+                        put("sent", true)
+                    }
+                }
             }
 
             Capabilities.PHONE_CALL -> {
@@ -70,12 +94,15 @@ class PhoneActions(private val phone: DevicePhone) {
     }
 
     /** The contact (or number) meant by [to], as the name to show and the number to use. */
-    internal suspend fun resolve(to: String): Pair<String, String> {
-        if (isNumber(to)) return to to to
+    internal suspend fun resolve(to: String): Pair<String, String> = contact(to).let { it.name to it.number }
+
+    /** The contact (or number) meant by [to], and which of their numbers: their mobile, if they have one. */
+    private suspend fun contact(to: String): PhoneContact {
+        if (isNumber(to)) return PhoneContact(to, to, mobile = true, label = "")
 
         val found = phone.contacts(to) ?: fail(NOT_ALLOWED + " Or ask for the number.")
-        val (name, numbers) = choose(to, found, PhoneContact::name, "Ask who they mean, or for the number.")
-        return name to (numbers.firstOrNull(PhoneContact::mobile) ?: numbers.first()).number
+        val (_, numbers) = choose(to, found, PhoneContact::name, "Ask who they mean, or for the number.")
+        return numbers.firstOrNull(PhoneContact::mobile) ?: numbers.first()
     }
 
     /** The address of the contact meant by [to]: the one asked for ([which]), or their only one. */

@@ -15,6 +15,7 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class PhoneActionsTests {
     private class FakePhone(
@@ -48,6 +49,15 @@ class PhoneActionsTests {
         override suspend fun place() = "Headingley, Leeds, England"
 
         override suspend fun position() = 53.82 to -1.58
+
+        var sends = false
+        val sent = mutableListOf<Pair<String, String>>()
+
+        override fun sendsTexts() = sends
+
+        override suspend fun sendText(number: String, message: String) {
+            sent += number to message
+        }
     }
 
     private fun args(vararg pairs: Pair<String, String>) = JsonObject(pairs.associate { it.first to JsonPrimitive(it.second) })
@@ -60,6 +70,46 @@ class PhoneActionsTests {
         assertEquals(HandOff.Text("Sam Kim", "+44 7700 900002", "Running late"), phone.handedOff.single())
         assertEquals("Sam Kim", result["to"]!!.jsonPrimitive.content)
         assertFalse(result.toString().contains("7700"), "The number stays on the phone.")
+    }
+
+    @Test
+    fun sending_texts_itself_is_offered_only_when_switched_on() {
+        val phone = FakePhone()
+        assertFalse("phone.text.send" in PhoneActions(phone).capabilities)
+        phone.sends = true
+        assertTrue("phone.text.send" in PhoneActions(phone).capabilities)
+    }
+
+    @Test
+    fun a_text_to_send_is_checked_first_then_sent_to_the_contact_read_back() = runTest {
+        // BACKLOG item 39: the familiar reads back who and what, and sends on a yes.
+        val phone = FakePhone(book = listOf(PhoneContact("Mum", "+44 7700 900003", true))).apply { sends = true }
+        val actions = PhoneActions(phone)
+
+        val check = actions.perform("phone.text.send", JsonObject(args("to" to "mum", "message" to "Running late") + ("check" to JsonPrimitive(true))))
+        assertEquals("Mum", check["to"]!!.jsonPrimitive.content)
+        assertEquals("mobile", check["label"]!!.jsonPrimitive.content)
+        assertTrue(phone.sent.isEmpty(), "Checking sends nothing.")
+        assertFalse(check.toString().contains("7700"), "The number stays on the phone.")
+
+        val result = actions.perform("phone.text.send", args("to" to "mum", "message" to "Running late", "expect" to "Mum"))
+        assertEquals(listOf("+44 7700 900003" to "Running late"), phone.sent)
+        assertTrue(result["sent"]!!.jsonPrimitive.content.toBoolean())
+        assertTrue(phone.handedOff.isEmpty(), "Messages isn't opened.")
+    }
+
+    @Test
+    fun a_text_isnt_sent_to_someone_other_than_who_was_read_back_or_once_switched_off() = runTest {
+        val phone = FakePhone().apply { sends = true }
+        val changed = assertFailsWith<IllegalStateException> {
+            PhoneActions(phone).perform("phone.text.send", args("to" to "mum", "message" to "hi", "expect" to "Mummy's Friend Jo"))
+        }
+        assertContains(changed.message!!, "wasn't sent")
+
+        phone.sends = false
+        val off = assertFailsWith<IllegalStateException> { PhoneActions(phone).perform("phone.text.send", args("to" to "mum", "message" to "hi")) }
+        assertContains(off.message!!, "wasn't sent")
+        assertTrue(phone.sent.isEmpty())
     }
 
     @Test

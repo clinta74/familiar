@@ -5,9 +5,12 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
@@ -19,6 +22,7 @@ import android.os.CancellationSignal
 import android.os.SystemClock
 import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds.StructuredPostal
+import android.telephony.SmsManager
 import app.familiar.shared.platform.ContactAddress
 import app.familiar.shared.platform.DevicePhone
 import app.familiar.shared.platform.HandOff
@@ -37,9 +41,11 @@ import kotlin.coroutines.resume
 
 /**
  * The phone's contacts, Messages, dialler, Maps and location for the familiar (BACKLOG item 21).
- * Nothing is sent or rung from here: Messages opens with the text written and the dialler with the
- * number in, and the user taps Send or Call - so no SEND_SMS or CALL_PHONE permission. Contacts and
- * location are asked for the first time they're needed, when the app is on screen to ask.
+ * Messages opens with the text written and the dialler with the number in, and the user taps Send or
+ * Call - unless they've switched on sending texts here (BACKLOG item 39, SEND_SMS): then a text the
+ * familiar has read back is sent once they've said yes. Nothing is ever rung from here (no
+ * CALL_PHONE). Contacts and location are asked for the first time they're needed, when the app is
+ * on screen to ask.
  */
 class AndroidPhone(context: Context, private val ask: suspend (Array<String>) -> Unit) : DevicePhone {
     private val context = context.applicationContext
@@ -125,6 +131,66 @@ class AndroidPhone(context: Context, private val ask: suspend (Array<String>) ->
         notify(title, body, intent)
         return HandedOff.Notified
     }
+
+    override val canSendTexts: Boolean
+        get() = context.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_MESSAGING)
+
+    override fun sendsTexts(): Boolean =
+        canSendTexts && prefs.getBoolean(SENDS_TEXTS, false) && granted(Manifest.permission.SEND_SMS)
+
+    override suspend fun sendTexts(on: Boolean): Boolean {
+        val now = on && canSendTexts && allowed(Manifest.permission.SEND_SMS)
+        prefs.edit().putBoolean(SENDS_TEXTS, now).apply()
+        return now
+    }
+
+    /**
+     * Sends it as the phone's own text - Android keeps it in Messages' history - and waits to hear
+     * it went: every part of a long one, within [SEND_WAIT_MS].
+     */
+    override suspend fun sendText(number: String, message: String) {
+        if (!sendsTexts()) throw IllegalStateException("This phone isn't set to send texts itself.")
+        val sms = if (Build.VERSION.SDK_INT >= 31) {
+            context.getSystemService(SmsManager::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            SmsManager.getDefault()
+        }
+        val parts = sms.divideMessage(message)
+        val action = "app.familiar.TEXT_SENT." + SystemClock.elapsedRealtimeNanos()
+        val results = kotlinx.coroutines.channels.Channel<Int>(parts.size)
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                results.trySend(resultCode)
+            }
+        }
+        if (Build.VERSION.SDK_INT >= 33) {
+            context.registerReceiver(receiver, IntentFilter(action), Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, IntentFilter(action))
+        }
+        try {
+            val sent = ArrayList(parts.indices.map { i ->
+                PendingIntent.getBroadcast(context, i, Intent(action).setPackage(context.packageName), PendingIntent.FLAG_IMMUTABLE)
+            })
+            try {
+                sms.sendMultipartTextMessage(number, null, parts, sent, null)
+            } catch (exception: Exception) {
+                throw IllegalStateException("The phone wouldn't send it (${exception.message ?: "no reason given"}).")
+            }
+            val codes = withTimeoutOrNull(SEND_WAIT_MS) { List(parts.size) { results.receive() } }
+                ?: throw IllegalStateException("The phone didn't say the text went within ${SEND_WAIT_MS / 1000} seconds: it may not have. Check Messages.")
+            if (codes.any { it != Activity.RESULT_OK }) {
+                throw IllegalStateException(
+                    if (codes.any { it == SmsManager.RESULT_ERROR_NO_SERVICE }) "The phone has no signal, so it didn't go." else "The phone couldn't send it.",
+                )
+            }
+        } finally {
+            context.unregisterReceiver(receiver)
+        }
+    }
+
+    private val prefs get() = context.getSharedPreferences("phone", Context.MODE_PRIVATE)
 
     override suspend fun place(): String {
         if (!allowed(Manifest.permission.ACCESS_COARSE_LOCATION)) {
@@ -238,6 +304,12 @@ class AndroidPhone(context: Context, private val ask: suspend (Array<String>) ->
 
     private companion object {
         const val CHANNEL = "handoff"
+
+        /** Switched on in Settings, Devices (BACKLOG item 39). */
+        const val SENDS_TEXTS = "sends_texts"
+
+        /** The most to wait to hear a text went: inside the server's 15 s for the whole answer. */
+        const val SEND_WAIT_MS = 12_000L
 
         /** A position this recent is good enough for the town it's in. */
         const val RECENT_MS = 10 * 60_000L

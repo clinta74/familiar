@@ -74,6 +74,12 @@ public sealed record ToolResult(bool Ok, JsonObject Data, string? Summary)
     /// <summary>Pages the familiar may show the user. The model sees them by number and title, never their addresses.</summary>
     public IReadOnlyList<LinkRef> Links { get; init; } = [];
 
+    /// <summary>
+    /// The reply ends with these words, said as they are, instead of the model being asked again: for
+    /// a question the user has to hear exactly - a text read back before it's sent (BACKLOG item 39).
+    /// </summary>
+    public string? FinalWords { get; init; }
+
     public static ToolResult Success(JsonObject data, string summary) => new(true, data, summary);
 
     /// <summary>The model is told why, so it can say so or ask the user something.</summary>

@@ -30,6 +30,9 @@ Built and tested on the emulator or the dev box, not yet seen on the real phone 
   notification; with Familiar swiped away, an announcement from Home Assistant comes up, and a timer
   set on the website rings on the phone. Then after a restart, without opening the app. Then remove
   ntfy (deploy/TRUENAS.md, "Push to phones").
+- **Texts without Messages** (item 39): Settings, Devices, "Send texts without Messages" (it asks to
+  send SMS); then, hands-free, "text Liz I'm running late" - the familiar reads it back, "yes" sends
+  it, and it's in Messages. "No" or "yes, but say ten minutes" sends nothing.
 - **Pictures in the app** (item 35): the picture button by the message box opens the photo picker;
   "what's this?" with a photo; and from Photos or another app, Share → Familiar puts the picture in
   the chat ready to send. Sent pictures show in the bubbles, there and after reopening.
@@ -86,14 +89,7 @@ Ideas that came up and were set aside - not agreed. Each would need asking about
 
 ## Next, in this order (asked 2026-10-18)
 
-37 and 38 are done (BACKLOG-DONE.md).
-
-### 39. Sending texts directly, for hands-free use
-
-`send_text` opens Messages ready to send (item 21), which needs hands. With `SEND_SMS`, the app could
-send it itself - only after a spoken confirmation that reads back who it's to and what it says, and
-never from a turn with outside text in it (a look-up, a picture). Google Play restricts `SEND_SMS` to
-default SMS apps; Familiar is sideloaded, so it doesn't apply, but say so in MOBILE.md.
+37, 38 and 39 are done (BACKLOG-DONE.md); 40 is for later (asked 2026-10-18).
 
 ### 40. Lower frame rate when idle
 

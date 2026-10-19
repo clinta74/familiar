@@ -231,6 +231,16 @@ class FamiliarSession(
         }
     }
 
+    /**
+     * Switches the phone sending texts itself on or off (BACKLOG item 39), and reconnects so the
+     * server knows; whether it's on now (it asks for the permission, which may be refused).
+     */
+    suspend fun sendTexts(on: Boolean): Boolean {
+        val now = phone?.sendTexts(on) ?: false
+        controller.reconnect()
+        return now
+    }
+
     /** Connects (once); the look is read as soon as the stream is ready. */
     fun start() {
         if (started) return

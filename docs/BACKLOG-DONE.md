@@ -63,6 +63,21 @@ What would actually cut the ~1 s of prefill before the first word:
 - **llama.cpp's `llama-server`** with `cache_prompt`, which also has slot save/restore across
   restarts.
 
+### 39. ~~Sending texts directly, for hands-free use~~ — done (2026-10-18)
+
+With "Send texts without Messages" on (Settings, Devices; it asks for `SEND_SMS`), the phone offers
+`phone.text.send`, and `send_text` no longer opens Messages: the phone finds the contact, and the
+server reads the text back itself, word for word, as the end of the reply - "Send "I'm running ten
+minutes late" to Liz's mobile?" - not the model, which left out what the text said in a real run. The
+text waits (`TextDrafts`, 3 minutes) for the user's very next message: a plain yes ("yes", "yeah,
+send it", "go ahead") sends exactly what was read back, whatever the model asks for then; anything
+else ("no", "yes, but say ten minutes") drops it, and a changed text is read back again. Never in a
+turn with a look-up or a picture: then it's Messages, with Send theirs to tap. The phone checks it's
+still the same contact before sending and waits to hear the text went (12 s), saying so if there's
+no signal. A tool result can now end the reply with its own words (`ToolResult.FinalWords`).
+Verified on the emulator against gemma: read back exactly, "yes", and the text in the phone's SMS
+store as sent; and offline, gemma calls `send` on a yes 5/5 and sends nothing on "no, wait" 5/5.
+
 ### 38. ~~Push without the ntfy app~~ — done (2026-10-18): the app's own connection
 
 The phone keeps one small stream open to the server from a foreground service (`PushConnectionService`,

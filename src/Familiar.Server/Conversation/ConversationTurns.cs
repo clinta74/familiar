@@ -504,6 +504,12 @@ public sealed class ConversationTurns(
                 UserLinks(history, userMessage));
             // Words in a picture are someone else's, like a look-up's: changes after it ask first.
             toolContext.Turn.OutsideText = image is not null;
+
+            // A text read back waits for this: a plain yes, in their own words, sends it (BACKLOG item 39).
+            if (userMessage is not null)
+            {
+                scope.ServiceProvider.GetRequiredService<Devices.TextDrafts>().Heard(accountId, replyId, image is null ? userMessage.Content : null);
+            }
             // A greeting gets no tools: it's a hello, not a chance to start doing things.
             var result = userMessage is null
                 ? await runner.RunAsync(prompt, Emit, ct)

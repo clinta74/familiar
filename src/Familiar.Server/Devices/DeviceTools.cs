@@ -13,6 +13,12 @@ public static class DeviceCapabilities
     /// <summary>Open the phone's messages app with a text written to a contact (BACKLOG item 21).</summary>
     public const string Text = "phone.text";
 
+    /// <summary>
+    /// Send a text itself, without Messages (BACKLOG item 39): only once it's been read back and the
+    /// user has said yes (TextDrafts). Offered when the user has allowed it on the phone.
+    /// </summary>
+    public const string SendText = "phone.text.send";
+
     /// <summary>Open the dialler with a contact's number in.</summary>
     public const string Call = "phone.call";
 
@@ -25,7 +31,7 @@ public static class DeviceCapabilities
     /// <summary>Look up one contact's number or address, to say it (BACKLOG item 25).</summary>
     public const string Contacts = "contacts.read";
 
-    public static readonly IReadOnlySet<string> Known = new HashSet<string>(StringComparer.Ordinal) { CalendarWrite, Text, Call, Navigate, Location, Contacts };
+    public static readonly IReadOnlySet<string> Known = new HashSet<string>(StringComparer.Ordinal) { CalendarWrite, Text, SendText, Call, Navigate, Location, Contacts };
 
     /// <summary>What a browser may offer: where it is (BACKLOG item 24), and nothing else.</summary>
     public static readonly IReadOnlySet<string> Browser = new HashSet<string>(StringComparer.Ordinal) { Location };

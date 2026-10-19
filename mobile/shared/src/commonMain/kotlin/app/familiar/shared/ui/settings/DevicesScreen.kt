@@ -64,6 +64,23 @@ fun DevicesScreen(session: FamiliarSession, background: BackgroundConnection?, o
                 }
             }
             Muted("Browsers signed in to the web app aren't listed; changing your password signs them out.")
+            val phone = session.phone
+            if (phone?.canSendTexts == true) {
+                var sends by remember { mutableStateOf(phone.sendsTexts()) }
+                Card {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Send texts without Messages", style = MaterialTheme.typography.bodyLarge)
+                            Muted(
+                                "For hands-free: ${session.controller.state.value.familiarName} reads the text back - who it's to and " +
+                                    "what it says - and sends it when you say yes. Off, Messages opens with it written for you to tap Send. " +
+                                    "Never after it's looked something up or seen a picture: then it's always Messages.",
+                            )
+                        }
+                        Switch(checked = sends, onCheckedChange = { on -> scope.launch { sends = session.sendTexts(on) } })
+                    }
+                }
+            }
             if (background != null) {
                 var on by remember { mutableStateOf(background.isOn()) }
                 Card {

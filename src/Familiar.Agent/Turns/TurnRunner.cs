@@ -188,18 +188,27 @@ public sealed partial class TurnRunner(ILlmClient llm)
                 toolsRan = true;
 
                 messages.Add(new ChatMessage(ChatRole.Assistant, raw.ToString(), calls));
+                string? finalWords = null;
                 foreach (var call in calls)
                 {
                     await emit(new ToolStarted(call.Id, call.Name));
                     var result = await tools.ExecuteAsync(call, toolContext, ct);
                     await emit(new ToolFinished(call.Id, call.Name, result.Ok, result.Summary));
                     messages.Add(new ChatMessage(ChatRole.Tool, result.Data.ToJsonString(ToolJson), ToolName: call.Name, ToolCallId: call.Id));
+                    finalWords ??= result.FinalWords;
                 }
 
                 // A sentence before the tool call and one after shouldn't run together.
                 if (spoken.Length > 0 && !char.IsWhiteSpace(spoken[^1]))
                 {
                     await Handle(parser.Feed(" "));
+                }
+
+                // Words the user has to hear exactly: they're the reply's last, not the model's version of them.
+                if (finalWords is not null)
+                {
+                    await Handle(parser.Feed(finalWords));
+                    break;
                 }
             }
         }
