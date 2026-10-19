@@ -9,13 +9,20 @@ git tag v0.2.0
 git push origin v0.2.0
 ```
 
-CI tests everything first; the release appears under the repository's Releases once the
-`android-release` job finishes. A tag with a suffix (`v0.2.0-rc.1`) is published as a pre-release.
-Re-running the job replaces the APK on an existing release.
+The Release workflow (`.github/workflows/release.yml`) builds the app once: its tests, then the
+signed APK; the release appears under the repository's Releases when its `android` job finishes. It
+doesn't run the server and client tests again - main's run of the same commit did, so tag a commit
+whose Server and Client runs passed. It also builds the images tagged with the version. A tag with
+a suffix (`v0.2.0-rc.1`) is published as a pre-release. Re-running the job replaces the APK on an
+existing release.
+
+CI otherwise runs only what a change touches (Server, Client, Backup; Android on a pull request),
+so a docs-only push runs nothing, and a newer push cancels an older run still going.
 
 The app's version comes from the tag: `versionName` 0.2.0, `versionCode` 2000 (major × 1,000,000 +
 minor × 1,000 + patch), so every later tag installs over the last as an update. Builds from `main`
-are debug builds (`familiar-android-debug` on each CI run), version 0.1.0.
+are debug builds (from Android Studio or `./gradlew :androidApp:assembleDebug`), version 0.1.0; CI
+doesn't build them on main any more.
 
 ## The release key (once)
 
@@ -56,7 +63,7 @@ next release can't update installed phones; they'd have to uninstall it (and sig
 3. Put `familiar-release.jks` somewhere safe and delete the working copy. It isn't needed locally;
    only CI signs.
 
-Without the secrets, a tag still publishes the images, and the `android-release` job fails and says
+Without the secrets, a tag still publishes the images, and the Release workflow's `android` job fails and says
 which secrets are missing.
 
 ## Installing a release

@@ -1,0 +1,42 @@
+name: Backup
+
+# The nightly-backup image (tools/backup), only when it changes. Pushed from main as latest; a
+# version tag's images come from release.yml.
+on:
+  push:
+    branches: [main]
+    paths:
+      - tools/backup/**
+      - .github/workflows/backup.yml
+      - .github/actions/image/**
+  pull_request:
+    branches: [main]
+    paths:
+      - tools/backup/**
+      - .github/workflows/backup.yml
+      - .github/actions/image/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: docker/setup-buildx-action@v3
+      - if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - uses: ./.github/actions/image
+        with:
+          name: familiar-backup
+          context: ./tools/backup
+          dockerfile: ./tools/backup/Dockerfile
+          namespace: ${{ secrets.DOCKER_USERNAME }}
+          push: ${{ github.event_name != 'pull_request' }}

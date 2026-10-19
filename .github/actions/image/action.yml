@@ -1,0 +1,66 @@
+name: Image
+description: >
+  Builds one of Familiar's images and, when asked, pushes it: from main as latest, the branch and
+  sha-<commit>; from a version tag as 1.2.3 and 1.2. Needs Buildx set up, Docker Hub logged in when
+  pushing, and the checkout's full history (for the version, from `git describe`).
+
+inputs:
+  name:
+    description: The image's name (familiar-server).
+    required: true
+  context:
+    description: Its build context.
+    required: true
+  dockerfile:
+    description: Its Dockerfile.
+    required: true
+  namespace:
+    description: The Docker Hub namespace; empty builds it as local/<name>, unpushed.
+    required: false
+    default: ""
+  push:
+    description: Whether to push it ("true" or "false").
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Image metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ inputs.namespace || 'local' }}/${{ inputs.name }}
+        tags: |
+          type=ref,event=branch
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix=sha-,enable=${{ startsWith(github.ref, 'refs/heads/') }}
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Resolve build version
+      id: ver
+      shell: bash
+      run: |
+        if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+          version="${GITHUB_REF#refs/tags/v}"
+        else
+          last="$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)"
+          count="$(git rev-list --count "${last}..HEAD" 2>/dev/null || git rev-list --count HEAD)"
+          version="${last#v}-dev.${count}"
+        fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    - name: Build and push
+      uses: docker/build-push-action@v6
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.dockerfile }}
+        push: ${{ inputs.push == 'true' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          VERSION=${{ steps.ver.outputs.version }}
+          REVISION=${{ github.sha }}
+        provenance: false
+        cache-from: type=gha,scope=${{ inputs.name }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.name }}

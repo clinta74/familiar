@@ -1,0 +1,75 @@
+name: Server
+
+# The server's tests and image, only when something it's built from changes (docs don't run
+# anything). The image is pushed from main as latest, which the NAS pulls; a version tag's images
+# come from release.yml.
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/**
+      - tests/**
+      - protocol/**
+      - Dockerfile
+      - .dockerignore
+      - .editorconfig
+      - global.json
+      - Directory.Build.props
+      - Directory.Packages.props
+      - Familiar.slnx
+      - .github/workflows/server.yml
+      - .github/actions/image/**
+  pull_request:
+    branches: [main]
+    paths:
+      - src/**
+      - tests/**
+      - protocol/**
+      - Dockerfile
+      - .dockerignore
+      - .editorconfig
+      - global.json
+      - Directory.Build.props
+      - Directory.Packages.props
+      - Familiar.slnx
+      - .github/workflows/server.yml
+      - .github/actions/image/**
+
+# A newer push makes an older run pointless: only the newest needs testing and pushing as latest.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Server tests start a real Postgres via Testcontainers; ubuntu runners have Docker.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet build Familiar.slnx -c Release
+      - run: dotnet test Familiar.slnx -c Release --no-build
+
+  # Built on a pull request too, so a broken Dockerfile fails it; pushed only from main.
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: docker/setup-buildx-action@v3
+      - if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - uses: ./.github/actions/image
+        with:
+          name: familiar-server
+          context: .
+          dockerfile: ./Dockerfile
+          namespace: ${{ secrets.DOCKER_USERNAME }}
+          push: ${{ github.event_name != 'pull_request' }}

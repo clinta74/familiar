@@ -17,8 +17,8 @@ Needs JDK 17+ and the Android SDK with platform 37 (Android Studio installs both
 ./gradlew :androidApp:installDebug         # build and install on a connected phone
 ```
 
-CI builds the same debug APK on every push (the `familiar-android-debug` artifact) for sideloading;
-a version tag publishes a signed release ([docs/RELEASING.md](../docs/RELEASING.md)).
+CI builds the app only for a version tag, once, signed, and publishes it as a release to sideload
+([docs/RELEASING.md](../docs/RELEASING.md)); a pull request that touches it is tested and built too.
 
 **In Android Studio, open this folder (`mobile/`)**, the one with `settings.gradle.kts`, not
 `androidApp/` or the repository root: opened on its own, `androidApp` isn't a Gradle project, and
