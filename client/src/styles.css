@@ -687,13 +687,6 @@ button.link:hover:not(:disabled) {
   outline-offset: 1px;
 }
 
-.chat-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0 12px 10px;
-  font-size: 0.85rem;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .bubble.streaming .bubble-text::after {
     animation: none;
@@ -851,7 +844,8 @@ label.check input {
 
 /* --- voice --- */
 
-.composer button.mic {
+/* The picture, talk and hands-free buttons, alike: an icon in a circle; lit when on. */
+.round {
   display: grid;
   place-items: center;
   width: 44px;
@@ -864,12 +858,18 @@ label.check input {
   flex: none;
 }
 
-.composer button.mic:hover:not(:disabled) {
+button.round:hover:not(:disabled) {
   background: var(--surface);
   color: var(--accent);
 }
 
-.composer button.mic.recording {
+button.round[aria-pressed='true']:not(.recording) {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.round.recording {
   background: var(--error);
   border-color: var(--error);
   color: #fff;
@@ -883,19 +883,43 @@ label.check input {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .composer button.mic.recording {
+  .round.recording {
     animation: none;
   }
 }
 
-.chat-footer {
+/* Under the message box: the round buttons, then the voice switches and starting over. Wraps
+   on a narrow screen. */
+.chat-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
+  gap: 8px 14px;
+  padding: 0 12px 10px;
+  font-size: 0.85rem;
+}
+
+.round-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hands-free-note {
+  margin-left: 2px;
 }
 
 .voice-toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 6px;
+}
+
+/* Icons only, so off shows as faded as well as in its icon. */
+.voice-toggle[aria-pressed='false'] {
+  opacity: 0.55;
 }
 
 .voice-row {
@@ -921,19 +945,14 @@ select {
 
 /* --- hands-free --- */
 
-.composer .mic.hands-free {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  flex: none;
+/* The mic while hands-free has it: ringed, lighting up as it hears you. */
+.round.ringed {
   color: var(--accent);
-  border: 1px solid var(--accent);
+  border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
-.composer .mic.hands-free.hearing {
+.round.ringed.hearing {
   color: #fff;
   background: var(--accent);
   animation: listening-accent 1.2s ease-in-out infinite;
@@ -955,7 +974,7 @@ select {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .composer .mic.hands-free.hearing {
+  .round.ringed.hearing {
     animation: none;
   }
 }
@@ -1417,21 +1436,6 @@ pre.snippet {
   border-radius: 10px;
   margin-bottom: 4px;
   object-fit: cover;
-}
-
-.composer .attach {
-  background: none;
-  color: var(--muted);
-  padding: 6px;
-  border-radius: 999px;
-  flex: none;
-  display: grid;
-  place-items: center;
-}
-
-.composer .attach:hover:not(:disabled) {
-  color: var(--text);
-  background: var(--surface);
 }
 
 .picture-preview {

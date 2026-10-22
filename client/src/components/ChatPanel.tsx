@@ -96,11 +96,22 @@ function ConfirmCard({ confirm, onConfirm }: { confirm: ToolConfirmEvent; onConf
   );
 }
 
+// The round buttons' icons - a picture, the microphone, a headset for hands-free - in one outline style.
 function MicIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-      <rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" />
-      <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />
+    </svg>
+  );
+}
+
+function HeadsetIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+      <path d="M4.5 15v-3a7.5 7.5 0 0 1 15 0v3" strokeLinecap="round" />
+      <rect x="3.5" y="13.5" width="4" height="6.5" rx="1.6" />
+      <rect x="16.5" y="13.5" width="4" height="6.5" rx="1.6" />
     </svg>
   );
 }
@@ -239,49 +250,6 @@ export function ChatPanel({
           if (dropped) { e.preventDefault(); setPicture(dropped); }
         }}
       >
-        {voice.handsFree.on ? (
-          <span
-            className={`mic hands-free${voice.handsFree.hearing ? ' hearing' : ''}`}
-            role="status"
-            aria-label={voice.handsFree.hearing ? 'Hearing you' : 'Hands-free: listening'}
-            title="Hands-free: just talk"
-          >
-            <MicIcon />
-          </span>
-        ) : voice.available && (
-          <button
-            type="button"
-            className={`mic${voice.recording ? ' recording' : ''}`}
-            onClick={voice.onMic}
-            aria-pressed={voice.recording}
-            aria-label={voice.recording ? 'Done talking — send' : `Talk to ${familiarName}`}
-            title={voice.recording ? 'Done talking (Esc to cancel)' : 'Talk'}
-          >
-            <MicIcon />
-          </button>
-        )}
-        <button
-          type="button"
-          className="attach"
-          onClick={() => pictureInput.current?.click()}
-          aria-label="Add a picture"
-          title="Add a picture (or paste one)"
-          disabled={voice.recording || sending}
-        >
-          <PictureIcon />
-        </button>
-        <input
-          ref={pictureInput}
-          id="chat-picture"
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => {
-            const chosen = e.target.files?.[0];
-            if (chosen && isPicture(chosen)) setPicture(chosen);
-            e.target.value = '';
-          }}
-        />
         <textarea
           onPaste={(e) => {
             const pasted = [...e.clipboardData.files].find(isPicture);
@@ -307,28 +275,97 @@ export function ChatPanel({
         )}
       </form>
 
-      <div className="chat-footer">
-        <span className="voice-toggles">
-          {voice.available && (
-            <button type="button" className="link voice-toggle" onClick={voice.onToggle} aria-pressed={voice.on}>
-              <SpeakerIcon on={voice.on} />
-              {voice.on ? 'Voice on' : 'Voice off'}
+      {/* Under the message box, which has its line to itself: the picture, talking and hands-free,
+          alike; then the voice and sound switches (icons, said in their tooltips) and starting over -
+          one line in the chat panel's width. */}
+      <div className="chat-actions">
+        <span className="round-buttons">
+          <button
+            type="button"
+            className="round"
+            onClick={() => pictureInput.current?.click()}
+            aria-label="Add a picture"
+            title="Add a picture (or paste one)"
+            disabled={voice.recording || sending}
+          >
+            <PictureIcon />
+          </button>
+          <input
+            ref={pictureInput}
+            id="chat-picture"
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              const chosen = e.target.files?.[0];
+              if (chosen && isPicture(chosen)) setPicture(chosen);
+              e.target.value = '';
+            }}
+          />
+          {voice.handsFree.on ? (
+            <span
+              className={`round ringed${voice.handsFree.hearing ? ' hearing' : ''}`}
+              role="status"
+              aria-label={voice.handsFree.hearing ? 'Hearing you' : 'Hands-free: listening'}
+              title="Hands-free: just talk"
+            >
+              <MicIcon />
+            </span>
+          ) : voice.available && (
+            <button
+              type="button"
+              className={`round${voice.recording ? ' recording' : ''}`}
+              onClick={voice.onMic}
+              aria-pressed={voice.recording}
+              aria-label={voice.recording ? 'Done talking — send' : `Talk to ${familiarName}`}
+              title={voice.recording ? 'Done talking (Esc to cancel)' : 'Talk'}
+            >
+              <MicIcon />
             </button>
           )}
-          <button type="button" className="link voice-toggle" onClick={voice.effects.onToggle} aria-pressed={voice.effects.on}>
-            <SparkleIcon />
-            {voice.effects.on ? 'Sounds on' : 'Sounds off'}
-          </button>
           {voice.handsFree.available && (
-            <button type="button" className="link voice-toggle" onClick={voice.handsFree.onToggle} aria-pressed={voice.handsFree.on}>
-              <MicIcon />
-              {voice.handsFree.on ? 'Hands-free on' : 'Hands-free off'}
-            </button>
+            <>
+              <button
+                type="button"
+                className="round"
+                onClick={voice.handsFree.onToggle}
+                aria-pressed={voice.handsFree.on}
+                aria-label="Hands-free"
+                title={voice.handsFree.on ? 'Hands-free is on: turn it off' : 'Hands-free: talk without pressing anything'}
+              >
+                <HeadsetIcon />
+              </button>
+              {voice.handsFree.on && <span className="muted hands-free-note">Hands-free: just talk.</span>}
+            </>
           )}
         </span>
-        <button type="button" className="link" onClick={onStartOver} disabled={messages.length === 0}>
-          New conversation
-        </button>
+        <span className="voice-toggles">
+          {voice.available && (
+            <button
+              type="button"
+              className="link voice-toggle"
+              onClick={voice.onToggle}
+              aria-pressed={voice.on}
+              aria-label="Voice"
+              title={voice.on ? 'Voice on: it speaks its replies' : 'Voice off: replies in text only'}
+            >
+              <SpeakerIcon on={voice.on} />
+            </button>
+          )}
+          <button
+            type="button"
+            className="link voice-toggle"
+            onClick={voice.effects.onToggle}
+            aria-pressed={voice.effects.on}
+            aria-label="Sounds"
+            title={voice.effects.on ? 'Sounds on: drumrolls, chimes and the like' : 'Sounds off'}
+          >
+            <SparkleIcon />
+          </button>
+          <button type="button" className="link" onClick={onStartOver} disabled={messages.length === 0}>
+            New conversation
+          </button>
+        </span>
       </div>
     </section>
   );
