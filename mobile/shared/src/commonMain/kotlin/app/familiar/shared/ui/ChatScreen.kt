@@ -234,53 +234,9 @@ fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyLi
             }
         }
 
+        // The message box and Send have the line to themselves; the picture, talking and hands-free
+        // share the one under it.
         Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (pictures != null) {
-                TextButton(
-                    onClick = {
-                        scope.launch {
-                            runCatching { pictures.pick() }
-                                .onSuccess { picked -> picked?.let { picture = it } }
-                                .onFailure { controller.showError(it.message ?: "Couldn't open that picture.") }
-                        }
-                    },
-                    contentPadding = compact,
-                    modifier = Modifier.semantics { contentDescription = "Add a picture" },
-                ) { Text("🖼", style = MaterialTheme.typography.titleMedium) }
-            }
-            if (session.microphone != null) {
-                // Hold to talk: recording while it's pressed, sent on release; a slide off cancels.
-                // Hands-free has the microphone, so it's dimmed then and lights up as it hears you.
-                val ring = MaterialTheme.colorScheme.primary
-                val lit = recording || userSpeaking
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .padding(end = 8.dp)
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(
-                            when {
-                                recording -> ring.copy(alpha = 0.25f + 0.5f * micLevel.toFloat())
-                                userSpeaking -> ring.copy(alpha = 0.5f)
-                                else -> MaterialTheme.colorScheme.surfaceVariant
-                            },
-                        )
-                        .border(2.dp, if (lit || handsFreeOn) ring else MaterialTheme.colorScheme.outline, CircleShape)
-                        .semantics { contentDescription = if (handsFreeOn) "Hands-free is listening" else "Hold to talk to ${state.familiarName}" }
-                        .pointerInput(session, handsFreeOn) {
-                            if (handsFreeOn) return@pointerInput
-                            detectTapGestures(onPress = {
-                                if (session.startTalking()) {
-                                    val released = tryAwaitRelease()
-                                    session.stopTalking(send = released)
-                                }
-                            })
-                        },
-                ) {
-                    Text(if (lit) "●" else "🎤", style = MaterialTheme.typography.titleSmall)
-                }
-            }
             OutlinedTextField(
                 value = draft,
                 onValueChange = { draft = it },
@@ -300,18 +256,66 @@ fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyLi
             }
         }
 
-        if (session.handsFree != null) {
+        if (pictures != null || session.microphone != null || session.handsFree != null) {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    if (handsFreeOn) "Hands-free: just talk. It keeps listening with the screen off." else "Hands-free",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                Switch(checked = handsFreeOn, onCheckedChange = { on -> scope.launch { session.setHandsFree(on) } })
+                if (pictures != null) {
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                runCatching { pictures.pick() }
+                                    .onSuccess { picked -> picked?.let { picture = it } }
+                                    .onFailure { controller.showError(it.message ?: "Couldn't open that picture.") }
+                            }
+                        },
+                        contentPadding = compact,
+                        modifier = Modifier.semantics { contentDescription = "Add a picture" },
+                    ) { Text("🖼", style = MaterialTheme.typography.titleMedium) }
+                }
+                if (session.microphone != null) {
+                    // Hold to talk: recording while it's pressed, sent on release; a slide off cancels.
+                    // Hands-free has the microphone, so it's dimmed then and lights up as it hears you.
+                    val ring = MaterialTheme.colorScheme.primary
+                    val lit = recording || userSpeaking
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(
+                                when {
+                                    recording -> ring.copy(alpha = 0.25f + 0.5f * micLevel.toFloat())
+                                    userSpeaking -> ring.copy(alpha = 0.5f)
+                                    else -> MaterialTheme.colorScheme.surfaceVariant
+                                },
+                            )
+                            .border(2.dp, if (lit || handsFreeOn) ring else MaterialTheme.colorScheme.outline, CircleShape)
+                            .semantics { contentDescription = if (handsFreeOn) "Hands-free is listening" else "Hold to talk to ${state.familiarName}" }
+                            .pointerInput(session, handsFreeOn) {
+                                if (handsFreeOn) return@pointerInput
+                                detectTapGestures(onPress = {
+                                    if (session.startTalking()) {
+                                        val released = tryAwaitRelease()
+                                        session.stopTalking(send = released)
+                                    }
+                                })
+                            },
+                    ) {
+                        Text(if (lit) "●" else "🎤", style = MaterialTheme.typography.titleSmall)
+                    }
+                }
+                if (session.handsFree != null) {
+                    Text(
+                        if (handsFreeOn) "Hands-free: just talk. It keeps listening with the screen off." else "Hands-free",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f).padding(start = 4.dp),
+                    )
+                    Switch(checked = handsFreeOn, onCheckedChange = { on -> scope.launch { session.setHandsFree(on) } })
+                }
             }
         }
     }
