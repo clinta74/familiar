@@ -1,5 +1,9 @@
 package app.familiar.shared.ui
 
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import app.familiar.shared.platform.PicturePicker
 import app.familiar.shared.platform.SharedPictures
 import androidx.compose.foundation.layout.heightIn
@@ -258,63 +262,57 @@ fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyLi
 
         if (pictures != null || session.microphone != null || session.handsFree != null) {
             Row(
-                Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 4.dp),
+                Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 if (pictures != null) {
-                    TextButton(
-                        onClick = {
+                    RoundButton(
+                        Glyphs.Picture,
+                        "Add a picture",
+                        modifier = Modifier.clickable(role = Role.Button) {
                             scope.launch {
                                 runCatching { pictures.pick() }
                                     .onSuccess { picked -> picked?.let { picture = it } }
                                     .onFailure { controller.showError(it.message ?: "Couldn't open that picture.") }
                             }
                         },
-                        contentPadding = compact,
-                        modifier = Modifier.semantics { contentDescription = "Add a picture" },
-                    ) { Text("🖼", style = MaterialTheme.typography.titleMedium) }
+                    )
                 }
                 if (session.microphone != null) {
                     // Hold to talk: recording while it's pressed, sent on release; a slide off cancels.
                     // Hands-free has the microphone, so it's dimmed then and lights up as it hears you.
-                    val ring = MaterialTheme.colorScheme.primary
                     val lit = recording || userSpeaking
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(
-                                when {
-                                    recording -> ring.copy(alpha = 0.25f + 0.5f * micLevel.toFloat())
-                                    userSpeaking -> ring.copy(alpha = 0.5f)
-                                    else -> MaterialTheme.colorScheme.surfaceVariant
-                                },
-                            )
-                            .border(2.dp, if (lit || handsFreeOn) ring else MaterialTheme.colorScheme.outline, CircleShape)
-                            .semantics { contentDescription = if (handsFreeOn) "Hands-free is listening" else "Hold to talk to ${state.familiarName}" }
-                            .pointerInput(session, handsFreeOn) {
-                                if (handsFreeOn) return@pointerInput
-                                detectTapGestures(onPress = {
-                                    if (session.startTalking()) {
-                                        val released = tryAwaitRelease()
-                                        session.stopTalking(send = released)
-                                    }
-                                })
-                            },
-                    ) {
-                        Text(if (lit) "●" else "🎤", style = MaterialTheme.typography.titleSmall)
-                    }
+                    RoundButton(
+                        Glyphs.Mic,
+                        if (handsFreeOn) "Hands-free is listening" else "Hold to talk to ${state.familiarName}",
+                        on = lit,
+                        ringed = handsFreeOn,
+                        fill = if (recording) 0.25f + 0.5f * micLevel.toFloat() else if (userSpeaking) 0.5f else null,
+                        modifier = Modifier.pointerInput(session, handsFreeOn) {
+                            if (handsFreeOn) return@pointerInput
+                            detectTapGestures(onPress = {
+                                if (session.startTalking()) {
+                                    val released = tryAwaitRelease()
+                                    session.stopTalking(send = released)
+                                }
+                            })
+                        },
+                    )
                 }
                 if (session.handsFree != null) {
+                    RoundButton(
+                        Glyphs.HandsFree,
+                        "Hands-free",
+                        on = handsFreeOn,
+                        modifier = Modifier.toggleable(value = handsFreeOn, role = Role.Switch) { on -> scope.launch { session.setHandsFree(on) } },
+                    )
                     Text(
                         if (handsFreeOn) "Hands-free: just talk. It keeps listening with the screen off." else "Hands-free",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f).padding(start = 4.dp),
+                        modifier = Modifier.weight(1f),
                     )
-                    Switch(checked = handsFreeOn, onCheckedChange = { on -> scope.launch { session.setHandsFree(on) } })
                 }
             }
         }
@@ -480,3 +478,39 @@ private fun Chip(chip: ToolChip) {
 
 /** Further than any message is long: scrolling stops at the end. */
 private const val END = 100_000f
+
+/**
+ * The chat's round buttons - a picture, talking, hands-free - all alike: an icon in a circle, outlined
+ * when idle, lit in the theme's colour when [on] (or, while recording, filled as loud as the voice).
+ */
+@Composable
+private fun RoundButton(
+    icon: ImageVector,
+    description: String,
+    modifier: Modifier = Modifier,
+    on: Boolean = false,
+    /** Ringed in the theme's colour without being on: the mic while hands-free has it. */
+    ringed: Boolean = false,
+    /** How strongly the circle is filled with the theme's colour, overriding [on]'s. */
+    fill: Float? = null,
+) {
+    val accent = MaterialTheme.colorScheme.primary
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(
+                when {
+                    fill != null -> accent.copy(alpha = fill)
+                    on -> accent.copy(alpha = 0.2f)
+                    else -> MaterialTheme.colorScheme.surfaceVariant
+                },
+            )
+            .border(2.dp, if (on || ringed || fill != null) accent else MaterialTheme.colorScheme.outline, CircleShape)
+            .semantics { contentDescription = description }
+            .then(modifier),
+    ) {
+        Icon(icon, contentDescription = null, tint = if (on) accent else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
+    }
+}
