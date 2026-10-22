@@ -150,6 +150,7 @@ app.MapHealthEndpoints();
 app.MapAuthEndpoints();
 app.MapDeviceEndpoints();
 app.MapAdminEndpoints();
+app.MapInviteEndpoints();
 app.MapFamiliarEndpoints();
 app.MapAvatarEndpoints();
 app.MapConversationEndpoints();

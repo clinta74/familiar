@@ -1,3 +1,4 @@
+import { InviteAdmin } from './InviteAdmin';
 import { Shell } from './Shell';
 import { UserAdmin } from './UserAdmin';
 
@@ -9,6 +10,10 @@ export function AdminPage() {
         <section className="card">
           <h2>Users</h2>
           <UserAdmin />
+        </section>
+        <section className="card">
+          <h2>Registration and invites</h2>
+          <InviteAdmin />
         </section>
       </div>
     </Shell>

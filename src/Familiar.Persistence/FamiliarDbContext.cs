@@ -36,6 +36,10 @@ public sealed class FamiliarDbContext(DbContextOptions<FamiliarDbContext> option
 
     public DbSet<ServerSecret> ServerSecrets => Set<ServerSecret>();
 
+    public DbSet<ServerSetting> ServerSettings => Set<ServerSetting>();
+
+    public DbSet<Invite> Invites => Set<Invite>();
+
     public DbSet<MemoryFact> Memories => Set<MemoryFact>();
 
     public DbSet<AvatarAsset> AvatarAssets => Set<AvatarAsset>();

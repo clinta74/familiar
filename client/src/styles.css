@@ -1459,3 +1459,120 @@ pre.snippet {
   flex: 1;
   min-width: 0;
 }
+
+/* --- invites (admin) --- */
+
+.registration-mode {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px 12px;
+  margin: 0;
+}
+
+.registration-mode legend {
+  padding: 0 4px;
+  font-weight: 600;
+}
+
+/* The link just made: shown once, with Copy beside it. */
+.new-invite {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.new-invite p {
+  margin: 0;
+}
+
+.copy-row {
+  display: flex;
+  gap: 8px;
+}
+
+.copy-row input {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+}
+
+.ttl-row {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+}
+
+.ttl-row input {
+  width: 6em;
+}
+
+.invite-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.invite {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.invite:first-child {
+  border-top: none;
+}
+
+.invite .muted {
+  grid-column: 1;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+
+.invite button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+.invite-who {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.invite .chip {
+  font-size: 0.75rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.invite .chip.waiting {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.invite .chip.used {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.invite.expired strong,
+.invite.cancelled strong {
+  color: var(--muted);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

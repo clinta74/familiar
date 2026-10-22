@@ -63,7 +63,11 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Familiar: >-
         Host=postgres;Port=5432;Database=${POSTGRES_DB:-familiar};Username=${POSTGRES_USER:-familiar};Password=${POSTGRES_PASSWORD};Maximum Pool Size=20
+      # Where registration starts: false is invite only. An admin switches it on the admin page,
+      # and makes the invite links there.
       Auth__AllowRegistration: ${ALLOW_REGISTRATION:-false}
+      # The address people open Familiar at, for invite links; unset, they use the admin's browser's.
+      # Auth__PublicUrl: https://familiar.example.net
       # The compose network: requests arrive via the client container's nginx, and its
       # X-Forwarded-For is what gives rate limits a real client address. Must match the subnet below.
       Proxy__KnownNetworks: ${FAMILIAR_SUBNET:-172.30.0.0/16}

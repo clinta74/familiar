@@ -116,6 +116,13 @@ export interface ConfirmRequest {
   approve: boolean;
 }
 
+export interface CreateInviteRequest {
+  /** Who it's for; optional, up to 80 characters. */
+  note: string | null;
+  /** How long it works for: 1 hour to 30 days (720); 3 days if left out. */
+  hours: number | null;
+}
+
 export interface CreateUserRequest {
   /** 3-24 letters, digits or underscores. */
   username: string | null;
@@ -286,6 +293,36 @@ export interface InterruptRequest {
   heard: string | null;
 }
 
+export interface InviteCheckView {
+  /** It can be used to register now. */
+  valid: boolean;
+  /** Why not, to show: used, expired, cancelled or not an invite. */
+  problem: string | null;
+  /** When it stops working, when it's valid. */
+  expiresAt: string | null;
+}
+
+export interface InviteView {
+  /** The invite. */
+  id: string;
+  /** Who it's for, as the admin put it. */
+  note: string | null;
+  /** waiting (can still be used), used, expired or cancelled. */
+  status: 'waiting' | 'used' | 'expired' | 'cancelled';
+  /** When it was made. */
+  createdAt: string;
+  /** When it stops working, if it hasn't been used. */
+  expiresAt: string;
+  /** The admin who made it, if their account is still here. */
+  createdBy: string | null;
+  /** When someone registered with it. */
+  usedAt: string | null;
+  /** Who registered with it. */
+  usedBy: string | null;
+  /** When an admin cancelled it. */
+  cancelledAt: string | null;
+}
+
 export type JobKind = 'timer' | 'reminder';
 
 /** A pending timer or reminder, as the client shows it. */
@@ -417,6 +454,18 @@ export interface NewHookTokenView {
   token: string;
 }
 
+export interface NewInviteView {
+  /** The invite made. */
+  invite: InviteView;
+  /** Its code, shown this once: the server keeps only a hash of it. */
+  code: string;
+  /**
+   * The link to send, if the server knows its public address (Auth:PublicUrl); otherwise the client
+   * makes it from its own.
+   */
+  link: string | null;
+}
+
 export interface NewWebhookView {
   /** The webhook. */
   webhook: WebhookView;
@@ -485,9 +534,26 @@ export interface ReadyEvent {
 }
 
 export interface RegisterRequest {
+  /** 3-24 letters, digits or underscores. */
   username: string | null;
+  /** Their email. */
   email: string | null;
+  /** Their password. */
   password: string | null;
+  /** The code from an invite link: needed while registration is invite only. */
+  invite?: string | null;
+}
+
+export interface RegistrationStatusView {
+  /** Anyone may register (or nobody has yet: the first account is the admin). */
+  open: boolean;
+  /** What the invite asked about says, when one was. */
+  invite: InviteCheckView | null;
+}
+
+export interface RegistrationView {
+  /** Anyone may register; otherwise only with an invite. */
+  open: boolean;
 }
 
 export interface ReplyDeltaEvent {

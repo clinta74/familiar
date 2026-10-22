@@ -144,6 +144,68 @@ namespace Familiar.Persistence.Migrations
                     b.ToTable("accounts", (string)null);
                 });
 
+            modelBuilder.Entity("Familiar.Domain.Accounts.Invite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("SecretHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("secret_hash");
+
+                    b.Property<DateTimeOffset?>("UsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("used_at");
+
+                    b.Property<Guid?>("UsedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("used_by");
+
+                    b.Property<string>("UsedByUsername")
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("used_by_username");
+
+                    b.HasKey("Id")
+                        .HasName("pk_invites");
+
+                    b.HasIndex("CreatedAt")
+                        .IsDescending()
+                        .HasDatabaseName("ix_invites_created_at");
+
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_invites_created_by");
+
+                    b.HasIndex("UsedBy")
+                        .HasDatabaseName("ix_invites_used_by");
+
+                    b.ToTable("invites", (string)null);
+                });
+
             modelBuilder.Entity("Familiar.Domain.Calendars.CalendarEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1030,6 +1092,29 @@ namespace Familiar.Persistence.Migrations
                     b.ToTable("server_secrets", (string)null);
                 });
 
+            modelBuilder.Entity("Familiar.Persistence.Configurations.ServerSetting", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Name")
+                        .HasName("pk_server_settings");
+
+                    b.ToTable("server_settings", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
                 {
                     b.Property<int>("Id")
@@ -1063,6 +1148,21 @@ namespace Familiar.Persistence.Migrations
                         .HasConstraintName("fk_access_tokens_accounts_account_id");
 
                     b.Navigation("Account");
+                });
+
+            modelBuilder.Entity("Familiar.Domain.Accounts.Invite", b =>
+                {
+                    b.HasOne("Familiar.Domain.Accounts.Account", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_invites_accounts_created_by");
+
+                    b.HasOne("Familiar.Domain.Accounts.Account", null)
+                        .WithMany()
+                        .HasForeignKey("UsedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_invites_accounts_used_by");
                 });
 
             modelBuilder.Entity("Familiar.Domain.Calendars.CalendarEvent", b =>

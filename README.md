@@ -98,7 +98,11 @@ instead.
 - Data Protection keys are stored in Postgres, so recreating the server container doesn't sign
   everyone out. They are stored unencrypted (the startup warning says so); anyone who can read
   the database can already read everything else in it.
-- After the admin exists, set `Auth__AllowRegistration=false` (the NAS default).
+- Registration can be invite only: Admin → Registration and invites, "Only with an invite", then
+  "Make invite link" for each person - a single-use link that works for as long as you say (an hour
+  to 30 days), shown once with a Copy button, and listed there as waiting, used (by whom), expired or
+  cancelled. `Auth__AllowRegistration` is only where it starts (false is the NAS default) until an
+  admin chooses there. Links use the address the admin's browser is on, or `Auth__PublicUrl` if set.
 
 ## Tests
 

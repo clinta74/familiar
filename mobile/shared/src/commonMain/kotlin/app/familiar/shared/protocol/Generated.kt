@@ -140,6 +140,14 @@ data class ConfirmRequest(
 )
 
 @Serializable
+data class CreateInviteRequest(
+    /** Who it's for; optional, up to 80 characters. */
+    val note: String? = null,
+    /** How long it works for: 1 hour to 30 days (720); 3 days if left out. */
+    val hours: Int? = null,
+)
+
+@Serializable
 data class CreateUserRequest(
     /** 3-24 letters, digits or underscores. */
     val username: String? = null,
@@ -352,6 +360,38 @@ data class InterruptRequest(
     val heard: String? = null,
 )
 
+@Serializable
+data class InviteCheckView(
+    /** It can be used to register now. */
+    val valid: Boolean,
+    /** Why not, to show: used, expired, cancelled or not an invite. */
+    val problem: String? = null,
+    /** When it stops working, when it's valid. */
+    val expiresAt: String? = null,
+)
+
+@Serializable
+data class InviteView(
+    /** The invite. */
+    val id: String,
+    /** Who it's for, as the admin put it. */
+    val note: String? = null,
+    /** waiting (can still be used), used, expired or cancelled. */
+    val status: String,
+    /** When it was made. */
+    val createdAt: String,
+    /** When it stops working, if it hasn't been used. */
+    val expiresAt: String,
+    /** The admin who made it, if their account is still here. */
+    val createdBy: String? = null,
+    /** When someone registered with it. */
+    val usedAt: String? = null,
+    /** Who registered with it. */
+    val usedBy: String? = null,
+    /** When an admin cancelled it. */
+    val cancelledAt: String? = null,
+)
+
 object JobKind {
     const val TIMER = "timer"
     const val REMINDER = "reminder"
@@ -508,6 +548,19 @@ data class NewHookTokenView(
 )
 
 @Serializable
+data class NewInviteView(
+    /** The invite made. */
+    val invite: InviteView,
+    /** Its code, shown this once: the server keeps only a hash of it. */
+    val code: String,
+    /**
+     * The link to send, if the server knows its public address (Auth:PublicUrl); otherwise the
+     * client makes it from its own.
+     */
+    val link: String? = null,
+)
+
+@Serializable
 data class NewWebhookView(
     /** The webhook. */
     val webhook: WebhookView,
@@ -582,9 +635,28 @@ data class ReadyEvent(
 
 @Serializable
 data class RegisterRequest(
+    /** 3-24 letters, digits or underscores. */
     val username: String? = null,
+    /** Their email. */
     val email: String? = null,
+    /** Their password. */
     val password: String? = null,
+    /** The code from an invite link: needed while registration is invite only. */
+    val invite: String? = null,
+)
+
+@Serializable
+data class RegistrationStatusView(
+    /** Anyone may register (or nobody has yet: the first account is the admin). */
+    val open: Boolean,
+    /** What the invite asked about says, when one was. */
+    val invite: InviteCheckView? = null,
+)
+
+@Serializable
+data class RegistrationView(
+    /** Anyone may register; otherwise only with an invite. */
+    val open: Boolean,
 )
 
 @Serializable

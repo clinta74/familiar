@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
+import { authApi } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { AuthCard } from './AuthCard';
 
@@ -9,6 +10,11 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Invite only, there's no form for a stranger to find: they need a link.
+  const [open, setOpen] = useState(true);
+  useEffect(() => {
+    authApi.registration().then((r) => setOpen(r.open)).catch(() => undefined);
+  }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -36,7 +42,9 @@ export function LoginPage() {
         {error && <p className="error" role="alert">{error}</p>}
         <button type="submit" disabled={busy} aria-busy={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
       </form>
-      <p className="muted">New here? <Link to="/register">Create an account</Link></p>
+      <p className="muted">
+        New here? {open ? <Link to="/register">Create an account</Link> : 'Ask the person who runs this server for an invite link.'}
+      </p>
     </AuthCard>
   );
 }

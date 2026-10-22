@@ -72,7 +72,7 @@ public static class AdminEndpoints
         group.MapDelete("/{id:guid}", DeleteAsync);
     }
 
-    private static async Task<bool> CallerIsAdminAsync(HttpContext http)
+    internal static async Task<bool> CallerIsAdminAsync(HttpContext http)
     {
         var db = http.RequestServices.GetRequiredService<FamiliarDbContext>();
         var id = http.User.AccountId();

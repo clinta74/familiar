@@ -71,6 +71,14 @@ public static class ProtocolCatalog
         typeof(UpdateUserRequest),
         typeof(ResetPasswordRequest),
 
+        // Invite-only registration.
+        typeof(InviteView),
+        typeof(CreateInviteRequest),
+        typeof(NewInviteView),
+        typeof(RegistrationView),
+        typeof(RegistrationStatusView),
+        typeof(InviteCheckView),
+
         // The conversation.
         typeof(SendMessageRequest),
         typeof(ImageView),

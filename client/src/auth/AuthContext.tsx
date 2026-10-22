@@ -5,7 +5,7 @@ interface AuthState {
   /** undefined while the session is being checked; null when signed out. */
   account: Account | null | undefined;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string, invite?: string | null) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -31,8 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccount(await authApi.login(username, password));
   }, []);
 
-  const register = useCallback(async (username: string, email: string, password: string) => {
-    setAccount(await authApi.register(username, email, password));
+  const register = useCallback(async (username: string, email: string, password: string, invite?: string | null) => {
+    setAccount(await authApi.register(username, email, password, invite));
   }, []);
 
   const logout = useCallback(async () => {

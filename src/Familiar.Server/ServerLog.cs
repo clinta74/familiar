@@ -24,6 +24,9 @@ internal static partial class ServerLog
     [LoggerMessage(20, LogLevel.Information, "Registered {Username} as {Role}")]
     public static partial void Registered(this ILogger logger, string username, string role);
 
+    [LoggerMessage(24, LogLevel.Information, "{Username} registered with invite {InviteId}")]
+    public static partial void RegisteredByInvite(this ILogger logger, string username, Guid inviteId);
+
     [LoggerMessage(21, LogLevel.Warning, "{Username} became admin as the first account on this installation")]
     public static partial void FirstAccountPromoted(this ILogger logger, string username);
 

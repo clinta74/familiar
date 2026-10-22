@@ -63,6 +63,21 @@ What would actually cut the ~1 s of prefill before the first word:
 - **llama.cpp's `llama-server`** with `cache_prompt`, which also has slot save/restore across
   restarts.
 
+### ~~Invite-only registration~~ — done (2026-10-22, asked that day)
+
+Admin → Registration and invites: who can register - anyone, or only with an invite (kept in the
+database, `server_settings`; `Auth:AllowRegistration` is only where it starts) - and single-use
+invite links: a note for who it's for, how long it works (1 hour to 30 days, 3 days unless said),
+shown once with Copy (the clipboard API, or selecting and copying on a plain-http address), and a
+list of every invite as waiting, used (by whom, when), expired or cancelled, with Cancel for one
+still waiting. An invite is `finv_<id>_<secret>` with only the secret's hash kept, like device
+tokens; registering uses it up under the registration lock, so two people can't share one, and an
+invite used while registration is open is still recorded. The register page checks the link first
+and says if it's used, expired or cancelled; the sign-in page says to ask for an invite instead of
+offering a form. The link is `<address>/register?invite=…` on `Auth:PublicUrl` if set, otherwise
+the address the admin's browser is on - behind the proxy, the public one. Verified in the browser
+against a scratch database: made, copied, registered with, refused when reused, cancelled.
+
 ### 39. ~~Sending texts directly, for hands-free use~~ — done (2026-10-18)
 
 With "Send texts without Messages" on (Settings, Devices; it asks for `SEND_SMS`), the phone offers

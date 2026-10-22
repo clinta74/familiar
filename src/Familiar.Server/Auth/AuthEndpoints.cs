@@ -11,7 +11,11 @@ using Npgsql;
 
 namespace Familiar.Server.Auth;
 
-public sealed record RegisterRequest(string? Username, string? Email, string? Password);
+/// <param name="Username">3-24 letters, digits or underscores.</param>
+/// <param name="Email">Their email.</param>
+/// <param name="Password">Their password.</param>
+/// <param name="Invite">The code from an invite link: needed while registration is invite only.</param>
+public sealed record RegisterRequest(string? Username, string? Email, string? Password, string? Invite = null);
 
 public sealed record LoginRequest(string? Username, string? Password);
 
@@ -94,9 +98,20 @@ public static partial class AuthEndpoints
 
             var isFirstAccount = !await db.Accounts.AnyAsync(ct);
 
-            if (!isFirstAccount && !options.AllowRegistration)
+            // An invite, if one came with it, is used up by this registration - invite only or not,
+            // so the admin sees who came in on it. Under the lock: two people can't both use one.
+            Invite? invite = null;
+            if (!string.IsNullOrWhiteSpace(request.Invite))
             {
-                return Error(StatusCodes.Status403Forbidden, "Registration is closed on this server.");
+                (invite, var problem) = await Invites.FindAsync(db, request.Invite, clock.GetUtcNow(), ct);
+                if (problem is not null)
+                {
+                    return Error(StatusCodes.Status403Forbidden, problem);
+                }
+            }
+            else if (!isFirstAccount && !await Invites.OpenAsync(db, options, ct))
+            {
+                return Error(StatusCodes.Status403Forbidden, "Registering on this server needs an invite: ask its admin for a link.");
             }
 
             if (await db.Accounts.AnyAsync(a => a.Username == username || a.Email == email, ct))
@@ -106,6 +121,12 @@ public static partial class AuthEndpoints
 
             account.Role = isFirstAccount ? AccountRole.Admin : AccountRole.User;
             db.Accounts.Add(account);
+            if (invite is not null)
+            {
+                invite.UsedAt = clock.GetUtcNow();
+                invite.UsedBy = account.Id;
+                invite.UsedByUsername = account.Username;
+            }
 
             try
             {
@@ -120,6 +141,10 @@ public static partial class AuthEndpoints
 
             var logger = loggers.CreateLogger(typeof(AuthEndpoints));
             logger.Registered(account.Username, account.Role.ToString());
+            if (invite is not null)
+            {
+                logger.RegisteredByInvite(account.Username, invite.Id);
+            }
             if (isFirstAccount)
             {
                 logger.FirstAccountPromoted(account.Username);

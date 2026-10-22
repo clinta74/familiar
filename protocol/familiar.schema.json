@@ -466,6 +466,29 @@
         "approve"
       ]
     },
+    "CreateInviteRequest": {
+      "type": "object",
+      "properties": {
+        "note": {
+          "description": "Who it's for; optional, up to 80 characters.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hours": {
+          "description": "How long it works for: 1 hour to 30 days (720); 3 days if left out.",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "note",
+        "hours"
+      ]
+    },
     "CreateUserRequest": {
       "type": "object",
       "properties": {
@@ -1073,6 +1096,113 @@
         "heard"
       ]
     },
+    "InviteCheckView": {
+      "type": "object",
+      "properties": {
+        "valid": {
+          "description": "It can be used to register now.",
+          "type": "boolean"
+        },
+        "problem": {
+          "description": "Why not, to show: used, expired, cancelled or not an invite.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expiresAt": {
+          "description": "When it stops working, when it's valid.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "valid",
+        "problem",
+        "expiresAt"
+      ]
+    },
+    "InviteView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "The invite.",
+          "type": "string",
+          "format": "uuid"
+        },
+        "note": {
+          "description": "Who it's for, as the admin put it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "description": "waiting (can still be used), used, expired or cancelled.",
+          "type": "string",
+          "enum": [
+            "waiting",
+            "used",
+            "expired",
+            "cancelled"
+          ]
+        },
+        "createdAt": {
+          "description": "When it was made.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "expiresAt": {
+          "description": "When it stops working, if it hasn't been used.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdBy": {
+          "description": "The admin who made it, if their account is still here.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "usedAt": {
+          "description": "When someone registered with it.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "usedBy": {
+          "description": "Who registered with it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cancelledAt": {
+          "description": "When an admin cancelled it.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "note",
+        "status",
+        "createdAt",
+        "expiresAt",
+        "createdBy",
+        "usedAt",
+        "usedBy",
+        "cancelledAt"
+      ]
+    },
     "JobKind": {
       "type": "string",
       "enum": [
@@ -1505,6 +1635,31 @@
         "token"
       ]
     },
+    "NewInviteView": {
+      "type": "object",
+      "properties": {
+        "invite": {
+          "description": "The invite made.",
+          "$ref": "#/$defs/InviteView"
+        },
+        "code": {
+          "description": "Its code, shown this once: the server keeps only a hash of it.",
+          "type": "string"
+        },
+        "link": {
+          "description": "The link to send, if the server knows its public address (Auth:PublicUrl); otherwise the client makes it from its own.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "invite",
+        "code",
+        "link"
+      ]
+    },
     "NewWebhookView": {
       "type": "object",
       "properties": {
@@ -1685,28 +1840,75 @@
       "type": "object",
       "properties": {
         "username": {
+          "description": "3-24 letters, digits or underscores.",
           "type": [
             "string",
             "null"
           ]
         },
         "email": {
+          "description": "Their email.",
           "type": [
             "string",
             "null"
           ]
         },
         "password": {
+          "description": "Their password.",
           "type": [
             "string",
             "null"
           ]
+        },
+        "invite": {
+          "description": "The code from an invite link: needed while registration is invite only.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       },
       "required": [
         "username",
         "email",
         "password"
+      ]
+    },
+    "RegistrationStatusView": {
+      "type": "object",
+      "properties": {
+        "open": {
+          "description": "Anyone may register (or nobody has yet: the first account is the admin).",
+          "type": "boolean"
+        },
+        "invite": {
+          "description": "What the invite asked about says, when one was.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InviteCheckView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "open",
+        "invite"
+      ]
+    },
+    "RegistrationView": {
+      "type": "object",
+      "properties": {
+        "open": {
+          "description": "Anyone may register; otherwise only with an invite.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "open"
       ]
     },
     "ReplyDeltaEvent": {

@@ -17,10 +17,18 @@ public sealed class AuthOptions
     public int RevalidationIntervalSeconds { get; set; } = 60;
 
     /// <summary>
-    /// Whether strangers may register. The first account can always be created, because it is how
-    /// an installation gets its admin; after that, a home server usually wants this off.
+    /// Whether strangers may register, until an admin chooses on the admin page (it's kept in the
+    /// database then). Off, registering needs an invite. The first account can always be created,
+    /// because it is how an installation gets its admin.
     /// </summary>
     public bool AllowRegistration { get; set; } = true;
+
+    /// <summary>
+    /// The address people open Familiar at, through any proxy (https://familiar.example.net), for
+    /// links the server hands out - invites. Unset, the admin's browser makes the link from the
+    /// address it's on.
+    /// </summary>
+    public string? PublicUrl { get; set; }
 
     /// <summary>Consecutive failures for one username before backoff starts. 0 disables the throttle.</summary>
     public int LoginFailuresBeforeBackoff { get; set; } = 5;
@@ -47,7 +55,7 @@ public sealed class AuthOptions
 
     public override string ToString() =>
         $"cookie={CookieName} session={SessionDays}d revalidate={RevalidationIntervalSeconds}s " +
-        $"registration={(AllowRegistration ? "open" : "first-account-only")} " +
+        $"registration={(AllowRegistration ? "open" : "invite-only")} (until an admin chooses) publicUrl={PublicUrl ?? "(from the browser)"} " +
         $"throttle={LoginFailuresBeforeBackoff}x/{LoginBackoffSeconds}s..{LoginBackoffMaxSeconds}s " +
         $"devices={DeviceTokensPerAccount}x{DeviceTokenLifetimeDays}d";
 }
