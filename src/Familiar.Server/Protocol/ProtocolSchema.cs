@@ -120,6 +120,7 @@ public static class ProtocolCatalog
         typeof(McpServerView),
         typeof(McpServerRequest),
         typeof(McpToolsRequest),
+        typeof(McpSignInView),
         typeof(Home.HomeAssistantView),
         typeof(Home.HomeDeviceView),
         typeof(Home.HomeAssistantRequest),

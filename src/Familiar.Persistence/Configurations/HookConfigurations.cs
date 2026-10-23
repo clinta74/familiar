@@ -43,6 +43,7 @@ internal sealed class McpServerConfiguration : IEntityTypeConfiguration<McpServe
         builder.Property(m => m.Name).HasMaxLength(24).IsRequired();
         builder.HasIndex(m => new { m.AccountId, m.Name }).IsUnique();
         builder.Property(m => m.ProtectedUrl).IsRequired();
+        builder.Property(m => m.ProtectedOAuth).HasColumnName("protected_oauth");
         builder.Property(m => m.ToolsJson).HasColumnType("jsonb").IsRequired();
         builder.Property(m => m.LastError).HasMaxLength(500);
     }

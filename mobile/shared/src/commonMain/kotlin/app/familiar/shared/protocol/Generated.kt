@@ -457,6 +457,13 @@ data class LoginRequest(
     val password: String? = null,
 )
 
+/** How Familiar proves itself to an MCP server. */
+object McpAuth {
+    const val NONE = "none"
+    const val TOKEN = "token"
+    const val SIGN_IN = "signIn"
+}
+
 @Serializable
 data class McpServerRequest(
     /** Short and lower-case: it prefixes the tool names the model sees. */
@@ -465,8 +472,19 @@ data class McpServerRequest(
     val url: String? = null,
     /** A bearer token, if the server needs one. */
     val token: String? = null,
+    /**
+     * For a server that wants a sign-in but doesn't let apps register themselves: the OAuth client
+     * made for Familiar in its developer settings.
+     */
+    val clientId: String? = null,
+    /** That client's secret, if it has one. */
+    val clientSecret: String? = null,
 )
 
+/**
+ * An MCP server as Settings shows it. SignInNeeded: its tools can't be used until the user signs in
+ * (again), with McpSignInView.
+ */
 @Serializable
 data class McpServerView(
     val id: String,
@@ -475,6 +493,14 @@ data class McpServerView(
     val tools: List<McpToolView>,
     val refreshedAt: String? = null,
     val lastError: String? = null,
+    val auth: String,
+    val signInNeeded: Boolean,
+)
+
+@Serializable
+data class McpSignInView(
+    /** Where to send the browser to sign in; it comes back to Settings → Connections. */
+    val authorizationUrl: String,
 )
 
 @Serializable

@@ -380,6 +380,9 @@ export interface LoginRequest {
   password: string | null;
 }
 
+/** How Familiar proves itself to an MCP server. */
+export type McpAuth = 'none' | 'token' | 'signIn';
+
 export interface McpServerRequest {
   /** Short and lower-case: it prefixes the tool names the model sees. */
   name: string | null;
@@ -387,8 +390,19 @@ export interface McpServerRequest {
   url: string | null;
   /** A bearer token, if the server needs one. */
   token: string | null;
+  /**
+   * For a server that wants a sign-in but doesn't let apps register themselves: the OAuth client
+   * made for Familiar in its developer settings.
+   */
+  clientId?: string | null;
+  /** That client's secret, if it has one. */
+  clientSecret?: string | null;
 }
 
+/**
+ * An MCP server as Settings shows it. SignInNeeded: its tools can't be used until the user signs in
+ * (again), with McpSignInView.
+ */
 export interface McpServerView {
   id: string;
   name: string;
@@ -396,6 +410,13 @@ export interface McpServerView {
   tools: McpToolView[];
   refreshedAt: string | null;
   lastError: string | null;
+  auth: McpAuth;
+  signInNeeded: boolean;
+}
+
+export interface McpSignInView {
+  /** Where to send the browser to sign in; it comes back to Settings → Connections. */
+  authorizationUrl: string;
 }
 
 export interface McpToolView {

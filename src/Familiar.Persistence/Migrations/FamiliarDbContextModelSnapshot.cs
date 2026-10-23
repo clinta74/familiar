@@ -746,6 +746,10 @@ namespace Familiar.Persistence.Migrations
                         .HasColumnType("character varying(24)")
                         .HasColumnName("name");
 
+                    b.Property<string>("ProtectedOAuth")
+                        .HasColumnType("text")
+                        .HasColumnName("protected_oauth");
+
                     b.Property<string>("ProtectedToken")
                         .HasColumnType("text")
                         .HasColumnName("protected_token");
@@ -758,6 +762,10 @@ namespace Familiar.Persistence.Migrations
                     b.Property<DateTimeOffset?>("RefreshedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("refreshed_at");
+
+                    b.Property<bool>("SignInNeeded")
+                        .HasColumnType("boolean")
+                        .HasColumnName("sign_in_needed");
 
                     b.Property<string>("ToolsJson")
                         .IsRequired()

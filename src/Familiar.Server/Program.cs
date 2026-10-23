@@ -105,6 +105,7 @@ builder.Services.AddHttpClient(nameof(WebhookDispatcher), http => http.Timeout =
 builder.Services.AddSingleton<WebhookDispatcher>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<WebhookDispatcher>());
 builder.Services.AddHttpClient(nameof(McpTools), http => http.Timeout = TimeSpan.FromSeconds(30));
+builder.Services.AddSingleton<McpOAuth>();
 builder.Services.AddSingleton<McpTools>();
 builder.Services.AddHttpClient(nameof(Familiar.Server.Home.HomeAssistant), http => http.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.AddSingleton<Familiar.Server.Home.HomeAssistantSockets>();

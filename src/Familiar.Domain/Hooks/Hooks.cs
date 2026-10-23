@@ -76,6 +76,15 @@ public sealed class McpServer
     /// <summary>Encrypted bearer token, if the server wants one.</summary>
     public string? ProtectedToken { get; set; }
 
+    /// <summary>
+    /// Encrypted OAuth sign-in, for a server that wants one rather than a token: where its
+    /// authorization server is, the client Familiar registered there, and the tokens (as JSON).
+    /// </summary>
+    public string? ProtectedOAuth { get; set; }
+
+    /// <summary>Its OAuth sign-in is missing or no longer works; the user has to sign in (again).</summary>
+    public bool SignInNeeded { get; set; }
+
     /// <summary>The tools it offered when last asked, as JSON (name, description, schema, hints).</summary>
     public string ToolsJson { get; set; } = "[]";
 

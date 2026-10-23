@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router';
 import { api } from '../api/client';
 
 // Hooks (PLAN.md §6.5): Home Assistant's devices for the familiar to work (BACKLOG item 29), other
@@ -11,6 +12,7 @@ import type {
   HookTokenView as HookToken,
   McpServerRequest,
   McpServerView as McpServer,
+  McpSignInView,
   McpToolsRequest,
   NameRequest,
   NewHookTokenView,
@@ -217,13 +219,29 @@ function Webhooks() {
   );
 }
 
+/** Sends the browser to a server's sign-in page; it comes back to this page, which says how it went. */
+async function signIn(server: McpServer) {
+  const { authorizationUrl } = await api<McpSignInView>(`/api/mcp/${server.id}/sign-in`, { method: 'POST' });
+  window.location.assign(authorizationUrl);
+}
+
 function McpServers() {
   const [servers, setServers] = useState<McpServer[]>([]);
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [token, setToken] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Back from a sign-in: the server's name, and what went wrong if anything did. Said once, then
+  // taken off the address so a reload doesn't say it again.
+  const [params, setParams] = useSearchParams();
+  const [returned] = useState(() => ({ name: params.get('mcp'), error: params.get('mcpError') }));
+  useEffect(() => {
+    if (params.has('mcp') || params.has('mcpError')) setParams({}, { replace: true });
+  }, [params, setParams]);
 
   const load = useCallback(() => void api<McpServer[]>('/api/mcp').then(setServers).catch(() => undefined), []);
   useEffect(load, [load]);
@@ -233,15 +251,31 @@ function McpServers() {
     setBusy(true);
     setError(null);
     try {
-      const server = await api<McpServer>('/api/mcp', { body: { name, url, token: token || null } satisfies McpServerRequest });
-      if (server.lastError) setError(server.lastError);
+      const body = { name, url, token: token || null, clientId: clientId || null, clientSecret: clientSecret || null } satisfies McpServerRequest;
+      const server = await api<McpServer>('/api/mcp', { body });
       setName('');
       setUrl('');
       setToken('');
+      setClientId('');
+      setClientSecret('');
       load();
+      // It wants a sign-in: straight there, rather than one more button.
+      if (server.signInNeeded) await signIn(server);
+      else if (server.lastError) setError(server.lastError);
     } catch (e) {
       setError(message(e, 'Couldn’t add that server.'));
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reconnect(server: McpServer) {
+    setBusy(true);
+    setError(null);
+    try {
+      await signIn(server);
+    } catch (e) {
+      setError(message(e, `Couldn’t start signing in to ${server.name}.`));
       setBusy(false);
     }
   }
@@ -267,18 +301,27 @@ function McpServers() {
       <h3>Tools from MCP servers</h3>
       <p className="muted">
         Connect an MCP server (streamable HTTP) and your familiar can use its tools. Anything that isn’t marked read-only
-        asks you first. Fewer tools work better: up to eight are offered.
+        asks you first. Fewer tools work better: up to eight are offered. Servers you sign in to — Notion, Linear,
+        Atlassian, Asana — send you to their sign-in page and back here.
       </p>
+      {returned.error && <p className="error" role="alert">{returned.name ? `${returned.name}: ` : ''}{returned.error}</p>}
+      {returned.name && !returned.error && <p className="success" role="status">Signed in to {returned.name}.</p>}
       {servers.map((s) => (
         <div key={s.id} className="mcp-server">
           <div className="model-row">
             <div>
               <strong>{s.name}</strong>
               <span className={s.lastError ? 'error small' : 'muted small'}>
-                {' '}· {s.urlHost}{s.lastError ? ` · ${s.lastError}` : s.refreshedAt ? ` · ${s.tools.length} tools` : ''}
+                {' '}· {s.urlHost}{s.auth === 'signIn' && !s.signInNeeded ? ' · signed in' : ''}
+                {s.lastError ? ` · ${s.lastError}` : s.refreshedAt ? ` · ${s.tools.length} tools` : ''}
               </span>
             </div>
             <span className="row-actions">
+              {s.auth === 'signIn' && (
+                <button type="button" className={s.signInNeeded ? undefined : 'link'} disabled={busy} onClick={() => void reconnect(s)}>
+                  {s.signInNeeded ? 'Sign in' : 'Sign in again'}
+                </button>
+              )}
               <button type="button" className="link" disabled={busy} onClick={() => void act(api(`/api/mcp/${s.id}/refresh`, { method: 'POST' }))}>Refresh</button>
               <button type="button" className="secondary" disabled={busy} onClick={() => void act(api(`/api/mcp/${s.id}`, { method: 'DELETE' }))}>Remove</button>
             </span>
@@ -305,12 +348,29 @@ function McpServers() {
         </label>
         <label>
           Address
-          <input value={url} onChange={(e) => setUrl(e.target.value)} type="url" placeholder="http://homeassistant.local:8123/api/mcp" required />
+          <input value={url} onChange={(e) => setUrl(e.target.value)} type="url" placeholder="https://mcp.notion.com/mcp" required />
         </label>
         <label>
-          Access token <span className="muted small">(optional; sent as a bearer token)</span>
+          Access token <span className="muted small">(optional; sent as a bearer token. Leave it empty for servers you sign in to.)</span>
           <input value={token} onChange={(e) => setToken(e.target.value)} type="password" autoComplete="off" />
         </label>
+        <details>
+          <summary className="muted small">Its sign-in needs an app you register yourself (GitHub, say)</summary>
+          <div className="stack">
+            <p className="muted small">
+              Make an OAuth app in the service’s developer settings, with <code>{window.location.origin}/api/mcp/oauth/callback</code> as
+              its callback address, and give its client ID here.
+            </p>
+            <label>
+              Client ID
+              <input value={clientId} onChange={(e) => setClientId(e.target.value)} autoComplete="off" />
+            </label>
+            <label>
+              Client secret <span className="muted small">(if it has one)</span>
+              <input value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} type="password" autoComplete="off" />
+            </label>
+          </div>
+        </details>
         <button type="submit" disabled={busy || !name || !url} aria-busy={busy}>{busy ? 'Connecting…' : 'Connect'}</button>
       </form>
       {error && <p className="error" role="alert">{error}</p>}

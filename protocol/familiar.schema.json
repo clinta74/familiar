@@ -1351,6 +1351,15 @@
         "password"
       ]
     },
+    "McpAuth": {
+      "description": "How Familiar proves itself to an MCP server.",
+      "type": "string",
+      "enum": [
+        "none",
+        "token",
+        "signIn"
+      ]
+    },
     "McpServerRequest": {
       "type": "object",
       "properties": {
@@ -1374,6 +1383,22 @@
             "string",
             "null"
           ]
+        },
+        "clientId": {
+          "description": "For a server that wants a sign-in but doesn't let apps register themselves: the OAuth client made for Familiar in its developer settings.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "clientSecret": {
+          "description": "That client's secret, if it has one.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       },
       "required": [
@@ -1383,6 +1408,7 @@
       ]
     },
     "McpServerView": {
+      "description": "An MCP server as Settings shows it. SignInNeeded: its tools can't be used until the user signs in (again), with McpSignInView.",
       "type": "object",
       "properties": {
         "id": {
@@ -1413,6 +1439,12 @@
             "string",
             "null"
           ]
+        },
+        "auth": {
+          "$ref": "#/$defs/McpAuth"
+        },
+        "signInNeeded": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -1421,7 +1453,21 @@
         "urlHost",
         "tools",
         "refreshedAt",
-        "lastError"
+        "lastError",
+        "auth",
+        "signInNeeded"
+      ]
+    },
+    "McpSignInView": {
+      "type": "object",
+      "properties": {
+        "authorizationUrl": {
+          "description": "Where to send the browser to sign in; it comes back to Settings → Connections.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "authorizationUrl"
       ]
     },
     "McpToolView": {

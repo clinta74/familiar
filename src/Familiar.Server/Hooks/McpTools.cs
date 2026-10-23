@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -32,6 +33,7 @@ public sealed record McpToolInfo(string Name, string? Description, JsonObject In
 public sealed partial class McpTools(
     IDbContextFactory<FamiliarDbContext> db,
     IDataProtectionProvider protection,
+    McpOAuth oauth,
     IHttpClientFactory httpFactory,
     ILoggerFactory loggers)
 {
@@ -53,16 +55,15 @@ public sealed partial class McpTools(
         JsonSerializer.Deserialize<List<McpToolInfo>>(server.ToolsJson, Json) ?? [];
 
     /// <summary>Connects and asks what tools there are. Throws if it can't.</summary>
-    public async Task<IReadOnlyList<McpToolInfo>> ListAsync(McpServer server, CancellationToken ct)
+    public Task<IReadOnlyList<McpToolInfo>> ListAsync(McpServer server, CancellationToken ct) => UseAsync<IReadOnlyList<McpToolInfo>>(server, async client =>
     {
-        await using var client = await ConnectAsync(server, ct);
         var tools = await client.ListToolsAsync(cancellationToken: ct);
         return [.. tools.Take(50).Select(t => new McpToolInfo(
             t.ProtocolTool.Name,
             t.ProtocolTool.Description is { Length: > 500 } d ? d[..500] : t.ProtocolTool.Description,
             JsonNode.Parse(t.ProtocolTool.InputSchema.GetRawText()) as JsonObject ?? ToolSchema.Object(),
             t.ProtocolTool.Annotations?.ReadOnlyHint == true))];
-    }
+    }, ct);
 
     /// <summary>The enabled MCP tools for an account, ready to offer the model.</summary>
     public async Task<IReadOnlyList<ITool>> ToolsForAsync(Guid accountId, CancellationToken ct)
@@ -84,9 +85,8 @@ public sealed partial class McpTools(
     {
         try
         {
-            await using var client = await ConnectAsync(server, ct);
             var args = JsonSerializer.Deserialize<Dictionary<string, object?>>(arguments.ToJsonString(), Json) ?? [];
-            var result = await client.CallToolAsync(tool.Name, args, cancellationToken: ct);
+            var result = await UseAsync(server, client => client.CallToolAsync(tool.Name, args, cancellationToken: ct).AsTask(), ct);
 
             var text = new StringBuilder();
             foreach (var block in result.Content)
@@ -103,19 +103,50 @@ public sealed partial class McpTools(
                 ? ToolResult.Failure(output.Length > 0 ? output : "The tool reported an error.", $"{summary} failed")
                 : ToolResult.Success(new JsonObject { ["ok"] = true, ["result"] = output }, summary);
         }
-        catch (Exception exception) when (exception is HttpRequestException or ModelContextProtocol.McpException or TimeoutException
+        catch (McpOAuthException exception) when (exception.SignInNeeded)
+        {
+            return ToolResult.Failure($"{server.Name} needs signing in: the user can do it in Settings → Connections.", $"{server.Name} needs signing in");
+        }
+        catch (Exception exception) when (exception is HttpRequestException or ModelContextProtocol.McpException or McpOAuthException or TimeoutException
             || (exception is TaskCanceledException && !ct.IsCancellationRequested))
         {
             return ToolResult.Failure($"Couldn't reach {server.Name}: {exception.Message}", $"{server.Name} unreachable");
         }
     }
 
-    private async Task<McpClient> ConnectAsync(McpServer server, CancellationToken ct)
+    /// <summary>
+    /// Connects, does something, disconnects. A server signed in to with OAuth gets a fresh access
+    /// token, and if it turns that away (401) the token's refreshed and it's tried once more: the 401
+    /// comes before anything has run, so trying again can't do anything twice.
+    /// </summary>
+    private async Task<T> UseAsync<T>(McpServer server, Func<McpClient, Task<T>> use, CancellationToken ct)
+    {
+        if (server.ProtectedToken is not null || server.ProtectedOAuth is null)
+        {
+            await using var plain = await ConnectAsync(server, server.ProtectedToken is { } token ? Protector.Unprotect(token) : null, ct);
+            return await use(plain);
+        }
+
+        var bearer = await oauth.AccessTokenAsync(server.Id, rejected: null, ct);
+        try
+        {
+            await using var client = await ConnectAsync(server, bearer, ct);
+            return await use(client);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            bearer = await oauth.AccessTokenAsync(server.Id, rejected: bearer, ct);
+            await using var client = await ConnectAsync(server, bearer, ct);
+            return await use(client);
+        }
+    }
+
+    private async Task<McpClient> ConnectAsync(McpServer server, string? bearer, CancellationToken ct)
     {
         var headers = new Dictionary<string, string>();
-        if (server.ProtectedToken is { } token)
+        if (bearer is not null)
         {
-            headers["Authorization"] = $"Bearer {Protector.Unprotect(token)}";
+            headers["Authorization"] = $"Bearer {bearer}";
         }
 
         var transport = new HttpClientTransport(
