@@ -14,6 +14,9 @@ enum class Route(val title: String, val about: String) {
     Connections("Connections", "Home Assistant, webhooks and MCP tools"),
     Account("Account", "Your details and password"),
     Devices("Devices", "The phones signed in to your account"),
+
+    /** One MCP server, under Connections: its sign-in and its tools. Opened with the server's id. */
+    McpServer("MCP server", ""),
 }
 
 /** Everything a user can change, as on the web's Settings page (user admin stays on the web). */

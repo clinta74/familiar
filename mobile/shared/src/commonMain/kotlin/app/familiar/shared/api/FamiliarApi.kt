@@ -23,6 +23,7 @@ import app.familiar.shared.protocol.ImageView
 import app.familiar.shared.protocol.HomeAssistantView
 import app.familiar.shared.protocol.McpServerRequest
 import app.familiar.shared.protocol.McpServerView
+import app.familiar.shared.protocol.McpSignInView
 import app.familiar.shared.protocol.McpToolsRequest
 import app.familiar.shared.protocol.MemoryRequest
 import app.familiar.shared.protocol.MemoryView
@@ -270,6 +271,12 @@ class FamiliarApi(
     suspend fun setMcpTools(id: String, enabled: List<String>): McpServerView = put("api/mcp/$id/tools", McpToolsRequest(enabled))
 
     suspend fun deleteMcpServer(id: String) = delete("api/mcp/$id")
+
+    /**
+     * Begins signing in to a server that wants an OAuth sign-in: the address to open in the browser.
+     * The sign-in ends on a page saying to come back to the app (`app=true`), not on the web's Settings.
+     */
+    suspend fun signInMcpServer(id: String): McpSignInView = call { http.post("api/mcp/$id/sign-in?app=true") }
 
     suspend fun homeAssistant(): HomeAssistantView = call { http.get("api/home-assistant") }
 

@@ -57,6 +57,9 @@ public sealed class McpOAuthGrant
     public string? PendingRedirectUri { get; set; }
 
     public DateTimeOffset? PendingUntil { get; set; }
+
+    /// <summary>Begun from the phone app: the browser it ends in is told to go back to the app, not sent to the web's Settings.</summary>
+    public bool PendingFromApp { get; set; }
 }
 
 /// <summary>Signing in to an MCP server didn't work; <see cref="SignInNeeded"/> when only the user signing in again will fix it.</summary>
@@ -176,7 +179,7 @@ public sealed partial class McpOAuth(
     /// Readies a sign-in: registers Familiar with the authorization server if it hasn't (or did for a
     /// different address), and gives the address to send the user's browser to.
     /// </summary>
-    public async Task<Uri> BeginAsync(McpOAuthGrant grant, Guid serverId, string redirectUri, CancellationToken ct)
+    public async Task<Uri> BeginAsync(McpOAuthGrant grant, Guid serverId, string redirectUri, bool fromApp, CancellationToken ct)
     {
         if (grant.ClientId is null || (grant.RegisteredRedirectUri is not null && grant.RegisteredRedirectUri != redirectUri))
         {
@@ -189,6 +192,7 @@ public sealed partial class McpOAuth(
         grant.PendingVerifier = verifier;
         grant.PendingRedirectUri = redirectUri;
         grant.PendingUntil = clock.GetUtcNow() + SignInWindow;
+        grant.PendingFromApp = fromApp;
 
         var query = new Dictionary<string, string?>
         {
@@ -247,6 +251,7 @@ public sealed partial class McpOAuth(
     {
         grant.PendingState = grant.PendingVerifier = grant.PendingRedirectUri = null;
         grant.PendingUntil = null;
+        grant.PendingFromApp = false;
     }
 
     /// <summary>

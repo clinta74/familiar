@@ -177,6 +177,29 @@ public sealed class McpOAuthTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_sign_in_begun_in_the_phone_app_ends_on_a_page_saying_to_go_back_to_it()
+    {
+        await using var fake = await Fake.StartAsync();
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync(),
+            services: s => s.AddHttpClient(nameof(McpTools)).ConfigurePrimaryHttpMessageHandler(() => fake.Handler));
+        var client = app.CreateClient();
+        (await client.RegisterAsync("phoner")).EnsureSuccessStatusCode();
+        var added = await (await client.PostAsJsonAsync("/api/mcp", new McpServerRequest("notes", "http://notes.test/mcp", null))).ReadAsync<McpServerView>();
+
+        var start = await (await client.PostAsync($"/api/mcp/{added.Id}/sign-in?app=true", null)).ReadAsync<McpSignInView>();
+        using var browser = new HttpClient(fake.Handler) { BaseAddress = new Uri("http://auth.test") };
+        var authorized = await browser.GetAsync(start.AuthorizationUrl);
+        var back = await app.CreateClient(new() { AllowAutoRedirect = false }).GetAsync(authorized.Headers.Location!.PathAndQuery);
+
+        Assert.Equal(HttpStatusCode.OK, back.StatusCode);
+        Assert.Equal("text/html", back.Content.Headers.ContentType!.MediaType);
+        Assert.Contains("Signed in to notes", await back.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        var server = (await (await client.GetAsync("/api/mcp")).ReadAsync<List<McpServerView>>()).Single();
+        Assert.False(server.SignInNeeded);
+        Assert.Equal(["list_notes"], server.Tools.Select(t => t.Name));
+    }
+
+    [Fact]
     public async Task A_server_that_wants_a_sign_in_is_signed_in_to_and_its_tokens_kept_fresh()
     {
         await using var fake = await Fake.StartAsync();

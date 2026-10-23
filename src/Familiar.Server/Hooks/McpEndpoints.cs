@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Familiar.Domain.Hooks;
@@ -172,10 +173,11 @@ public static partial class McpEndpoints
 
     /// <summary>
     /// Begins signing in to a server (the first time, or again): the browser's sent to the address
-    /// this gives, and comes back to <see cref="CallbackAsync"/>.
+    /// this gives, and comes back to <see cref="CallbackAsync"/>. <paramref name="app"/>: the phone app
+    /// asked, so the sign-in ends on a page saying to go back to it rather than on the web's Settings.
     /// </summary>
     private static async Task<IResult> SignInAsync(
-        Guid id, HttpContext http, IDbContextFactory<FamiliarDbContext> db, McpTools mcp, McpOAuth oauth, AuthOptions options, CancellationToken ct)
+        Guid id, bool? app, HttpContext http, IDbContextFactory<FamiliarDbContext> db, McpTools mcp, McpOAuth oauth, AuthOptions options, CancellationToken ct)
     {
         var accountId = http.User.AccountId()!.Value;
         await using var context = await db.CreateDbContextAsync(ct);
@@ -199,7 +201,7 @@ public static partial class McpEndpoints
 
         try
         {
-            var address = await oauth.BeginAsync(grant, server.Id, PublicRoot(http.Request, options) + CallbackPath, ct);
+            var address = await oauth.BeginAsync(grant, server.Id, PublicRoot(http.Request, options) + CallbackPath, app == true, ct);
             oauth.Write(server, grant);
             await context.SaveChangesAsync(ct);
             return Results.Ok(new McpSignInView(address.AbsoluteUri));
@@ -228,6 +230,7 @@ public static partial class McpEndpoints
             return Results.Redirect($"{back}?mcpError={Uri.EscapeDataString("That sign-in had run out, or wasn't one Familiar began. Try again from here.")}");
         }
 
+        var fromApp = grant.PendingFromApp;
         string? problem;
         try
         {
@@ -255,8 +258,42 @@ public static partial class McpEndpoints
         }
 
         await context.SaveChangesAsync(CancellationToken.None);
+        if (fromApp)
+        {
+            return BackToTheApp(server.Name, problem);
+        }
+
         var outcome = problem is null ? "" : $"&mcpError={Uri.EscapeDataString(problem)}";
         return Results.Redirect($"{back}?mcp={Uri.EscapeDataString(server.Name)}{outcome}");
+    }
+
+    /// <summary>
+    /// Where a sign-in begun in the phone app ends. The browser it opened isn't signed in to Familiar,
+    /// so the web's Settings would only ask for a password; the app looks again once it's back in front.
+    /// </summary>
+    private static IResult BackToTheApp(string name, string? problem)
+    {
+        var heading = HtmlEncoder.Default.Encode(problem is null ? $"Signed in to {name}" : $"Couldn't sign in to {name}");
+        var detail = HtmlEncoder.Default.Encode(problem ?? "Its tools are ready to use.");
+        return Results.Content(
+            $$"""
+            <!doctype html>
+            <html lang="en">
+            <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Familiar</title>
+            <style>
+              body { font-family: system-ui, sans-serif; margin: 0; min-height: 100vh; display: grid; place-items: center;
+                     background: #f6f5fb; color: #1d1b26; padding: 24px; box-sizing: border-box; text-align: center; }
+              @media (prefers-color-scheme: dark) { body { background: #14131b; color: #ecebf4; } }
+              p { opacity: 0.75; }
+            </style>
+            </head>
+            <body><main><h1>{{heading}}</h1><p>{{detail}}</p><p>Close this and go back to the Familiar app.</p></main></body>
+            </html>
+            """,
+            "text/html; charset=utf-8");
     }
 
     /// <summary>Whether the server wants an OAuth sign-in; not being able to tell counts as no.</summary>

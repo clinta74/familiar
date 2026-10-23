@@ -1,6 +1,5 @@
 package app.familiar.shared.ui.settings
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
@@ -20,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -47,13 +47,13 @@ private val webhookEvents = listOf(
 )
 
 @Composable
-fun ConnectionsScreen(session: FamiliarSession, onBack: () -> Unit) {
+fun ConnectionsScreen(session: FamiliarSession, openServer: (String) -> Unit, onBack: () -> Unit) {
     ScreenFrame(Route.Connections.title, onBack) {
         Scrolling {
             Card("Home Assistant") { HomeAssistant(session) }
             Card("Let other things make it speak") { HookTokens(session) }
             Card("Tell other things what happened") { Webhooks(session) }
-            Card("Tools from MCP servers") { McpServers(session) }
+            Card("Tools from MCP servers") { McpServers(session, openServer) }
         }
     }
 }
@@ -73,7 +73,12 @@ private fun HookTokens(session: FamiliarSession) {
     Muted("A hook token lets something else - Home Assistant, a script - have your familiar announce a message. It can't do anything else.")
     tokens.forEach { token ->
         ItemRow(token.name, token.lastUsedAt?.let { "last used ${formatInstant(it)}" } ?: "not used yet") {
-            TextButton(onClick = { scope.launch { runCatching { session.api.revokeHookToken(token.id) }; reload++ } }) { Text("Revoke") }
+            TextButton(onClick = {
+                scope.launch {
+                    runCatching { session.api.revokeHookToken(token.id) }.onFailure { error = it.shown("Couldn't revoke that token.") }
+                    reload++
+                }
+            }) { Text("Revoke") }
         }
     }
     created?.let { token ->
@@ -137,7 +142,12 @@ private fun Webhooks(session: FamiliarSession) {
                     reload++
                 }
             }) { Text("Test") }
-            TextButton(onClick = { scope.launch { runCatching { session.api.deleteWebhook(hook.id) }; reload++ } }) { Text("Remove") }
+            TextButton(onClick = {
+                scope.launch {
+                    runCatching { session.api.deleteWebhook(hook.id) }.onFailure { error = it.shown("Couldn't remove that webhook.") }
+                    reload++
+                }
+            }) { Text("Remove") }
         }
     }
     secret?.let { RevealSecret("Signing secret", it) }
@@ -244,53 +254,29 @@ private fun HomeAssistant(session: FamiliarSession) {
 }
 
 @Composable
-private fun McpServers(session: FamiliarSession) {
+private fun McpServers(session: FamiliarSession, openServer: (String) -> Unit) {
     val scope = rememberCoroutineScope()
+    val browser = LocalUriHandler.current
     var servers by remember { mutableStateOf<List<McpServerView>>(emptyList()) }
     var name by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("") }
     var token by remember { mutableStateOf("") }
+    var ownApp by remember { mutableStateOf(false) }
+    var clientId by remember { mutableStateOf("") }
+    var clientSecret by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var reload by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(reload) { runCatching { session.api.mcpServers() }.onSuccess { servers = it } }
+    LaunchedEffect(Unit) { runCatching { session.api.mcpServers() }.onSuccess { servers = it }.onFailure { error = it.shown() } }
 
-    fun act(block: suspend () -> Unit) {
-        busy = true
-        scope.launch {
-            runCatching { block() }.onFailure { error = it.shown() }
-            busy = false
-            reload++
-        }
-    }
-
-    Muted("Connect an MCP server (streamable HTTP) and your familiar can use its tools. Anything that isn't marked read-only asks you first. Fewer tools work better: up to eight are offered.")
+    Muted(
+        "Connect an MCP server (streamable HTTP) and your familiar can use its tools. Anything that isn't marked read-only " +
+            "asks you first. Servers you sign in to - Notion, Linear, Atlassian, Asana - open their sign-in page in the browser.",
+    )
     servers.forEach { server ->
         Divider()
-        ItemRow(
-            server.name,
-            listOfNotNull(server.urlHost, server.lastError ?: server.refreshedAt?.let { "${server.tools.size} tools" }).joinToString(" · "),
-            detailIsError = server.lastError != null,
-        ) {
-            TextButton(enabled = !busy, onClick = { act { session.api.refreshMcpServer(server.id) } }) { Text("Refresh") }
-            TextButton(enabled = !busy, onClick = { act { session.api.deleteMcpServer(server.id) } }) { Text("Remove") }
-        }
-        server.tools.forEach { tool ->
-            Row(verticalAlignment = Alignment.Top) {
-                Checkbox(checked = tool.enabled, onCheckedChange = { on ->
-                    val enabled = server.tools.filter { if (it.name == tool.name) on else it.enabled }.map { it.name }
-                    scope.launch {
-                        runCatching { session.api.setMcpTools(server.id, enabled) }
-                            .onSuccess { updated -> servers = servers.map { if (it.id == updated.id) updated else it } }
-                            .onFailure { error = it.shown() }
-                    }
-                })
-                Column(Modifier.weight(1f)) {
-                    Text(tool.name + if (tool.readOnly) "  · reads" else "  · asks first", fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
-                    tool.description?.let { Muted(it) }
-                }
-            }
+        ItemRow(server.name, mcpStatus(server), detailIsError = server.lastError != null, onClick = { openServer(server.id) }) {
+            Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
     Divider()
@@ -298,7 +284,7 @@ private fun McpServers(session: FamiliarSession) {
         name,
         { name = it.lowercase().filter { c -> c.isLetterOrDigit() }.take(16) },
         label = { Text("Name (lower-case; it prefixes the tool names)") },
-        placeholder = { Text("homeassistant") },
+        placeholder = { Text("notion") },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
@@ -306,7 +292,7 @@ private fun McpServers(session: FamiliarSession) {
         url,
         { url = it },
         label = { Text("Address") },
-        placeholder = { Text("http://homeassistant.local:8123/api/mcp") },
+        placeholder = { Text("https://mcp.notion.com/mcp") },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
         modifier = Modifier.fillMaxWidth(),
@@ -314,20 +300,52 @@ private fun McpServers(session: FamiliarSession) {
     OutlinedTextField(
         token,
         { token = it },
-        label = { Text("Access token (optional; sent as a bearer token)") },
+        label = { Text("Access token (optional; leave empty for servers you sign in to)") },
         singleLine = true,
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
         modifier = Modifier.fillMaxWidth(),
     )
+    if (ownApp) {
+        Muted(
+            "Make an OAuth app in the service's developer settings, with " +
+                "${session.signedIn.server.trimEnd('/')}/api/mcp/oauth/callback as its callback address, and give its client ID here.",
+        )
+        OutlinedTextField(clientId, { clientId = it }, label = { Text("Client ID") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            clientSecret,
+            { clientSecret = it },
+            label = { Text("Client secret (if it has one)") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    } else {
+        TextButton(onClick = { ownApp = true }) { Text("Its sign-in needs an app you register yourself (GitHub, say)") }
+    }
     BusyButton(if (busy) "Connecting…" else "Connect", busy, enabled = name.isNotEmpty() && name.first().isLetter() && url.isNotBlank()) {
         error = null
-        act {
-            val added = session.api.addMcpServer(McpServerRequest(name, url.trim(), token.ifBlank { null }))
-            added.lastError?.let { error = it }
-            name = ""
-            url = ""
-            token = ""
+        busy = true
+        scope.launch {
+            runCatching {
+                val added = session.api.addMcpServer(
+                    McpServerRequest(name, url.trim(), token.ifBlank { null }, clientId.trim().ifBlank { null }, clientSecret.trim().ifBlank { null }),
+                )
+                name = ""
+                url = ""
+                token = ""
+                clientId = ""
+                clientSecret = ""
+                ownApp = false
+                // It wants a sign-in: straight to the browser, and to its page for when the user's back.
+                if (added.signInNeeded) browser.openUri(session.api.signInMcpServer(added.id).authorizationUrl)
+                openServer(added.id)
+            }.onFailure {
+                error = it.shown("Couldn't add that server.")
+                runCatching { session.api.mcpServers() }.onSuccess { servers = it }
+            }
+            busy = false
         }
     }
     error?.let { ErrorText(it) }

@@ -21,6 +21,7 @@ import app.familiar.shared.session.FamiliarSessions
 import app.familiar.shared.ui.settings.AccountScreen
 import app.familiar.shared.ui.settings.CalendarsScreen
 import app.familiar.shared.ui.settings.ConnectionsScreen
+import app.familiar.shared.ui.settings.McpServerScreen
 import app.familiar.shared.ui.settings.DevicesScreen
 import app.familiar.shared.ui.settings.FamiliarSettingsScreen
 import app.familiar.shared.ui.settings.MemoriesScreen
@@ -93,18 +94,22 @@ fun FamiliarApp(
             }
 
             // Where the user is: the chat, Settings and its screens, the studio. A path of routes
-            // ("Chat/Settings/Memories"), kept across the activity being recreated (unfolding).
+            // ("Chat/Settings/Memories"), kept across the activity being recreated (unfolding). A
+            // screen about one thing carries its id after a colon ("…/Connections/McpServer:<id>").
             var path by rememberSaveable(current.username) { mutableStateOf(Route.Chat.name) }
             val open = { route: Route -> path = "$path/${route.name}" }
+            val openOne = { route: Route, id: String -> path = "$path/${route.name}:$id" }
             val back = { path = path.substringBeforeLast('/', Route.Chat.name) }
-            when (Route.valueOf(path.substringAfterLast('/'))) {
+            val here = path.substringAfterLast('/')
+            when (Route.valueOf(here.substringBefore(':'))) {
                 Route.Chat -> ChatScreen(session, actions, open, pictures)
                 Route.Settings -> SettingsScreen(session, open, back)
                 Route.Familiar -> FamiliarSettingsScreen(session, back)
                 Route.Studio -> StudioScreen(session, files, back)
                 Route.Memories -> MemoriesScreen(session, back)
                 Route.Calendars -> CalendarsScreen(session, back)
-                Route.Connections -> ConnectionsScreen(session, back)
+                Route.Connections -> ConnectionsScreen(session, { id -> openOne(Route.McpServer, id) }, back)
+                Route.McpServer -> McpServerScreen(session, here.substringAfter(':'), back)
                 Route.Account -> AccountScreen(session, back)
                 Route.Devices -> DevicesScreen(session, background, back)
             }
