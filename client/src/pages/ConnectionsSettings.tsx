@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router';
 import { api } from '../api/client';
+import { Accordion } from '../components/Accordion';
 
 // Hooks (PLAN.md §6.5): Home Assistant's devices for the familiar to work (BACKLOG item 29), other
 // systems making the familiar speak (hook tokens), the familiar telling other systems what happened
@@ -94,7 +95,7 @@ function HookTokens() {
                 <strong>{t.name}</strong>
                 <span className="muted">{t.lastUsedAt ? `last used ${dateFormat.format(new Date(t.lastUsedAt))}` : 'not used yet'}</span>
               </div>
-              <button type="button" className="secondary" onClick={() => void api<void>(`/api/hooks/tokens/${t.id}`, { method: 'DELETE' }).then(load)}>Revoke</button>
+              <button type="button" className="secondary" onClick={() => void api<void>(`/api/hooks/tokens/${t.id}`, { method: 'DELETE' }).then(load, (e: unknown) => setError(message(e, 'Couldn’t revoke that token.')))}>Revoke</button>
             </li>
           ))}
         </ul>
@@ -187,7 +188,7 @@ function Webhooks() {
               </div>
               <span className="row-actions">
                 <button type="button" className="link" disabled={busy} onClick={() => void test(h.id)}>Send a test</button>
-                <button type="button" className="secondary" onClick={() => void api<void>(`/api/webhooks/${h.id}`, { method: 'DELETE' }).then(load)}>Remove</button>
+                <button type="button" className="secondary" onClick={() => void api<void>(`/api/webhooks/${h.id}`, { method: 'DELETE' }).then(load, (e: unknown) => setError(message(e, 'Couldn’t remove that webhook.')))}>Remove</button>
               </span>
             </li>
           ))}
@@ -286,10 +287,13 @@ function McpServers() {
     setServers((list) => list.map((s) => (s.id === updated.id ? updated : s)));
   }
 
-  async function act(action: Promise<unknown>) {
+  async function act(action: Promise<unknown>, failed: string) {
     setBusy(true);
+    setError(null);
     try {
       await action;
+    } catch (e) {
+      setError(message(e, failed));
     } finally {
       setBusy(false);
       load();
@@ -322,16 +326,13 @@ function McpServers() {
                   {s.signInNeeded ? 'Sign in' : 'Sign in again'}
                 </button>
               )}
-              <button type="button" className="link" disabled={busy} onClick={() => void act(api(`/api/mcp/${s.id}/refresh`, { method: 'POST' }))}>Refresh</button>
-              <button type="button" className="secondary" disabled={busy} onClick={() => void act(api(`/api/mcp/${s.id}`, { method: 'DELETE' }))}>Remove</button>
+              <button type="button" className="link" disabled={busy} onClick={() => void act(api(`/api/mcp/${s.id}/refresh`, { method: 'POST' }), `Couldn’t refresh ${s.name}.`)}>Refresh</button>
+              <button type="button" className="secondary" disabled={busy} onClick={() => void act(api(`/api/mcp/${s.id}`, { method: 'DELETE' }), `Couldn’t remove ${s.name}.`)}>Remove</button>
             </span>
           </div>
           {/* Closed by default: a hosted server can offer fifty tools with paragraph-long descriptions. */}
           {s.tools.length > 0 && (
-            <details className="tool-picker">
-              <summary className="muted small">
-                {s.tools.filter((t) => t.enabled).length} of {s.tools.length} tools on — choose
-              </summary>
+            <Accordion title="Tools" detail={`${s.tools.filter((t) => t.enabled).length} of ${s.tools.length} on`}>
               <ul className="tool-list">
                 {s.tools.map((t) => (
                   <li key={t.name}>
@@ -345,7 +346,7 @@ function McpServers() {
                   </li>
                 ))}
               </ul>
-            </details>
+            </Accordion>
           )}
         </div>
       ))}
@@ -439,7 +440,7 @@ function HomeAssistant() {
             <div>
               <strong>{home.urlHost}</strong>
               <span className={home.lastError ? 'error small' : 'muted small'}>
-                {' '}· {home.lastError ?? `${home.devices.length} devices`}
+                {home.lastError ? ` · ${home.lastError}` : ''}
               </span>
             </div>
             <span className="row-actions">
@@ -451,11 +452,16 @@ function HomeAssistant() {
             </span>
           </div>
           {rooms.size > 0 && (
-            <ul className="tool-list">
-              {[...rooms].map(([room, names]) => (
-                <li key={room}><strong>{room}</strong><span className="muted small"> — {names.join(', ')}</span></li>
-              ))}
-            </ul>
+            <Accordion
+              title="Devices"
+              detail={`${home.devices.length} in ${rooms.size} ${rooms.size === 1 ? 'room' : 'rooms'}`}
+            >
+              <ul className="tool-list">
+                {[...rooms].map(([room, names]) => (
+                  <li key={room}><strong>{room}</strong><span className="muted small"> — {names.join(', ')}</span></li>
+                ))}
+              </ul>
+            </Accordion>
           )}
         </div>
       )}

@@ -58,8 +58,11 @@ export function CalendarSettings() {
 
   async function act(action: Promise<unknown>) {
     setBusy(true);
+    setError(null);
     try {
       await action;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'That didn’t work.');
     } finally {
       setBusy(false);
       load();
