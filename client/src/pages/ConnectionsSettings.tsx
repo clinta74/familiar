@@ -313,7 +313,7 @@ function McpServers() {
               <strong>{s.name}</strong>
               <span className={s.lastError ? 'error small' : 'muted small'}>
                 {' '}· {s.urlHost}{s.auth === 'signIn' && !s.signInNeeded ? ' · signed in' : ''}
-                {s.lastError ? ` · ${s.lastError}` : s.refreshedAt ? ` · ${s.tools.length} tools` : ''}
+                {s.lastError ? ` · ${s.lastError}` : ''}
               </span>
             </div>
             <span className="row-actions">
@@ -326,19 +326,27 @@ function McpServers() {
               <button type="button" className="secondary" disabled={busy} onClick={() => void act(api(`/api/mcp/${s.id}`, { method: 'DELETE' }))}>Remove</button>
             </span>
           </div>
-          <ul className="tool-list">
-            {s.tools.map((t) => (
-              <li key={t.name}>
-                <label className="check">
-                  <input type="checkbox" checked={t.enabled} onChange={(e) => void setTool(s, t.name, e.target.checked)} />
-                  <span>
-                    <code>{t.name}</code> <span className={`risk ${t.readOnly ? 'read' : 'write'}`}>{t.readOnly ? 'reads' : 'asks first'}</span>
-                    {t.description && <span className="muted small"> — {t.description}</span>}
-                  </span>
-                </label>
-              </li>
-            ))}
-          </ul>
+          {/* Closed by default: a hosted server can offer fifty tools with paragraph-long descriptions. */}
+          {s.tools.length > 0 && (
+            <details className="tool-picker">
+              <summary className="muted small">
+                {s.tools.filter((t) => t.enabled).length} of {s.tools.length} tools on — choose
+              </summary>
+              <ul className="tool-list">
+                {s.tools.map((t) => (
+                  <li key={t.name}>
+                    <label className="check">
+                      <input type="checkbox" checked={t.enabled} onChange={(e) => void setTool(s, t.name, e.target.checked)} />
+                      <span className="tool-line" title={t.description ?? undefined}>
+                        <code>{t.name}</code> <span className={`risk ${t.readOnly ? 'read' : 'write'}`}>{t.readOnly ? 'reads' : 'asks first'}</span>
+                        {t.description && <span className="muted small"> — {t.description}</span>}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </div>
       ))}
       <form className="stack" onSubmit={add}>

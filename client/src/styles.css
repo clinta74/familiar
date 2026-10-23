@@ -1184,6 +1184,8 @@ pre.snippet {
 
 .mcp-server {
   display: grid;
+  /* minmax(0, …): a tool's one-line description is cut short rather than widening the page. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
@@ -1194,7 +1196,25 @@ pre.snippet {
   margin: 0;
   padding: 0 0 0 4px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
+}
+
+.tool-picker summary {
+  cursor: pointer;
+  width: fit-content;
+}
+
+.tool-picker[open] summary {
+  margin-bottom: 6px;
+}
+
+/* One line per tool; the whole description is in the tooltip. */
+.tool-line {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .risk {
