@@ -157,6 +157,9 @@ internal static partial class ServerLog
     [LoggerMessage(113, LogLevel.Information, "Offering {Offered} of {Enabled} MCP tools, chosen by what was asked: {Tools}")]
     public static partial void McpToolsOffered(this ILogger logger, int offered, int enabled, string tools);
 
+    [LoggerMessage(117, LogLevel.Warning, "MCP server {Server} said {Tool} failed: {Error}")]
+    public static partial void McpToolError(this ILogger logger, string server, string tool, string error);
+
     [LoggerMessage(116, LogLevel.Information, "Tool {Tool} wasn't called, its arguments not complete: {Arguments}")]
     public static partial void ToolCallIncomplete(this ILogger logger, string tool, string arguments);
 

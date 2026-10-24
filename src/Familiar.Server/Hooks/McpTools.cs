@@ -285,6 +285,9 @@ public sealed partial class McpTools(
                 return ToolResult.Success(new JsonObject { ["ok"] = true, ["result"] = output }, summary);
             }
 
+            // What the server said, for whoever reads the log: the chat only shows that it failed.
+            logger.McpToolError(server.Name, tool.Name, output.Length > 500 ? output[..500] + "..." : output);
+
             // It was offered in short: with the error, what it takes in full, so the next try can be right.
             var error = $"{(output.Length > 0 ? output : "The tool reported an error.")} Its parameters: {ParameterList(Slim(tool.InputSchema))}";
             return ToolResult.Failure(error.Length > 4000 ? error[..4000] + "..." : error, $"{summary} failed");
