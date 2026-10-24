@@ -154,6 +154,12 @@ internal static partial class ServerLog
     [LoggerMessage(111, LogLevel.Warning, "Webhook {WebhookId} didn't take {Event}: {Result}")]
     public static partial void WebhookRejected(this ILogger logger, Guid webhookId, string @event, string result);
 
+    [LoggerMessage(113, LogLevel.Information, "Offering {Offered} of {Enabled} MCP tools, chosen by what was asked: {Tools}")]
+    public static partial void McpToolsOffered(this ILogger logger, int offered, int enabled, string tools);
+
+    [LoggerMessage(114, LogLevel.Warning, "Couldn't rank MCP tools by what was asked, so a share of each server's is offered: {Reason}")]
+    public static partial void McpToolsUnranked(this ILogger logger, string reason);
+
     [LoggerMessage(45, LogLevel.Information, "Models loaded and kept warm: {Model}, {EmbeddingModel}")]
     public static partial void ModelsWarmed(this ILogger logger, string model, string embeddingModel);
 

@@ -106,12 +106,16 @@ public sealed partial class ToolExecutor(
             .Where(t => t.Definition.Risk != ToolRisk.LookUp || context.LookUps)
             .Where(t => t is not Devices.IPhoneTool phone || devices.Find(context.AccountId, phone.Capability, context.From, browsers: context.LookUps) is not null)
             .Select(t => t.Definition),
-        .. (await AccountToolsAsync(context.AccountId, ct)).Select(t => t.Definition),
+        .. (await home.ToolsForAsync(context.AccountId, ct)).Select(t => t.Definition),
+        .. (await mcp.OfferedAsync(context.AccountId, context.Asked, ct)).Select(t => t.Definition),
     ];
 
-    /// <summary>The tools that come from what the account has connected: Home Assistant, MCP servers.</summary>
+    /// <summary>
+    /// The tools that come from what the account has connected: Home Assistant, and every MCP tool
+    /// switched on (not only this turn's offer, which is chosen by what was asked).
+    /// </summary>
     private async Task<IReadOnlyList<ITool>> AccountToolsAsync(Guid accountId, CancellationToken ct) =>
-        [.. await home.ToolsForAsync(accountId, ct), .. await mcp.ToolsForAsync(accountId, ct)];
+        [.. await home.ToolsForAsync(accountId, ct), .. await mcp.EnabledAsync(accountId, ct)];
 
     public async Task<ToolResult> ExecuteAsync(ToolCall call, ToolContext context, CancellationToken ct)
     {

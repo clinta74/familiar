@@ -28,9 +28,13 @@ public sealed record ToolCall(string Id, string Name, JsonObject Arguments);
 /// The web addresses the user wrote in their recent messages: the only pages read_link may read
 /// (BACKLOG item 34), so text from elsewhere can't send it to one.
 /// </param>
+/// <param name="Asked">
+/// What the user said this turn: when they've switched on more MCP tools than the model is offered,
+/// the ones offered are those that fit it best.
+/// </param>
 public sealed record ToolContext(
     Guid AccountId, Guid ReplyId, TimeZoneInfo Zone, DateTimeOffset Now, bool LookUps = false, string? HomePlace = null, string? From = null,
-    HomeLocation? Home = null, IReadOnlyList<string>? UserLinks = null)
+    HomeLocation? Home = null, IReadOnlyList<string>? UserLinks = null, string? Asked = null)
 {
     /// <summary>What this reply's tools have done so far.</summary>
     public ToolTurn Turn { get; } = new();

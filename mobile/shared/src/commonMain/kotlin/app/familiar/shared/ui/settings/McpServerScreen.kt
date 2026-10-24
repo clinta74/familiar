@@ -118,7 +118,8 @@ fun McpServerScreen(session: FamiliarSession, id: String, onBack: () -> Unit) {
                         Card("Tools") {
                             Muted(
                                 "${current.tools.count { it.enabled }} of ${current.tools.size} on. Anything that isn't marked read-only " +
-                                    "asks you first. Fewer work better: up to eight are offered, across all your servers.",
+                                    "asks you first. Switch on as many as you like: each message is offered the eight, across " +
+                                    "all your servers, that fit it best.",
                             )
                             current.tools.forEach { tool ->
                                 Divider()

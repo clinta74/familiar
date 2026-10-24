@@ -260,7 +260,7 @@ public sealed class HookTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task A_new_servers_read_only_tools_go_on_first_and_servers_share_the_places_offered()
+    public async Task Each_turn_is_offered_the_mcp_tools_that_fit_it_and_the_offer_holds_until_the_subject_moves()
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -272,25 +272,52 @@ public sealed class HookTests(PostgresFixture postgres)
 
         await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync(),
             services: s => s.AddHttpClient(nameof(McpTools)).ConfigurePrimaryHttpMessageHandler(() => handler));
-        app.Llm.ThenSay("[relaxed:0.5] Hello.");
         var client = await SignedInAsync(app);
 
         var home = await (await client.PostAsJsonAsync("/api/mcp", new McpServerRequest("home", "http://shelves.test/mcp", null))).ReadAsync<McpServerView>();
         await client.PostAsJsonAsync("/api/mcp", new McpServerRequest("work", "http://shelves.test/mcp", null));
 
-        // All four readers, then writes in the server's order to make up the eight.
+        // Every reader on, and writes only to make up the eight: sixteen on across the two.
         Assert.Equal(8, home.Tools.Count(t => t.Enabled));
         Assert.All(home.Tools.Where(t => t.ReadOnly), t => Assert.True(t.Enabled, t.Name));
 
-        // Eight places, taken in turns: four each, rather than the first server's eight.
         await using var stream = await SseClient.ConnectAsync(client);
         await stream.ReadUntilAsync(EventTypes.Ready);
-        await client.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("hello", "UTC"));
+        async Task<List<string>> OfferedForAsync(string text)
+        {
+            app.Llm.ThenSay("[relaxed:0.5] Right.");
+            await client.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest(text, "UTC"));
+            await stream.ReadUntilStateAsync(FamiliarState.Idle);
+            return [.. app.Llm.LastTools!.Select(t => t.Name).Where(n => n.StartsWith("home_", StringComparison.Ordinal) || n.StartsWith("work_", StringComparison.Ordinal))];
+        }
+
+        // Eight of the sixteen: those that fit what was asked.
+        var books = await OfferedForAsync("search my books please");
+        Assert.Equal(8, books.Count);
+        Assert.Contains("home_search_books", books);
+        Assert.Contains("work_search_books", books);
+
+        // Small talk fits nothing in particular: the same eight, in the same order (the prompt's head unchanged).
+        Assert.Equal(books, await OfferedForAsync("thanks, that's lovely"));
+
+        // A new subject: a new offer.
+        var shelvesOffered = await OfferedForAsync("list the shelves");
+        Assert.Contains("home_list_shelves", shelvesOffered);
+        Assert.Contains("work_list_shelves", shelvesOffered);
+
+        // Every one switched on can still be run, offered this turn or not.
+        app.Llm.ThenCall("work_search_books", "{}").ThenSay("[relaxed:0.5] Found them.");
+        await client.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("and the shelves again?", "UTC"));
         await stream.ReadUntilStateAsync(FamiliarState.Idle);
-        var offered = app.Llm.LastTools!.Select(t => t.Name).Where(n => n.StartsWith("home_", StringComparison.Ordinal) || n.StartsWith("work_", StringComparison.Ordinal)).ToList();
-        Assert.Equal(8, offered.Count);
-        Assert.Equal(4, offered.Count(n => n.StartsWith("home_", StringComparison.Ordinal)));
-        Assert.Contains("work_get_book", offered);
+        Assert.Contains("found", app.Llm.LastPrompt!.Last(m => m.Role == ChatRole.Tool).Content, StringComparison.Ordinal);
+
+        // No embeddings: a share of each server's, read-only first.
+        app.Embedder.Down = true;
+        await client.PutAsJsonAsync($"/api/mcp/{home.Id}/tools", new McpToolsRequest([.. home.Tools.Where(t => t.ReadOnly).Select(t => t.Name), "add_book"]));
+        var shared = await OfferedForAsync("anything at all");
+        Assert.Equal(8, shared.Count);
+        Assert.Equal(4, shared.Count(n => n.StartsWith("home_", StringComparison.Ordinal)));
+        Assert.DoesNotContain("home_add_book", shared);
     }
 
     [Fact]

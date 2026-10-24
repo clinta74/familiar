@@ -78,3 +78,35 @@ public sealed class SnakeCaseNamingTests
     public void Converts(string input, string expected) =>
         Assert.Equal(expected, SnakeCaseNaming.ToSnakeCase(input));
 }
+
+public sealed class McpToolChoiceTests
+{
+    private static Dictionary<string, double> Scores(params (string Name, double Score)[] scores) =>
+        scores.ToDictionary(s => s.Name, s => s.Score);
+
+    [Fact]
+    public void The_best_fits_are_offered_in_name_order()
+    {
+        var chosen = Familiar.Server.Hooks.McpTools.Choose(Scores(("d", 0.9), ("a", 0.1), ("c", 0.8), ("b", 0.7)), previous: null, count: 3);
+        Assert.Equal(["b", "c", "d"], chosen);
+    }
+
+    [Fact]
+    public void Last_turns_offer_stands_while_it_still_nearly_fits_best()
+    {
+        var previous = new[] { "c", "a" };
+
+        // Its best (c, 0.75) is within a tenth of the best (d, 0.8): unchanged, so the prompt's head is.
+        Assert.Same(previous, Familiar.Server.Hooks.McpTools.Choose(Scores(("a", 0.2), ("b", 0.1), ("c", 0.75), ("d", 0.8)), previous, 2));
+
+        // Small talk fits nothing: unchanged too.
+        Assert.Same(previous, Familiar.Server.Hooks.McpTools.Choose(Scores(("a", 0), ("b", 0), ("c", 0), ("d", 0)), previous, 2));
+    }
+
+    [Fact]
+    public void A_new_subject_or_a_tool_switched_off_makes_a_new_offer()
+    {
+        Assert.Equal(["b", "d"], Familiar.Server.Hooks.McpTools.Choose(Scores(("a", 0.2), ("b", 0.6), ("c", 0.3), ("d", 0.9)), ["c", "a"], 2));
+        Assert.Equal(["b", "c"], Familiar.Server.Hooks.McpTools.Choose(Scores(("b", 0.5), ("c", 0.4)), ["c", "a"], 2));
+    }
+}

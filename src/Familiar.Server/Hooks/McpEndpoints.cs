@@ -338,9 +338,9 @@ public static partial class McpEndpoints
     /// <summary>
     /// Asks the server for its tools. A failure is recorded rather than thrown, so a server that's
     /// down can still be added, fixed and refreshed. New tools start switched on only when the server
-    /// is first added, and then only as many as the model is offered: the read-only ones first. A
-    /// server's own order is often alphabetical, and GitHub's first eight were all writes
-    /// (delete_file among them), which left the familiar unable to look anything up.
+    /// is first added: every one that only reads (each turn is offered those that fit it best), and
+    /// writes only to make up as many as the model is offered. GitHub's first eight, in its own
+    /// alphabetical order, were all writes, delete_file among them.
     /// </summary>
     private static async Task RefreshToolsAsync(McpServer server, McpTools mcp, TimeProvider clock, bool enableAll, CancellationToken ct)
     {
@@ -349,7 +349,9 @@ public static partial class McpEndpoints
             var tools = await mcp.ListAsync(server, ct);
             server.ToolsJson = JsonSerializer.Serialize(tools, Json);
             server.EnabledTools = enableAll
-                ? [.. tools.OrderBy(t => !t.ReadOnly).Take(McpTools.MaxOfferedTools).Select(t => t.Name)]
+                ? [.. tools.Where(t => t.ReadOnly)
+                    .Concat(tools.Where(t => !t.ReadOnly).Take(Math.Max(0, McpTools.MaxOfferedTools - tools.Count(t => t.ReadOnly))))
+                    .Select(t => t.Name)]
                 : [.. server.EnabledTools.Where(name => tools.Any(t => t.Name == name))];
             server.RefreshedAt = clock.GetUtcNow();
             server.LastError = null;

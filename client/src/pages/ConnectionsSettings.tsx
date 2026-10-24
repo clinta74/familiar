@@ -305,7 +305,8 @@ function McpServers() {
       <h3>Tools from MCP servers</h3>
       <p className="muted">
         Connect an MCP server (streamable HTTP) and your familiar can use its tools. Anything that isn’t marked read-only
-        asks you first. Fewer tools work better: up to eight are offered. Servers you sign in to — Notion, Linear,
+        asks you first. Switch on as many tools as you like: each message is offered the eight that fit it best. Servers
+        you sign in to — Notion, Linear,
         Atlassian, Asana — send you to their sign-in page and back here.
       </p>
       {returned.error && <p className="error" role="alert">{returned.name ? `${returned.name}: ` : ''}{returned.error}</p>}

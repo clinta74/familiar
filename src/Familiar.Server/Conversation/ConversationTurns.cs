@@ -501,7 +501,7 @@ public sealed class ConversationTurns(
 
             var runner = scope.ServiceProvider.GetRequiredService<TurnRunner>();
             var toolContext = new ToolContext(accountId, replyId, request.Zone, clock.GetUtcNow(), profile.LookUps, profile.HomePlace, request.From, home,
-                UserLinks(history, userMessage));
+                UserLinks(history, userMessage), userMessage?.Content);
             // Words in a picture are someone else's, like a look-up's: changes after it ask first.
             toolContext.Turn.OutsideText = image is not null;
 

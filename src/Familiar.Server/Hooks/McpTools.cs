@@ -1,8 +1,10 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using Familiar.Agent.Llm;
 using Familiar.Agent.Tools;
 using Familiar.Domain.Hooks;
 using Familiar.Domain.Tools;
@@ -34,15 +36,28 @@ public sealed partial class McpTools(
     IDbContextFactory<FamiliarDbContext> db,
     IDataProtectionProvider protection,
     McpOAuth oauth,
+    IEmbedder embedder,
     IHttpClientFactory httpFactory,
     ILoggerFactory loggers)
 {
-    /// <summary>Small models choose worse among many tools; this many are offered at most, across servers.</summary>
+    /// <summary>
+    /// Small models choose worse among many tools, and every tool offered is read with every prompt:
+    /// this many are offered at most, across servers. More can be switched on; then each turn gets
+    /// those that fit it best.
+    /// </summary>
     public const int MaxOfferedTools = 8;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     internal IDataProtector Protector { get; } = protection.CreateProtector("Familiar.Hooks.Mcp");
+
+    private readonly ILogger logger = loggers.CreateLogger<McpTools>();
+
+    /// <summary>Each account's last offer, by model name: kept while it still fits (<see cref="Choose"/>).</summary>
+    private readonly ConcurrentDictionary<Guid, IReadOnlyList<string>> lastOffered = new();
+
+    /// <summary>Tools' embeddings, by the words embedded: worked out the first time a tool's in the running.</summary>
+    private readonly ConcurrentDictionary<string, float[]> toolEmbeddings = new();
 
     /// <summary>The name the model sees: the server's name, then the tool's, reduced to what tool names allow.</summary>
     public static string ModelName(string server, string tool)
@@ -65,8 +80,72 @@ public sealed partial class McpTools(
             t.ProtocolTool.Annotations?.ReadOnlyHint == true))];
     }, ct);
 
-    /// <summary>The enabled MCP tools for an account, ready to offer the model.</summary>
-    public async Task<IReadOnlyList<ITool>> ToolsForAsync(Guid accountId, CancellationToken ct)
+    /// <summary>Every MCP tool the account has switched on, server by server: what the familiar may run.</summary>
+    public async Task<IReadOnlyList<ITool>> EnabledAsync(Guid accountId, CancellationToken ct) =>
+        [.. (await EnabledByServerAsync(accountId, ct)).SelectMany(tools => tools)];
+
+    /// <summary>
+    /// The MCP tools to offer the model this turn. When more are switched on than it's offered, the
+    /// ones that fit what was asked best (by embedding), kept from the last turn while they still fit
+    /// (see <see cref="Choose"/>); when that can't be worked out, a share of each server's.
+    /// </summary>
+    public async Task<IReadOnlyList<ITool>> OfferedAsync(Guid accountId, string? asked, CancellationToken ct)
+    {
+        var perServer = await EnabledByServerAsync(accountId, ct);
+        var enabled = perServer.SelectMany(tools => tools).ToList();
+        if (enabled.Count <= MaxOfferedTools)
+        {
+            return enabled;
+        }
+
+        if (!string.IsNullOrWhiteSpace(asked) && await ScoreAsync(enabled, asked, ct) is { } scores)
+        {
+            var previous = lastOffered.GetValueOrDefault(accountId);
+            var chosen = Choose(scores, previous, MaxOfferedTools);
+            if (previous is null || !chosen.SequenceEqual(previous))
+            {
+                logger.McpToolsOffered(chosen.Count, enabled.Count, string.Join(", ", chosen));
+            }
+
+            lastOffered[accountId] = chosen;
+            var byName = enabled.ToDictionary(t => t.Definition.Name, StringComparer.Ordinal);
+            return [.. chosen.Select(name => byName[name])];
+        }
+
+        // No message (a picture alone) or no embeddings: last turn's offer if it still holds, else a
+        // share of each server's, read-only first.
+        if (lastOffered.GetValueOrDefault(accountId) is { } kept
+            && enabled.Where(t => kept.Contains(t.Definition.Name)).ToList() is { } stillThere && stillThere.Count == kept.Count)
+        {
+            return [.. kept.Select(name => stillThere.First(t => t.Definition.Name == name))];
+        }
+
+        return Shares(perServer);
+    }
+
+    /// <summary>
+    /// The tools to offer, by name, from how well each fits what was asked. Last turn's choice stands,
+    /// in the same order, while its best fit is nearly as good as the best overall: the tools head the
+    /// prompt, so a different set means the model reading the whole conversation again (about a second
+    /// on the NAS), and small talk fits nothing in particular. A new choice is ordered by name, so the
+    /// same tools always read the same.
+    /// </summary>
+    internal static IReadOnlyList<string> Choose(IReadOnlyDictionary<string, double> scores, IReadOnlyList<string>? previous, int count)
+    {
+        var best = scores.Values.Max();
+        if (previous is not null && previous.All(scores.ContainsKey)
+            && previous.Max(name => scores[name]) >= best - (Math.Abs(best) * StickyMargin))
+        {
+            return previous;
+        }
+
+        return [.. scores.OrderByDescending(s => s.Value).ThenBy(s => s.Key, StringComparer.Ordinal).Take(count).Select(s => s.Key).Order(StringComparer.Ordinal)];
+    }
+
+    /// <summary>Last turn's tools stay while their best fit is within this fraction of the best.</summary>
+    internal const double StickyMargin = 0.1;
+
+    private async Task<List<List<ITool>>> EnabledByServerAsync(Guid accountId, CancellationToken ct)
     {
         await using var context = await db.CreateDbContextAsync(ct);
         var servers = await context.McpServers.AsNoTracking()
@@ -74,16 +153,17 @@ public sealed partial class McpTools(
             .OrderBy(s => s.CreatedAt)
             .ToListAsync(ct);
 
-        // Taken in turns, a tool from each server and round again, so the first server added can't
-        // fill every place and leave a later one's tools never offered; within a server, the ones
-        // that only read first, as they're what's left out last.
-        var perServer = servers
-            .Select(server => ToolsOf(server)
-                .Where(t => server.EnabledTools.Contains(t.Name))
-                .OrderBy(t => !t.ReadOnly)
-                .Select(t => (ITool)new McpTool(this, server, t))
-                .ToList())
-            .ToList();
+        // Within a server, the ones that only read first: they're what's left out last.
+        return [.. servers.Select(server => ToolsOf(server)
+            .Where(t => server.EnabledTools.Contains(t.Name))
+            .OrderBy(t => !t.ReadOnly)
+            .Select(t => (ITool)new McpTool(this, server, t))
+            .ToList())];
+    }
+
+    /// <summary>Taken in turns, a tool from each server and round again, so no one server fills every place.</summary>
+    private static List<ITool> Shares(List<List<ITool>> perServer)
+    {
         var offered = new List<ITool>();
         for (var round = 0; offered.Count < MaxOfferedTools && perServer.Any(tools => tools.Count > round); round++)
         {
@@ -91,6 +171,49 @@ public sealed partial class McpTools(
         }
 
         return offered;
+    }
+
+    /// <summary>How well each tool fits what was asked (cosine similarity), by model name; null if it can't be told.</summary>
+    private async Task<Dictionary<string, double>?> ScoreAsync(List<ITool> tools, string asked, CancellationToken ct)
+    {
+        try
+        {
+            var query = await embedder.EmbedAsync(asked.Length > 1000 ? asked[..1000] : asked, EmbeddingPurpose.Query, ct);
+            var scores = new Dictionary<string, double>(StringComparer.Ordinal);
+            foreach (var tool in tools)
+            {
+                // What the tool is, in words: its server, its name split into words, what it says it does.
+                var definition = tool.Definition;
+                var text = $"{definition.Name.Replace('_', ' ').Replace('-', ' ')}. {definition.Description}";
+                if (!toolEmbeddings.TryGetValue(text, out var vector))
+                {
+                    vector = await embedder.EmbedAsync(text, EmbeddingPurpose.Document, ct);
+                    toolEmbeddings[text] = vector;
+                }
+
+                scores[definition.Name] = Cosine(query, vector);
+            }
+
+            return scores;
+        }
+        catch (LlmUnavailableException exception)
+        {
+            logger.McpToolsUnranked(exception.Message);
+            return null;
+        }
+    }
+
+    private static double Cosine(float[] a, float[] b)
+    {
+        double dot = 0, aa = 0, bb = 0;
+        for (var i = 0; i < Math.Min(a.Length, b.Length); i++)
+        {
+            dot += a[i] * b[i];
+            aa += a[i] * a[i];
+            bb += b[i] * b[i];
+        }
+
+        return aa == 0 || bb == 0 ? 0 : dot / Math.Sqrt(aa * bb);
     }
 
     internal async Task<ToolResult> CallAsync(McpServer server, McpToolInfo tool, JsonObject arguments, CancellationToken ct)
