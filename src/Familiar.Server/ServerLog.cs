@@ -157,6 +157,9 @@ internal static partial class ServerLog
     [LoggerMessage(113, LogLevel.Information, "Offering {Offered} of {Enabled} MCP tools, chosen by what was asked: {Tools}")]
     public static partial void McpToolsOffered(this ILogger logger, int offered, int enabled, string tools);
 
+    [LoggerMessage(116, LogLevel.Information, "Tool {Tool} wasn't called, its arguments not complete: {Arguments}")]
+    public static partial void ToolCallIncomplete(this ILogger logger, string tool, string arguments);
+
     [LoggerMessage(115, LogLevel.Information, "Left the oldest {Dropped} of {History} messages out of the prompt to fit the model's window (about {Tokens} tokens with its tools)")]
     public static partial void HistoryTrimmed(this ILogger logger, int dropped, int history, int tokens);
 

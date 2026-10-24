@@ -48,6 +48,33 @@ public sealed class PromptBudgetTests
     }
 
     [Fact]
+    public void Parameters_named_like_schema_words_are_kept()
+    {
+        // GitHub's issue_write: its title went with the schema keyword "title", so no issue could have one.
+        var schema = (JsonObject)JsonNode.Parse("""
+            {
+              "type": "object",
+              "title": "IssueWrite",
+              "required": ["method"],
+              "properties": {
+                "method": { "type": "string", "enum": ["create", "update"] },
+                "title": { "type": "string", "description": "Issue title", "title": "Title" },
+                "default": { "type": "boolean" },
+                "format": { "type": "string" }
+              }
+            }
+            """)!;
+
+        var slim = McpTools.Slim(schema);
+
+        Assert.Null(slim["title"]);
+        Assert.Equal(["method", "title", "default", "format"], slim["properties"]!.AsObject().Select(p => p.Key));
+        Assert.Equal("""{"type":"string","description":"Issue title"}""", slim["properties"]!["title"]!.ToJsonString());
+        Assert.Contains("title (string): Issue title", McpTools.ParameterList(slim), StringComparison.Ordinal);
+        Assert.Equal(4, McpTools.Compact(slim)["properties"]!.AsObject().Count);
+    }
+
+    [Fact]
     public void An_mcp_schema_in_short_and_in_words()
     {
         var slim = (JsonObject)JsonNode.Parse("""

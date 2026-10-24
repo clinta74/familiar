@@ -131,6 +131,7 @@ public sealed partial class ToolExecutor(
         // nothing has run, so there's nothing to allow or to record.
         if (tool is IArgumentCheck check && check.Check(call.Arguments) is { } incomplete)
         {
+            logger.ToolCallIncomplete(call.Name, call.Arguments.ToJsonString());
             return incomplete;
         }
 

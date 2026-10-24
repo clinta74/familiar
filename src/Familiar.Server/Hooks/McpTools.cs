@@ -392,8 +392,8 @@ public sealed partial class McpTools(
                         continue;
                     }
 
-                    slim[key] = key == "description" && value?.GetValueKind() == JsonValueKind.String
-                        ? FirstSentence(value.GetValue<string>())
+                    slim[key] = key == "description" && value?.GetValueKind() == JsonValueKind.String ? FirstSentence(value.GetValue<string>())
+                        : key is "properties" or "$defs" or "definitions" && value is JsonObject named ? SlimNamed(named)
                         : SlimNode(value);
                 }
 
@@ -403,6 +403,22 @@ public sealed partial class McpTools(
             default:
                 return node?.DeepClone();
         }
+    }
+
+    /// <summary>
+    /// A map of names to schemas (<c>properties</c>, <c>$defs</c>): the names are the parameters', kept
+    /// whatever they are. GitHub's issue_write has one called <c>title</c>, and dropped with the schema
+    /// keyword of that name, no issue could be given one.
+    /// </summary>
+    private static JsonObject SlimNamed(JsonObject named)
+    {
+        var slim = new JsonObject();
+        foreach (var (name, schema) in named)
+        {
+            slim[name] = SlimNode(schema);
+        }
+
+        return slim;
     }
 
     private static bool IsNullType(JsonNode? alternative) =>
