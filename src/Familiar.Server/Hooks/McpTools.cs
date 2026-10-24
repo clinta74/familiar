@@ -260,7 +260,14 @@ public sealed partial class McpTools(
         try
         {
             var args = JsonSerializer.Deserialize<Dictionary<string, object?>>(arguments.ToJsonString(), Json) ?? [];
-            var result = await UseAsync(server, client => client.CallToolAsync(tool.Name, args, cancellationToken: ct).AsTask(), ct);
+            var result = await UseAsync(server, client =>
+            {
+                // A new connection hasn't listed the tools, so the client doesn't know which arguments
+                // the server wants as Mcp-Param-* headers too (x-mcp-header): told, it sends them.
+                // GitHub's server turns a call away (400) without them.
+                client.AddKnownTools([new Tool { Name = tool.Name, InputSchema = JsonSerializer.SerializeToElement(tool.InputSchema) }]);
+                return client.CallToolAsync(tool.Name, args, cancellationToken: ct).AsTask();
+            }, ct);
 
             var text = new StringBuilder();
             foreach (var block in result.Content)
