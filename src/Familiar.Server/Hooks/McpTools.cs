@@ -47,6 +47,13 @@ public sealed partial class McpTools(
     /// </summary>
     public const int MaxOfferedTools = 8;
 
+    /// <summary>
+    /// And this much of their definitions (name, description, schema), about 1,700 tokens: the model's
+    /// context is 8,192 on the NAS, and eight of GitHub's schemas came to half of it, so the prompt
+    /// filled it and the reply was cut off mid tool call.
+    /// </summary>
+    public const int MaxOfferedToolChars = 6000;
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     internal IDataProtector Protector { get; } = protection.CreateProtector("Familiar.Hooks.Mcp");
@@ -93,7 +100,8 @@ public sealed partial class McpTools(
     {
         var perServer = await EnabledByServerAsync(accountId, ct);
         var enabled = perServer.SelectMany(tools => tools).ToList();
-        if (enabled.Count <= MaxOfferedTools)
+        var sizes = enabled.ToDictionary(t => t.Definition.Name, t => SizeOf(t.Definition), StringComparer.Ordinal);
+        if (enabled.Count <= MaxOfferedTools && sizes.Values.Sum() <= MaxOfferedToolChars)
         {
             return enabled;
         }
@@ -101,7 +109,7 @@ public sealed partial class McpTools(
         if (!string.IsNullOrWhiteSpace(asked) && await ScoreAsync(enabled, asked, ct) is { } scores)
         {
             var previous = lastOffered.GetValueOrDefault(accountId);
-            var chosen = Choose(scores, previous, MaxOfferedTools);
+            var chosen = Choose(scores, sizes, previous);
             if (previous is null || !chosen.SequenceEqual(previous))
             {
                 logger.McpToolsOffered(chosen.Count, enabled.Count, string.Join(", ", chosen));
@@ -120,17 +128,19 @@ public sealed partial class McpTools(
             return [.. kept.Select(name => stillThere.First(t => t.Definition.Name == name))];
         }
 
-        return Shares(perServer);
+        return Shares(perServer, sizes);
     }
 
     /// <summary>
     /// The tools to offer, by name, from how well each fits what was asked. Last turn's choice stands,
     /// in the same order, while its best fit is nearly as good as the best overall: the tools head the
     /// prompt, so a different set means the model reading the whole conversation again (about a second
-    /// on the NAS), and small talk fits nothing in particular. A new choice is ordered by name, so the
-    /// same tools always read the same.
+    /// on the NAS), and small talk fits nothing in particular. A new choice takes the best fits that
+    /// fit the budget (<see cref="MaxOfferedTools"/>, <see cref="MaxOfferedToolChars"/>), passing over
+    /// one too big for what's left, and is ordered by name, so the same tools always read the same.
     /// </summary>
-    internal static IReadOnlyList<string> Choose(IReadOnlyDictionary<string, double> scores, IReadOnlyList<string>? previous, int count)
+    internal static IReadOnlyList<string> Choose(
+        IReadOnlyDictionary<string, double> scores, IReadOnlyDictionary<string, int> sizes, IReadOnlyList<string>? previous)
     {
         var best = scores.Values.Max();
         if (previous is not null && previous.All(scores.ContainsKey)
@@ -139,8 +149,35 @@ public sealed partial class McpTools(
             return previous;
         }
 
-        return [.. scores.OrderByDescending(s => s.Value).ThenBy(s => s.Key, StringComparer.Ordinal).Take(count).Select(s => s.Key).Order(StringComparer.Ordinal)];
+        return [.. WithinBudget(scores.OrderByDescending(s => s.Value).ThenBy(s => s.Key, StringComparer.Ordinal).Select(s => s.Key), sizes)
+            .Order(StringComparer.Ordinal)];
     }
+
+    /// <summary>Names in the order given, as many as are offered and as fit in the space for them.</summary>
+    private static List<string> WithinBudget(IEnumerable<string> names, IReadOnlyDictionary<string, int> sizes)
+    {
+        var taken = new List<string>();
+        var used = 0;
+        foreach (var name in names)
+        {
+            if (taken.Count == MaxOfferedTools)
+            {
+                break;
+            }
+
+            if (used + sizes[name] <= MaxOfferedToolChars)
+            {
+                taken.Add(name);
+                used += sizes[name];
+            }
+        }
+
+        return taken;
+    }
+
+    /// <summary>What a tool's definition costs the prompt, near enough: its name, description and schema.</summary>
+    internal static int SizeOf(ToolDefinition definition) =>
+        definition.Name.Length + definition.Description.Length + definition.Parameters.ToJsonString().Length;
 
     /// <summary>Last turn's tools stay while their best fit is within this fraction of the best.</summary>
     internal const double StickyMargin = 0.1;
@@ -162,15 +199,16 @@ public sealed partial class McpTools(
     }
 
     /// <summary>Taken in turns, a tool from each server and round again, so no one server fills every place.</summary>
-    private static List<ITool> Shares(List<List<ITool>> perServer)
+    private static List<ITool> Shares(List<List<ITool>> perServer, IReadOnlyDictionary<string, int> sizes)
     {
-        var offered = new List<ITool>();
-        for (var round = 0; offered.Count < MaxOfferedTools && perServer.Any(tools => tools.Count > round); round++)
+        var inTurns = new List<ITool>();
+        for (var round = 0; perServer.Any(tools => tools.Count > round); round++)
         {
-            offered.AddRange(perServer.Where(tools => tools.Count > round).Select(tools => tools[round]).Take(MaxOfferedTools - offered.Count));
+            inTurns.AddRange(perServer.Where(tools => tools.Count > round).Select(tools => tools[round]));
         }
 
-        return offered;
+        var taken = WithinBudget(inTurns.Select(t => t.Definition.Name), sizes).ToHashSet(StringComparer.Ordinal);
+        return [.. inTurns.Where(t => taken.Contains(t.Definition.Name))];
     }
 
     /// <summary>How well each tool fits what was asked (cosine similarity), by model name; null if it can't be told.</summary>
@@ -305,13 +343,79 @@ public sealed partial class McpTools(
     [GeneratedRegex("[^A-Za-z0-9_-]")]
     private static partial Regex Unsafe();
 
+    /// <summary>Schema words that only document, or that the model doesn't need to fill a call in.</summary>
+    private static readonly HashSet<string> Unneeded =
+        ["examples", "title", "$schema", "$comment", "additionalProperties", "default", "minLength", "maxLength", "pattern", "format", "readOnly", "deprecated"];
+
+    /// <summary>
+    /// A tool's schema as the model is shown it: every parameter, its type and whether it's required,
+    /// but each description to its first sentence (80 characters at most, then "..."), no vendor extensions
+    /// (<c>x-…</c>) or documentation, and "this or null" as just "this" (it's optional anyway).
+    /// GitHub's came out about a third smaller. The server still checks what's sent.
+    /// </summary>
+    internal static JsonObject Slim(JsonObject schema) => (JsonObject)SlimNode(schema)!;
+
+    private static JsonNode? SlimNode(JsonNode? node)
+    {
+        switch (node)
+        {
+            case JsonObject obj:
+                if (obj["anyOf"] is JsonArray anyOf && anyOf.Where(alt => !IsNullType(alt)).ToList() is [JsonObject only])
+                {
+                    var merged = new JsonObject();
+                    foreach (var (key, value) in obj.Where(p => p.Key != "anyOf").Concat(only))
+                    {
+                        merged[key] = value?.DeepClone();
+                    }
+
+                    return SlimNode(merged);
+                }
+
+                var slim = new JsonObject();
+                foreach (var (key, value) in obj)
+                {
+                    if (Unneeded.Contains(key) || key.StartsWith("x-", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    slim[key] = key == "description" && value?.GetValueKind() == JsonValueKind.String
+                        ? FirstSentence(value.GetValue<string>())
+                        : SlimNode(value);
+                }
+
+                return slim;
+            case JsonArray array:
+                return new JsonArray([.. array.Select(SlimNode)]);
+            default:
+                return node?.DeepClone();
+        }
+    }
+
+    private static bool IsNullType(JsonNode? alternative) =>
+        alternative is JsonObject alt && alt["type"] is JsonValue type && type.GetValueKind() == JsonValueKind.String && type.GetValue<string>() == "null";
+
+    private static string FirstSentence(string text)
+    {
+        text = string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        var end = text.IndexOf(". ", StringComparison.Ordinal);
+        var first = end < 0 ? text : text[..(end + 1)];
+        if (first.Length <= 80)
+        {
+            return first;
+        }
+
+        var space = first.LastIndexOf(' ', 79);
+        return first[..(space > 0 ? space : 80)] + "...";
+    }
+
     /// <summary>One MCP tool, as the familiar's tool registry sees it.</summary>
     private sealed class McpTool(McpTools owner, McpServer server, McpToolInfo tool) : ITool
     {
         public ToolDefinition Definition { get; } = new(
             ModelName(server.Name, tool.Name),
             $"{tool.Description ?? tool.Name} (from {server.Name})",
-            tool.InputSchema,
+            Slim(tool.InputSchema),
             tool.ReadOnly ? ToolRisk.Read : ToolRisk.WriteExternal);
 
         public Task<ToolResult> InvokeAsync(ToolContext context, JsonObject arguments, CancellationToken ct) =>
