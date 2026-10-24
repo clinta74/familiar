@@ -243,6 +243,56 @@ public sealed class HookTests(PostgresFixture postgres)
         Assert.DoesNotContain(app.Llm.LastTools!, t => t.Name == "house_turn_on_light");
     }
 
+    /// <summary>Ten tools, listed alphabetically as GitHub's are: the writes come first.</summary>
+    [McpServerToolType]
+    public sealed class ShelfTools
+    {
+        [McpServerTool(Name = "add_book")] public static string AddBook() => "added";
+        [McpServerTool(Name = "add_shelf")] public static string AddShelf() => "added";
+        [McpServerTool(Name = "create_label")] public static string CreateLabel() => "created";
+        [McpServerTool(Name = "delete_book")] public static string DeleteBook() => "deleted";
+        [McpServerTool(Name = "delete_shelf")] public static string DeleteShelf() => "deleted";
+        [McpServerTool(Name = "empty_shelf")] public static string EmptyShelf() => "emptied";
+        [McpServerTool(Name = "get_book", ReadOnly = true)] public static string GetBook() => "a book";
+        [McpServerTool(Name = "list_books", ReadOnly = true)] public static string ListBooks() => "books";
+        [McpServerTool(Name = "list_shelves", ReadOnly = true)] public static string ListShelves() => "shelves";
+        [McpServerTool(Name = "search_books", ReadOnly = true)] public static string SearchBooks() => "found";
+    }
+
+    [Fact]
+    public async Task A_new_servers_read_only_tools_go_on_first_and_servers_share_the_places_offered()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddMcpServer().WithHttpTransport(o => o.Stateless = true).WithTools<ShelfTools>();
+        await using var shelves = builder.Build();
+        shelves.MapMcp("/mcp");
+        await shelves.StartAsync();
+        var handler = shelves.GetTestServer().CreateHandler();
+
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync(),
+            services: s => s.AddHttpClient(nameof(McpTools)).ConfigurePrimaryHttpMessageHandler(() => handler));
+        app.Llm.ThenSay("[relaxed:0.5] Hello.");
+        var client = await SignedInAsync(app);
+
+        var home = await (await client.PostAsJsonAsync("/api/mcp", new McpServerRequest("home", "http://shelves.test/mcp", null))).ReadAsync<McpServerView>();
+        await client.PostAsJsonAsync("/api/mcp", new McpServerRequest("work", "http://shelves.test/mcp", null));
+
+        // All four readers, then writes in the server's order to make up the eight.
+        Assert.Equal(8, home.Tools.Count(t => t.Enabled));
+        Assert.All(home.Tools.Where(t => t.ReadOnly), t => Assert.True(t.Enabled, t.Name));
+
+        // Eight places, taken in turns: four each, rather than the first server's eight.
+        await using var stream = await SseClient.ConnectAsync(client);
+        await stream.ReadUntilAsync(EventTypes.Ready);
+        await client.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("hello", "UTC"));
+        await stream.ReadUntilStateAsync(FamiliarState.Idle);
+        var offered = app.Llm.LastTools!.Select(t => t.Name).Where(n => n.StartsWith("home_", StringComparison.Ordinal) || n.StartsWith("work_", StringComparison.Ordinal)).ToList();
+        Assert.Equal(8, offered.Count);
+        Assert.Equal(4, offered.Count(n => n.StartsWith("home_", StringComparison.Ordinal)));
+        Assert.Contains("work_get_book", offered);
+    }
+
     [Fact]
     public async Task An_unreachable_mcp_server_is_added_with_the_reason()
     {

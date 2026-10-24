@@ -74,11 +74,23 @@ public sealed partial class McpTools(
             .OrderBy(s => s.CreatedAt)
             .ToListAsync(ct);
 
-        return [.. servers
-            .SelectMany(server => ToolsOf(server)
+        // Taken in turns, a tool from each server and round again, so the first server added can't
+        // fill every place and leave a later one's tools never offered; within a server, the ones
+        // that only read first, as they're what's left out last.
+        var perServer = servers
+            .Select(server => ToolsOf(server)
                 .Where(t => server.EnabledTools.Contains(t.Name))
-                .Select(t => (ITool)new McpTool(this, server, t)))
-            .Take(MaxOfferedTools)];
+                .OrderBy(t => !t.ReadOnly)
+                .Select(t => (ITool)new McpTool(this, server, t))
+                .ToList())
+            .ToList();
+        var offered = new List<ITool>();
+        for (var round = 0; offered.Count < MaxOfferedTools && perServer.Any(tools => tools.Count > round); round++)
+        {
+            offered.AddRange(perServer.Where(tools => tools.Count > round).Select(tools => tools[round]).Take(MaxOfferedTools - offered.Count));
+        }
+
+        return offered;
     }
 
     internal async Task<ToolResult> CallAsync(McpServer server, McpToolInfo tool, JsonObject arguments, CancellationToken ct)
