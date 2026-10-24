@@ -92,8 +92,8 @@ public sealed class McpToolChoiceTests
     [Fact]
     public void The_best_fits_are_offered_in_name_order()
     {
-        var scores = Scores([.. Enumerable.Range(0, 10).Select(i => ($"t{i}", i / 10.0))]);
-        Assert.Equal(["t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"], Choose(scores, previous: null));
+        var scores = Scores([.. Enumerable.Range(0, 14).Select(i => ($"t{i:D2}", i / 14.0))]);
+        Assert.Equal([.. Enumerable.Range(2, 12).Select(i => $"t{i:D2}")], Choose(scores, previous: null));
     }
 
     [Fact]

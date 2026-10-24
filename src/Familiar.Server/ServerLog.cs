@@ -157,6 +157,9 @@ internal static partial class ServerLog
     [LoggerMessage(113, LogLevel.Information, "Offering {Offered} of {Enabled} MCP tools, chosen by what was asked: {Tools}")]
     public static partial void McpToolsOffered(this ILogger logger, int offered, int enabled, string tools);
 
+    [LoggerMessage(115, LogLevel.Information, "Left the oldest {Dropped} of {History} messages out of the prompt to fit the model's window (about {Tokens} tokens with its tools)")]
+    public static partial void HistoryTrimmed(this ILogger logger, int dropped, int history, int tokens);
+
     [LoggerMessage(114, LogLevel.Warning, "Couldn't rank MCP tools by what was asked, so a share of each server's is offered: {Reason}")]
     public static partial void McpToolsUnranked(this ILogger logger, string reason);
 

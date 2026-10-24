@@ -87,7 +87,8 @@ public sealed partial class TurnRunner(ILlmClient llm)
         Func<TurnEvent, ValueTask> emit,
         CancellationToken ct,
         IToolExecutor? tools = null,
-        ToolContext? toolContext = null)
+        ToolContext? toolContext = null,
+        IReadOnlyList<ToolDefinition>? definitions = null)
     {
         var parser = new ExpressionParser();
         var spoken = new StringBuilder();
@@ -134,7 +135,8 @@ public sealed partial class TurnRunner(ILlmClient llm)
 
         try
         {
-            var definitions = tools is not null && toolContext is not null ? await tools.DefinitionsAsync(toolContext, ct) : null;
+            // Usually worked out already, so the prompt could be fitted around them.
+            definitions ??= tools is not null && toolContext is not null ? await tools.DefinitionsAsync(toolContext, ct) : null;
 
             for (var round = 0; round <= MaxToolRounds; round++)
             {

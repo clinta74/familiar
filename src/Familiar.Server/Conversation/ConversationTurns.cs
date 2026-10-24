@@ -415,10 +415,23 @@ public sealed class ConversationTurns(
                 accountId, request.Zone, now, userMessage?.CreatedAt ?? now, ct, profile.LookUps ? profile.HomePlace : null, profile.LookUps ? home : null);
             // A picture goes to the model with its own message only; later turns are told one was there.
             var image = userMessage?.ImageId is { } imageId ? await store.ImageAsync(accountId, imageId, ct) : null;
+
+            // The tools first (a greeting gets none): the history is fitted around them.
+            var definitions = userMessage is null ? null : await tools.DefinitionsAsync(
+                new ToolContext(accountId, replyId, request.Zone, now, profile.LookUps, profile.HomePlace, request.From, home, Asked: userMessage.Content), ct);
             var context = new PromptContext(
                 profile, username, history, userMessage?.Content ?? "", now, request.Zone, situation.Notes, situation.Memories,
                 Familiars.AppearanceView.Parse(profile.Appearance).Look(), profile.HomePlace, image);
-            var prompt = userMessage is null ? PromptBuilder.BuildUnprompted(context, cue ?? PromptBuilder.GreetingCue) : PromptBuilder.Build(context);
+            IReadOnlyList<ChatMessage> Build(IReadOnlyList<Message> kept) => userMessage is null
+                ? PromptBuilder.BuildUnprompted(context with { History = kept }, cue ?? PromptBuilder.GreetingCue)
+                : PromptBuilder.Build(context with { History = kept });
+            var (fitted, prompt, dropped) = PromptBudget.Fit(
+                history, Build, definitions, llmOptions.ContextTokens - llmOptions.ReplyTokens, ConversationStore.HistoryStep);
+            if (dropped > 0)
+            {
+                logger.HistoryTrimmed(dropped, history.Count, PromptBudget.Estimate(prompt, definitions));
+                history = fitted;
+            }
 
             // Kept as the model got it, so later turns replay it the same and the server's cache holds
             // to the end of this reply (BACKLOG item 37). Not a picture's: later turns say one was there.
@@ -513,7 +526,7 @@ public sealed class ConversationTurns(
             // A greeting gets no tools: it's a hello, not a chance to start doing things.
             var result = userMessage is null
                 ? await runner.RunAsync(prompt, Emit, ct)
-                : await runner.RunAsync(prompt, Emit, ct, tools, toolContext);
+                : await runner.RunAsync(prompt, Emit, ct, tools, toolContext, definitions);
 
             // The pages it handed over, by the numbers its tools gave them; a number no tool gave is dropped.
             var links = shared.Distinct()

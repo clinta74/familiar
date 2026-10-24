@@ -127,6 +127,13 @@ public sealed partial class ToolExecutor(
             return ToolResult.Failure($"There's no tool called {call.Name}.");
         }
 
+        // A call that isn't complete gets what it needs back, before the user is asked to allow it:
+        // nothing has run, so there's nothing to allow or to record.
+        if (tool is IArgumentCheck check && check.Check(call.Arguments) is { } incomplete)
+        {
+            return incomplete;
+        }
+
         var started = clock.GetTimestamp();
         bool? approved = null;
         ToolResult result;
@@ -255,6 +262,16 @@ public sealed partial class ToolExecutor
 public interface IRiskPerCall
 {
     ToolRisk RiskOf(JsonObject arguments);
+}
+
+/// <summary>
+/// A tool offered to the model in short, without all its parameters (an MCP tool), that can tell a
+/// call isn't complete before anything's asked or run: the result tells the model what it needs.
+/// </summary>
+public interface IArgumentCheck
+{
+    /// <summary>Null when the call can go ahead.</summary>
+    ToolResult? Check(JsonObject arguments);
 }
 
 /// <summary>Registration of the tools and what runs them.</summary>

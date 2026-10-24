@@ -22,8 +22,20 @@ public sealed class LlmOptions
     /// </summary>
     public int RequestTimeoutSeconds { get; set; } = 120;
 
-    /// <summary>How many earlier messages go into each prompt.</summary>
+    /// <summary>How many earlier messages go into each prompt, at most: fewer when they won't fit (<see cref="ContextTokens"/>).</summary>
     public int HistoryMessages { get; set; } = 20;
+
+    /// <summary>
+    /// The model's window: <c>num_ctx</c> in tools/ollama/Modelfile.familiar, so keep the two the same.
+    /// The prompt, its tools and the reply all have to fit; the oldest history gives way.
+    /// </summary>
+    public int ContextTokens { get; set; } = 8192;
+
+    /// <summary>
+    /// Of the window, kept free for the reply and the turn's tool results (up to 4,000 characters
+    /// each), so neither is cut off.
+    /// </summary>
+    public int ReplyTokens { get; set; } = 1536;
 
     /// <summary>For memories (PLAN.md §6.6). 768 dimensions; changing it means re-embedding every memory.</summary>
     public string EmbeddingModel { get; set; } = "nomic-embed-text";
@@ -35,5 +47,5 @@ public sealed class LlmOptions
     public int WarmUpCheckSeconds { get; set; } = 120;
 
     public override string ToString() =>
-        $"{Model} at {BaseUrl}, temperature {Temperature}, history {HistoryMessages}, embeddings {EmbeddingModel}, timeout {RequestTimeoutSeconds}s";
+        $"{Model} at {BaseUrl}, temperature {Temperature}, history {HistoryMessages}, window {ContextTokens} ({ReplyTokens} for the reply), embeddings {EmbeddingModel}, timeout {RequestTimeoutSeconds}s";
 }

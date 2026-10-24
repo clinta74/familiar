@@ -243,6 +243,47 @@ public sealed class HookTests(PostgresFixture postgres)
         Assert.DoesNotContain(app.Llm.LastTools!, t => t.Name == "house_turn_on_light");
     }
 
+    [Fact]
+    public async Task An_mcp_tool_is_offered_in_short_and_a_call_missing_what_it_needs_is_told_it_before_anyone_is_asked()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddMcpServer().WithHttpTransport(o => o.Stateless = true).WithTools<HouseTools>();
+        await using var house = builder.Build();
+        house.MapMcp("/mcp");
+        await house.StartAsync();
+        var handler = house.GetTestServer().CreateHandler();
+
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync(),
+            services: s => s.AddHttpClient(nameof(McpTools)).ConfigurePrimaryHttpMessageHandler(() => handler));
+        app.Llm
+            .ThenCall("house_turn_on_light", "{}")
+            .ThenCall("house_turn_on_light", """{"room": "porch"}""")
+            .ThenSay("[joy:0.5] Porch light's on.");
+        var client = await SignedInAsync(app, "shorthand");
+        await client.PostAsJsonAsync("/api/mcp", new McpServerRequest("house", "http://house.test/mcp", null));
+
+        await using var stream = await SseClient.ConnectAsync(client);
+        await stream.ReadUntilAsync(EventTypes.Ready);
+        await client.PostAsJsonAsync("/api/conversation/messages", new SendMessageRequest("porch light on please", "UTC"));
+
+        // Asked once, for the call that can run: the first, with no room, was answered without asking.
+        var confirm = (await stream.ReadUntilAsync(EventTypes.ToolConfirm))[^1].Payload<ToolConfirmEvent>();
+        Assert.Contains("porch", confirm.Description, StringComparison.Ordinal);
+        await client.PostAsJsonAsync("/api/conversation/confirm", new ConfirmRequest(confirm.CallId, true));
+        await stream.ReadUntilStateAsync(FamiliarState.Idle);
+        Assert.Contains("porch", HouseTools.LightsOn);
+
+        // Offered in short: names, types, what's required, no descriptions.
+        Assert.Equal(
+            """{"type":"object","properties":{"room":{"type":"string"}},"required":["room"]}""",
+            app.Llm.LastTools!.Single(t => t.Name == "house_turn_on_light").Parameters.ToJsonString());
+
+        // The first try was told what it needs, in full.
+        var told = app.Llm.LastPrompt!.Where(m => m.Role == ChatRole.Tool).Select(m => m.Content).ToList();
+        Assert.Contains(told, t => t.Contains("wasn't called", StringComparison.Ordinal) && t.Contains("room (string, required): Which room", StringComparison.Ordinal));
+    }
+
     /// <summary>Ten tools, listed alphabetically as GitHub's are: the writes come first.</summary>
     [McpServerToolType]
     public sealed class ShelfTools
@@ -275,10 +316,10 @@ public sealed class HookTests(PostgresFixture postgres)
         var client = await SignedInAsync(app);
 
         var home = await (await client.PostAsJsonAsync("/api/mcp", new McpServerRequest("home", "http://shelves.test/mcp", null))).ReadAsync<McpServerView>();
-        await client.PostAsJsonAsync("/api/mcp", new McpServerRequest("work", "http://shelves.test/mcp", null));
+        var workServer = await (await client.PostAsJsonAsync("/api/mcp", new McpServerRequest("work", "http://shelves.test/mcp", null))).ReadAsync<McpServerView>();
 
-        // Every reader on, and writes only to make up the eight: sixteen on across the two.
-        Assert.Equal(8, home.Tools.Count(t => t.Enabled));
+        // Every reader on, and writes to make up as many as are offered: all ten here, twenty across the two.
+        Assert.Equal(10, home.Tools.Count(t => t.Enabled));
         Assert.All(home.Tools.Where(t => t.ReadOnly), t => Assert.True(t.Enabled, t.Name));
 
         await using var stream = await SseClient.ConnectAsync(client);
@@ -291,19 +332,22 @@ public sealed class HookTests(PostgresFixture postgres)
             return [.. app.Llm.LastTools!.Select(t => t.Name).Where(n => n.StartsWith("home_", StringComparison.Ordinal) || n.StartsWith("work_", StringComparison.Ordinal))];
         }
 
-        // Eight of the sixteen: those that fit what was asked.
+        // Twelve of the twenty: those that fit what was asked.
         var books = await OfferedForAsync("search my books please");
-        Assert.Equal(8, books.Count);
+        Assert.Equal(12, books.Count);
         Assert.Contains("home_search_books", books);
         Assert.Contains("work_search_books", books);
 
         // Small talk fits nothing in particular: the same eight, in the same order (the prompt's head unchanged).
         Assert.Equal(books, await OfferedForAsync("thanks, that's lovely"));
 
-        // A new subject: a new offer.
-        var shelvesOffered = await OfferedForAsync("list the shelves");
-        Assert.Contains("home_list_shelves", shelvesOffered);
-        Assert.Contains("work_list_shelves", shelvesOffered);
+        // Still about lists of shelves, which it has (home_list_shelves): unchanged.
+        Assert.Equal(books, await OfferedForAsync("list the shelves"));
+
+        // A new subject, which fits work's tools better than anything offered: a new offer.
+        var work = await OfferedForAsync("list the shelves at work");
+        Assert.NotEqual(books, work);
+        Assert.Contains("work_list_shelves", work);
 
         // Every one switched on can still be run, offered this turn or not.
         app.Llm.ThenCall("work_search_books", "{}").ThenSay("[relaxed:0.5] Found them.");
@@ -311,13 +355,17 @@ public sealed class HookTests(PostgresFixture postgres)
         await stream.ReadUntilStateAsync(FamiliarState.Idle);
         Assert.Contains("found", app.Llm.LastPrompt!.Last(m => m.Role == ChatRole.Tool).Content, StringComparison.Ordinal);
 
-        // No embeddings: a share of each server's, read-only first.
+        // No embeddings: the last offer stands while it can...
         app.Embedder.Down = true;
-        await client.PutAsJsonAsync($"/api/mcp/{home.Id}/tools", new McpToolsRequest([.. home.Tools.Where(t => t.ReadOnly).Select(t => t.Name), "add_book"]));
+        Assert.Equal(work, await OfferedForAsync("anything at all"));
+
+        // ...and when part of it's switched off, a share of each server's in turns, read-only first
+        // (home ten on, work its four readers): four rounds of both, then home's.
+        await client.PutAsJsonAsync($"/api/mcp/{workServer.Id}/tools", new McpToolsRequest([.. workServer.Tools.Where(t => t.ReadOnly).Select(t => t.Name)]));
         var shared = await OfferedForAsync("anything at all");
-        Assert.Equal(8, shared.Count);
-        Assert.Equal(4, shared.Count(n => n.StartsWith("home_", StringComparison.Ordinal)));
-        Assert.DoesNotContain("home_add_book", shared);
+        Assert.Equal(12, shared.Count);
+        Assert.Equal(4, shared.Count(n => n.StartsWith("work_", StringComparison.Ordinal)));
+        Assert.Contains("home_search_books", shared);
     }
 
     [Fact]
