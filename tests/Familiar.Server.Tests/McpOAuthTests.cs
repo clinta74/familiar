@@ -50,6 +50,12 @@ public sealed class McpOAuthTests(PostgresFixture postgres)
 
         public int Unauthorized { get; private set; }
 
+        /// <summary>What the last sign-in asked for.</summary>
+        public string? Scope { get; private set; }
+
+        /// <summary>How the last token request carried a client secret: "form", "basic" or null.</summary>
+        public string? SecretSentIn { get; private set; }
+
         public HttpMessageHandler Handler => host.GetTestServer().CreateHandler();
 
         private Fake(WebApplication host) => this.host = host;
@@ -114,18 +120,20 @@ public sealed class McpOAuthTests(PostgresFixture postgres)
             {
                 var q = request.Query;
                 if (q["response_type"] != "code" || q["code_challenge_method"] != "S256" || q["resource"] != "http://notes.test/mcp"
-                    || q["scope"] != "notes offline_access" || !q["client_id"].ToString().StartsWith("client-", StringComparison.Ordinal))
+                    || !q["client_id"].ToString().StartsWith("client-", StringComparison.Ordinal))
                 {
                     return Results.BadRequest();
                 }
 
                 challenge = q["code_challenge"];
+                Scope = q["scope"];
                 return Results.Redirect($"{q["redirect_uri"]}?code=the-code&state={Uri.EscapeDataString(q["state"]!)}");
             });
 
             app.MapPost("/token", async (HttpRequest request) =>
             {
                 var form = await request.ReadFormAsync();
+                SecretSentIn = form.ContainsKey("client_secret") ? "form" : request.Headers.Authorization.ToString().StartsWith("Basic ", StringComparison.Ordinal) ? "basic" : null;
                 var refused = Results.Json(new Dictionary<string, string> { ["error"] = "invalid_grant" }, statusCode: 400);
                 if (form["resource"] != "http://notes.test/mcp")
                 {
@@ -216,6 +224,8 @@ public sealed class McpOAuthTests(PostgresFixture postgres)
 
         Assert.Equal("http://localhost/settings/connections?mcp=notes", await SignInAsync(client, app, fake, added.Id));
         Assert.Equal(["http://localhost/api/mcp/oauth/callback"], fake.RegisteredRedirects);
+        Assert.Equal("notes offline_access", fake.Scope);
+        Assert.Null(fake.SecretSentIn);
         var server = (await (await client.GetAsync("/api/mcp")).ReadAsync<List<McpServerView>>()).Single();
         Assert.False(server.SignInNeeded);
         Assert.Null(server.LastError);
@@ -264,6 +274,26 @@ public sealed class McpOAuthTests(PostgresFixture postgres)
         Assert.False(again.SignInNeeded);
         Assert.Null(again.LastError);
         Assert.Single(fake.RegisteredRedirects);
+    }
+
+    [Fact]
+    public async Task A_client_the_user_made_signs_in_with_its_secret_in_the_form_asking_only_what_they_said()
+    {
+        await using var fake = await Fake.StartAsync();
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync(),
+            services: s => s.AddHttpClient(nameof(McpTools)).ConfigurePrimaryHttpMessageHandler(() => fake.Handler));
+        var client = app.CreateClient();
+        (await client.RegisterAsync("handmade")).EnsureSuccessStatusCode();
+
+        var added = await (await client.PostAsJsonAsync("/api/mcp",
+            new McpServerRequest("notes", "http://notes.test/mcp", null, ClientId: "client-own", ClientSecret: "s3cret", Scopes: "notes, read"))).ReadAsync<McpServerView>();
+        Assert.True(added.SignInNeeded);
+
+        Assert.Equal("http://localhost/settings/connections?mcp=notes", await SignInAsync(client, app, fake, added.Id));
+        Assert.Empty(fake.RegisteredRedirects);
+        Assert.Equal("notes read", fake.Scope);
+        Assert.Equal("form", fake.SecretSentIn);
+        Assert.False((await (await client.GetAsync("/api/mcp")).ReadAsync<List<McpServerView>>()).Single().SignInNeeded);
     }
 
     [Fact]

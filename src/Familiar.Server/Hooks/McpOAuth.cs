@@ -169,9 +169,12 @@ public sealed partial class McpOAuth(
             Resource = resource?.Resource ?? endpoint.GetLeftPart(UriPartial.Query),
             Scope = scope,
             IssInRedirect = server.IssInRedirect == true,
-            TokenAuthMethod = server.TokenAuthMethods is { } methods && !methods.Contains("client_secret_basic") && methods.Contains("client_secret_post")
-                ? "client_secret_post"
-                : "client_secret_basic",
+            // Only matters for a client the user registered (with a secret). Unsaid, the secret goes in
+            // the form: RFC 8414's default is Basic, but GitHub, the server most likely to be unsaid
+            // and need a hand-made client, documents only the form.
+            TokenAuthMethod = server.TokenAuthMethods is { } methods && methods.Contains("client_secret_basic") && !methods.Contains("client_secret_post")
+                ? "client_secret_basic"
+                : "client_secret_post",
         };
     }
 

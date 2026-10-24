@@ -264,6 +264,7 @@ private fun McpServers(session: FamiliarSession, openServer: (String) -> Unit) {
     var ownApp by remember { mutableStateOf(false) }
     var clientId by remember { mutableStateOf("") }
     var clientSecret by remember { mutableStateOf("") }
+    var scopes by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -321,6 +322,13 @@ private fun McpServers(session: FamiliarSession, openServer: (String) -> Unit) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth(),
         )
+        OutlinedTextField(
+            scopes,
+            { scopes = it },
+            label = { Text("Scopes (optional; instead of everything it lists. GitHub: repo)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
     } else {
         TextButton(onClick = { ownApp = true }) { Text("Its sign-in needs an app you register yourself (GitHub, say)") }
     }
@@ -330,13 +338,14 @@ private fun McpServers(session: FamiliarSession, openServer: (String) -> Unit) {
         scope.launch {
             runCatching {
                 val added = session.api.addMcpServer(
-                    McpServerRequest(name, url.trim(), token.ifBlank { null }, clientId.trim().ifBlank { null }, clientSecret.trim().ifBlank { null }),
+                    McpServerRequest(name, url.trim(), token.ifBlank { null }, clientId.trim().ifBlank { null }, clientSecret.trim().ifBlank { null }, scopes.trim().ifBlank { null }),
                 )
                 name = ""
                 url = ""
                 token = ""
                 clientId = ""
                 clientSecret = ""
+                scopes = ""
                 ownApp = false
                 // It wants a sign-in: straight to the browser, and to its page for when the user's back.
                 if (added.signInNeeded) browser.openUri(session.api.signInMcpServer(added.id).authorizationUrl)

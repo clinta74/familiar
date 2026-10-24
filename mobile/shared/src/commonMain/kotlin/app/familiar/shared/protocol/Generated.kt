@@ -479,6 +479,11 @@ data class McpServerRequest(
     val clientId: String? = null,
     /** That client's secret, if it has one. */
     val clientSecret: String? = null,
+    /**
+     * What to ask the sign-in for, space-separated, instead of everything the server lists (GitHub
+     * lists ten, write:packages among them; repo is enough for code and issues).
+     */
+    val scopes: String? = null,
 )
 
 /**

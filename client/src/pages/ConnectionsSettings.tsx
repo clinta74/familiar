@@ -233,6 +233,7 @@ function McpServers() {
   const [token, setToken] = useState('');
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
+  const [scopes, setScopes] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -252,13 +253,14 @@ function McpServers() {
     setBusy(true);
     setError(null);
     try {
-      const body = { name, url, token: token || null, clientId: clientId || null, clientSecret: clientSecret || null } satisfies McpServerRequest;
+      const body = { name, url, token: token || null, clientId: clientId || null, clientSecret: clientSecret || null, scopes: scopes || null } satisfies McpServerRequest;
       const server = await api<McpServer>('/api/mcp', { body });
       setName('');
       setUrl('');
       setToken('');
       setClientId('');
       setClientSecret('');
+      setScopes('');
       load();
       // It wants a sign-in: straight there, rather than one more button.
       if (server.signInNeeded) await signIn(server);
@@ -378,6 +380,10 @@ function McpServers() {
             <label>
               Client secret <span className="muted small">(if it has one)</span>
               <input value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} type="password" autoComplete="off" />
+            </label>
+            <label>
+              Scopes <span className="muted small">(optional; what to ask for, instead of everything it lists — GitHub: <code>repo</code>)</span>
+              <input value={scopes} onChange={(e) => setScopes(e.target.value)} placeholder="repo" autoComplete="off" />
             </label>
           </div>
         </details>

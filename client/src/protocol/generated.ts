@@ -397,6 +397,11 @@ export interface McpServerRequest {
   clientId?: string | null;
   /** That client's secret, if it has one. */
   clientSecret?: string | null;
+  /**
+   * What to ask the sign-in for, space-separated, instead of everything the server lists (GitHub
+   * lists ten, write:packages among them; repo is enough for code and issues).
+   */
+  scopes?: string | null;
 }
 
 /**

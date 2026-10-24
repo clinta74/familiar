@@ -36,7 +36,11 @@ public sealed record McpServerView(
 /// <param name="Token">A bearer token, if the server needs one.</param>
 /// <param name="ClientId">For a server that wants a sign-in but doesn't let apps register themselves: the OAuth client made for Familiar in its developer settings.</param>
 /// <param name="ClientSecret">That client's secret, if it has one.</param>
-public sealed record McpServerRequest(string? Name, string? Url, string? Token, string? ClientId = null, string? ClientSecret = null);
+/// <param name="Scopes">
+/// What to ask the sign-in for, space-separated, instead of everything the server lists (GitHub lists
+/// ten, write:packages among them; <c>repo</c> is enough for code and issues).
+/// </param>
+public sealed record McpServerRequest(string? Name, string? Url, string? Token, string? ClientId = null, string? ClientSecret = null, string? Scopes = null);
 
 /// <param name="AuthorizationUrl">Where to send the browser to sign in; it comes back to Settings → Connections.</param>
 public sealed record McpSignInView(string AuthorizationUrl);
@@ -143,6 +147,11 @@ public static partial class McpEndpoints
             {
                 grant.ClientId = request.ClientId.Trim();
                 grant.ClientSecret = string.IsNullOrWhiteSpace(request.ClientSecret) ? null : request.ClientSecret.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Scopes))
+            {
+                grant.Scope = string.Join(' ', request.Scopes.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries));
             }
 
             oauth.Write(server, grant);

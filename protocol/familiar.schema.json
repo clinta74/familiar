@@ -1399,6 +1399,14 @@
             "null"
           ],
           "default": null
+        },
+        "scopes": {
+          "description": "What to ask the sign-in for, space-separated, instead of everything the server lists (GitHub lists ten, write:packages among them; repo is enough for code and issues).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       },
       "required": [
