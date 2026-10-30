@@ -22,11 +22,12 @@ public sealed record FamiliarView(
     AppearanceView? Appearance = null,
     bool? LookUps = null,
     string? HomePlace = null,
-    PlaceView? Home = null)
+    PlaceView? Home = null,
+    bool? ShortGreeting = null)
 {
     public static FamiliarView From(FamiliarProfile p) =>
         new(p.Name, p.UserNickname, p.Warmth, p.Playfulness, p.Verbosity, p.Formality, p.Expressiveness, p.Voice, p.VoiceSpeed, p.Proactive,
-            AppearanceView.Parse(p.Appearance), p.LookUps, p.HomePlace, HomePlaces.ViewOf(p));
+            AppearanceView.Parse(p.Appearance), p.LookUps, p.HomePlace, HomePlaces.ViewOf(p), p.ShortGreeting);
 }
 
 /// <param name="Voices">What the TTS service offers; empty if it isn't reachable.</param>
@@ -142,6 +143,7 @@ public static class FamiliarEndpoints
         profile.Voice = voice;
         profile.VoiceSpeed = ClampSpeed(request.VoiceSpeed);
         profile.Proactive = request.Proactive ?? profile.Proactive;
+        profile.ShortGreeting = request.ShortGreeting ?? profile.ShortGreeting;
         profile.Appearance = request.Appearance?.ToJson() ?? profile.Appearance;
         profile.LookUps = request.LookUps ?? profile.LookUps;
         SetHome(profile, request.Home, homePlace);

@@ -893,6 +893,13 @@
             }
           ],
           "default": null
+        },
+        "shortGreeting": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
         }
       },
       "required": [

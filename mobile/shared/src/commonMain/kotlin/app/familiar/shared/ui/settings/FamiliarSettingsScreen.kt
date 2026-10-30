@@ -1,5 +1,7 @@
 package app.familiar.shared.ui.settings
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -169,9 +171,18 @@ fun FamiliarSettingsScreen(session: FamiliarSession, onBack: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Say hello first", style = MaterialTheme.typography.bodyLarge)
-                        Muted("When you come back after a few hours, ${current.name.ifBlank { "it" }} greets you and mentions anything coming up soon.")
+                        Muted("When you come back after a few hours, ${current.name.ifBlank { "it" }} greets you.")
                     }
                     Switch(checked = current.proactive ?: true, onCheckedChange = { update(current.copy(proactive = it)) })
+                }
+                if (current.proactive ?: true) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Keep it short", style = MaterialTheme.typography.bodyLarge)
+                            Muted("Just a hello, and anything starting within the hour. Off, it goes through what's coming up and the weather.")
+                        }
+                        Switch(checked = current.shortGreeting ?: true, onCheckedChange = { update(current.copy(shortGreeting = it)) })
+                    }
                 }
             }
 

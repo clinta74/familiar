@@ -211,7 +211,7 @@ class FamiliarSession(
         awaySince = null
         shownAway.forEach { alarms?.dismissMessage(it) }
         shownAway.clear()
-        if (Clock.System.now() - away > 5.seconds || controller.state.value.connection != Connection.Open) controller.resume()
+        if (Clock.System.now() - away > 5.seconds || controller.state.value.connection != Connection.Open) controller.resume(back = true)
     }
 
     private var letGo: kotlinx.coroutines.Job? = null

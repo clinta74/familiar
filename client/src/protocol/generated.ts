@@ -231,6 +231,7 @@ export interface FamiliarView {
   lookUps?: boolean | null;
   homePlace?: string | null;
   home?: PlaceView | null;
+  shortGreeting?: boolean | null;
 }
 
 /** A one-off body movement the familiar makes mid-sentence. */

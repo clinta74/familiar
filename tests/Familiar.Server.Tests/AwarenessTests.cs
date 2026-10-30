@@ -306,8 +306,9 @@ public sealed class AwarenessTests(PostgresFixture postgres)
             Assert.Equal("Hi! Your dentist is in half an hour.", end.Text);
         }
 
+        // The short greeting unless they've chosen the full one; something within the hour is still in its notes.
         var prompt = app.Llm.LastPrompt!;
-        Assert.EndsWith(PromptBuilder.GreetingCue, prompt[^1].Content, StringComparison.Ordinal);
+        Assert.EndsWith(PromptBuilder.ShortGreetingCue, prompt[^1].Content, StringComparison.Ordinal);
         Assert.Contains("Dentist, in 30 minutes", prompt[^1].Content, StringComparison.Ordinal);
         Assert.Null(app.Llm.LastTools);
 
@@ -321,6 +322,32 @@ public sealed class AwarenessTests(PostgresFixture postgres)
             await again.ReadUntilAsync(EventTypes.Ready);
             await Assert.ThrowsAnyAsync<Exception>(() => again.ReadUntilAsync(EventTypes.ReplyStart, TimeSpan.FromSeconds(1)));
         }
+    }
+
+    [Fact]
+    public async Task The_phone_app_back_in_front_is_greeted_on_its_reconnect()
+    {
+        // The app stays running in the background (push), so coming back is a reconnect, which is
+        // otherwise the same visit: it says it's back. And the full greeting, when chosen.
+        await using var app = new FamiliarAppFactory(await postgres.CreateDatabaseAsync(), new Dictionary<string, string> { ["Awareness:Greet"] = "true" });
+        app.Llm.Fragments = ["[joy:0.7] Welcome back!"];
+        var client = await SignedInAsync(app, "returning");
+        var familiar = await (await client.GetAsync("/api/familiar")).ReadAsync<FamiliarView>();
+        Assert.True(familiar.ShortGreeting);
+        (await client.PutAsJsonAsync("/api/familiar", familiar with { ShortGreeting = false })).EnsureSuccessStatusCode();
+
+        await using (var reconnect = await SseClient.ConnectAsync(client, lastEventId: "00000000-1", timeZone: "America/Chicago"))
+        {
+            await reconnect.ReadUntilAsync(EventTypes.Ready);
+            await Assert.ThrowsAnyAsync<Exception>(() => reconnect.ReadUntilAsync(EventTypes.ReplyStart, TimeSpan.FromSeconds(1)));
+        }
+
+        await using (var back = await SseClient.ConnectAsync(client, lastEventId: "00000000-1", timeZone: "America/Chicago", back: true))
+        {
+            Assert.Equal("Welcome back!", (await back.ReadUntilAsync(EventTypes.ReplyEnd))[^1].Payload<ReplyEndEvent>().Text);
+        }
+
+        Assert.EndsWith(PromptBuilder.GreetingCue, app.Llm.LastPrompt![^1].Content, StringComparison.Ordinal);
     }
 
     [Fact]

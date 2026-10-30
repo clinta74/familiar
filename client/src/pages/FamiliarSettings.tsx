@@ -85,9 +85,19 @@ export function FamiliarSettings() {
         <input type="checkbox" checked={profile.proactive ?? true} onChange={(e) => update({ proactive: e.target.checked })} />
         <span>
           Say hello first
-          <span className="muted"> — when you come back after a few hours, {profile.name || 'it'} greets you and mentions anything coming up soon.</span>
+          <span className="muted"> — when you come back after a few hours, {profile.name || 'it'} greets you.</span>
         </span>
       </label>
+
+      {(profile.proactive ?? true) && (
+        <label className="check sub-option">
+          <input type="checkbox" checked={profile.shortGreeting ?? true} onChange={(e) => update({ shortGreeting: e.target.checked })} />
+          <span>
+            Keep it short
+            <span className="muted"> — just a hello, and anything starting within the hour. Off, it goes through what’s coming up and the weather.</span>
+          </span>
+        </label>
+      )}
 
       <label className="check">
         <input type="checkbox" checked={profile.lookUps ?? false} onChange={(e) => update({ lookUps: e.target.checked })} />

@@ -1652,3 +1652,8 @@ pre.snippet {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* A setting that belongs to the one above it, shown only while that one is on. */
+.check.sub-option {
+  margin-left: 28px;
+}

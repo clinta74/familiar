@@ -25,9 +25,14 @@ public sealed class SseClient : IAsyncDisposable
 
     public HttpResponseMessage Response => _response;
 
-    public static async Task<SseClient> ConnectAsync(HttpClient client, string? lastEventId = null, string? timeZone = null, string? capabilities = null)
+    public static async Task<SseClient> ConnectAsync(HttpClient client, string? lastEventId = null, string? timeZone = null, string? capabilities = null, bool back = false)
     {
         var query = new List<string>();
+        if (back)
+        {
+            query.Add("back=true");
+        }
+
         if (timeZone is not null)
         {
             query.Add($"timeZone={Uri.EscapeDataString(timeZone)}");

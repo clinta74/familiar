@@ -75,6 +75,7 @@ public static class ConversationEndpoints
         string? timeZone,
         bool? speak,
         string? capabilities,
+        bool? back,
         CancellationToken ct)
     {
         var accountId = http.User.AccountId()!.Value;
@@ -137,9 +138,12 @@ public static class ConversationEndpoints
             await WriteAsync(http, ConversationHub.Frame(EventTypes.Jobs, new JobsEvent([.. jobs.Select(JobView.From)])), ct);
             await WriteAsync(http, ConversationHub.Frame(EventTypes.Ready, ready), ct);
 
-            // Coming back after a while: the familiar may say hello first. A fresh connection only -
-            // a reconnect is the same visit. Its events arrive on this stream like any other.
-            if (string.IsNullOrEmpty(lastEventId) && model.Result)
+            // Coming back after a while: the familiar may say hello first. A fresh connection, or the
+            // phone app back in front (`back`) - it stays running in the background now (push), so it
+            // comes back on a reconnect, not a fresh one; any other reconnect is the same visit. The
+            // greeting itself still waits for a quiet spell (GreetingGap). Its events arrive on this
+            // stream like any other.
+            if ((string.IsNullOrEmpty(lastEventId) || back == true) && model.Result)
             {
                 _ = turns.GreetAsync(accountId, Zone(timeZone), speak ?? false, CancellationToken.None);
             }

@@ -381,9 +381,11 @@ class FamiliarApi(
         capabilities: Set<String> = emptySet(),
         /** Speak the hello, if there is one. */
         speak: Boolean = false,
+        /** The app's back in front: a reconnect that's a new visit, so the familiar may say hello. */
+        back: Boolean = false,
     ): Flow<StreamEvent> = flow {
         val caps = (if (capabilities.isEmpty()) "" else "&capabilities=" + capabilities.sorted().joinToString(",")) +
-            (if (speak) "&speak=true" else "")
+            (if (speak) "&speak=true" else "") + (if (back) "&back=true" else "")
         try {
             http.sse(
                 urlString = "api/conversation/stream?timeZone=$timeZone$caps",

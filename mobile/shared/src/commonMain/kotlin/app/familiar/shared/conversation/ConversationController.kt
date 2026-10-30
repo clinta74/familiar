@@ -123,7 +123,7 @@ class ConversationController(
                         try {
                             connectionId = null
                             lastHeard = null
-                            api.events(currentTimeZoneId(), lastEventId, capabilities(), speak).collect { (id, event) ->
+                            api.events(currentTimeZoneId(), lastEventId, capabilities(), speak, back = returning.also { returning = false }).collect { (id, event) ->
                                 if (id != null) lastEventId = id
                                 lastHeard = clock.now()
                                 backoff = 1_000L
@@ -200,11 +200,19 @@ class ConversationController(
      * so a stream that's said something in the last [ALIVE] is still there; one that hasn't may have
      * been dropped while the phone was locked without either end noticing.
      */
-    fun resume() {
+    fun resume(back: Boolean = false) {
         val heard = lastHeard
         if (state.value.connection == Connection.Open && heard != null && clock.now() - heard < ALIVE) return
+        returning = back
         reconnect()
     }
+
+    /**
+     * The next connection is the app coming back to the front: the server may greet on it, as on a
+     * fresh one (after a quiet spell; it decides). The app stays running in the background now, so
+     * coming back is a reconnect rather than a new start.
+     */
+    private var returning = false
 
     /**
      * Drops the connection there is, and - with [holdWhileAway] - makes no other until [resume]: for

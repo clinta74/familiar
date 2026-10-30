@@ -370,11 +370,13 @@ public sealed class ConversationTurns(
                 return;
             }
 
+            // A quick hello unless they've asked for the full greeting.
+            var cue = (await store.ProfileAsync(accountId, ct)).ShortGreeting ? PromptBuilder.ShortGreetingCue : PromptBuilder.GreetingCue;
             channel.TurnCancellation?.Dispose();
             var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.ApplicationStopping);
             channel.TurnCancellation = cancellation;
             channel.TurnTask = Task.Run(
-                () => RunAsync(channel, accountId, null, new TurnRequest(zone, speak, clock.GetTimestamp()), cancellation.Token, PromptBuilder.GreetingCue),
+                () => RunAsync(channel, accountId, null, new TurnRequest(zone, speak, clock.GetTimestamp()), cancellation.Token, cue),
                 CancellationToken.None);
         }
         finally

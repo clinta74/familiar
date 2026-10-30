@@ -585,6 +585,10 @@ namespace Familiar.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("proactive");
 
+                    b.Property<bool>("ShortGreeting")
+                        .HasColumnType("boolean")
+                        .HasColumnName("short_greeting");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");

@@ -101,6 +101,11 @@ public static class PromptBuilder
         "what's in these notes is still to come - plans from earlier in the conversation may be over. If " +
         "today's weather is in the notes and worth knowing (rain, snow, a hot or cold day), mention that briefly too.]";
 
+    /// <summary>The short greeting, the default: hello, and only something starting very soon.</summary>
+    public const string ShortGreetingCue =
+        "[They've just opened the app and haven't said anything yet. Say hello in one short sentence, the way a friend " +
+        "would - nothing more. Only if something in the notes starts within the hour, add it in a few words.]";
+
     public static IReadOnlyList<ChatMessage> Build(PromptContext context) => Assemble(context, context.UserText);
 
     /// <summary>A turn with no user message: the familiar speaks first, prompted by a bracketed cue.</summary>

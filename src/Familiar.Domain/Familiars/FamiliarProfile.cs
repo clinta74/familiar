@@ -54,6 +54,12 @@ public sealed class FamiliarProfile
     public bool Proactive { get; set; } = true;
 
     /// <summary>
+    /// The greeting is a quick hello - a sentence - rather than one that goes through what's coming
+    /// up and the weather. Short unless they choose the full one.
+    /// </summary>
+    public bool ShortGreeting { get; set; } = true;
+
+    /// <summary>
     /// How it looks (PLAN.md §5.5): which model, its colours, an accessory - as JSON, validated by the
     /// server, read by the client's renderers. Null means the default plush llama.
     /// </summary>

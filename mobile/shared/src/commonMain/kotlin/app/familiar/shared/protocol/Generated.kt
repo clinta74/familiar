@@ -280,6 +280,7 @@ data class FamiliarView(
     val lookUps: Boolean? = null,
     val homePlace: String? = null,
     val home: PlaceView? = null,
+    val shortGreeting: Boolean? = null,
 )
 
 /** A one-off body movement the familiar makes mid-sentence. */
