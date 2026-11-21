@@ -30,6 +30,9 @@ object Capabilities {
     const val PHONE_TEXT_SEND = "phone.text.send"
     const val PHONE_CALL = "phone.call"
     const val MAPS_NAVIGATE = "maps.navigate"
+
+    /** A store's app opened at a search, or Amazon's Buy again, for the user to buy (the shop tool). */
+    const val SHOP_OPEN = "shop.open"
     const val LOCATION_READ = "location.read"
 
     /** One contact's number or address, to say it (BACKLOG item 25). */
@@ -60,6 +63,9 @@ sealed interface ServerEvent {
     data class ToolInvoke(val event: ToolInvokeEvent) : ServerEvent
     data class Audio(val clip: AudioEvent) : ServerEvent
     data class Jobs(val jobs: List<JobView>) : ServerEvent
+
+    /** The shopping list changed: the whole of it now. */
+    data class Shopping(val items: List<ShoppingItemView>) : ServerEvent
     data object Cleared : ServerEvent
     data object Resync : ServerEvent
 
@@ -89,6 +95,7 @@ sealed interface ServerEvent {
                 EventTypes.TOOL_INVOKE -> ToolInvoke(FamiliarJson.decodeFromString(json))
                 EventTypes.AUDIO -> Audio(FamiliarJson.decodeFromString(json))
                 EventTypes.JOBS -> Jobs(FamiliarJson.decodeFromString<JobsEvent>(json).jobs)
+                EventTypes.SHOPPING -> Shopping(FamiliarJson.decodeFromString<ShoppingEvent>(json).items)
                 EventTypes.CLEARED -> Cleared
                 EventTypes.RESYNC -> Resync
                 else -> Other(type ?: "message")

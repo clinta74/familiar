@@ -6,6 +6,7 @@ import type {
   MessageView,
   ReadyEvent,
   ReplyEndEvent,
+  ShoppingItemView,
   ToolConfirmEvent,
   ToolFinishedEvent,
   ToolStartedEvent,
@@ -50,6 +51,8 @@ export interface ConversationState {
   error: string | null;
   /** Pending timers and reminders, soonest first. */
   jobs: JobView[];
+  /** The shopping list: still to get first, then what's been got. */
+  shopping: ShoppingItemView[];
   /** A tool waiting for the user's say-so. */
   confirm: ToolConfirmEvent | null;
 }
@@ -63,6 +66,7 @@ export const initialConversation: ConversationState = {
   messages: [],
   error: null,
   jobs: [],
+  shopping: [],
   confirm: null,
 };
 
@@ -78,6 +82,7 @@ export type ConversationAction =
   | { type: 'replyTruncated'; id: string; text: string }
   | { type: 'cleared' }
   | { type: 'jobs'; jobs: JobView[] }
+  | { type: 'shopping'; items: ShoppingItemView[] }
   | { type: 'toolStarted'; event: ToolStartedEvent }
   | { type: 'toolFinished'; event: ToolFinishedEvent }
   | { type: 'confirm'; event: ToolConfirmEvent }
@@ -200,6 +205,9 @@ export function conversationReducer(state: ConversationState, action: Conversati
 
     case 'jobs':
       return { ...state, jobs: action.jobs };
+
+    case 'shopping':
+      return { ...state, shopping: action.items };
 
     case 'toolStarted': {
       const { replyId, callId, tool } = action.event;

@@ -1017,6 +1017,41 @@ namespace Familiar.Persistence.Migrations
                     b.ToTable("scheduled_jobs", (string)null);
                 });
 
+            modelBuilder.Entity("Familiar.Domain.Shopping.ShoppingItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<DateTimeOffset>("AddedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("added_at");
+
+                    b.Property<DateTimeOffset?>("GotAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("got_at");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("text");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shopping_items");
+
+                    b.HasIndex("AccountId", "AddedAt")
+                        .HasDatabaseName("ix_shopping_items_account_id_added_at");
+
+                    b.ToTable("shopping_items", (string)null);
+                });
+
             modelBuilder.Entity("Familiar.Domain.Tools.ToolInvocation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1333,6 +1368,16 @@ namespace Familiar.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_scheduled_jobs_accounts_account_id");
+                });
+
+            modelBuilder.Entity("Familiar.Domain.Shopping.ShoppingItem", b =>
+                {
+                    b.HasOne("Familiar.Domain.Accounts.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shopping_items_accounts_account_id");
                 });
 
             modelBuilder.Entity("Familiar.Domain.Tools.ToolInvocation", b =>

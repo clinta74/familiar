@@ -6,6 +6,7 @@ import app.familiar.shared.session.FamiliarSession
 /** The screens besides the chat, and what each is called. */
 enum class Route(val title: String, val about: String) {
     Chat("Chat", ""),
+    Shopping("Shopping list", ""),
     Settings("Settings", ""),
     Familiar("Your familiar", "Its name, personality and voice"),
     Studio("Studio", "How it looks"),

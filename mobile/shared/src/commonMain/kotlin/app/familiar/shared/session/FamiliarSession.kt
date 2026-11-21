@@ -77,6 +77,24 @@ class FamiliarSession(
             ?.let(avatar::look)
     }
 
+    private val _shopping = MutableStateFlow<List<app.familiar.shared.protocol.ShoppingItemView>>(emptyList())
+
+    /** The shopping list: still to get first, then what's been got. Kept up to date from the stream. */
+    val shopping: StateFlow<List<app.familiar.shared.protocol.ShoppingItemView>> = _shopping.asStateFlow()
+
+    /** Reads the list afresh: on opening its screen, in case the stream was let go meanwhile. */
+    fun refreshShopping() {
+        scope.launch { runCatching { api.shopping() }.onSuccess { _shopping.value = it } }
+    }
+
+    /** Changes the list; the stream brings the result (and it's read afresh, in case it isn't connected). */
+    fun changeShopping(change: suspend () -> Unit) {
+        scope.launch {
+            runCatching { change() }.onFailure { controller.showError(it.message ?: "The shopping list didn't change.") }
+            refreshShopping()
+        }
+    }
+
     private val _voiceOn = MutableStateFlow(store.read(VOICE_KEY) != "off")
 
     /** Replies are spoken (and there's a speaker to speak them). */
@@ -156,6 +174,7 @@ class FamiliarSession(
             when (event) {
                 is ServerEvent.Ready -> scope.launch { refreshLook() }
                 is ServerEvent.Jobs -> alarms?.sync(event.jobs, controller.state.value.familiarName)
+                is ServerEvent.Shopping -> _shopping.value = event.items
                 is ServerEvent.Audio -> if (controller.speak) player?.enqueue(event.clip)
                 is ServerEvent.Sound -> if (_effectsOn.value) avatar.sound(event.sound)
                 is ServerEvent.ReplyStart, ServerEvent.Cleared -> player?.stop()

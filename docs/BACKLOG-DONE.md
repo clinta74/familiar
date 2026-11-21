@@ -8,6 +8,24 @@ original request and notes follow where they're worth keeping.
 
 ## Web app
 
+### ~~Shopping list by voice, and hand-off to a store's app~~ — done (2026-11-21, asked that day)
+
+A shopping list the familiar keeps (its own table, so it needs nothing else connected), with one
+`shopping_list` tool - add, show, got, remove, clear - rather than five, since every tool's
+description is in every prompt. "I got the milk" ticks it off (struck through, kept until "clear
+what's got"); "the milk" matches "Milk", "batteries" matches "AA Batteries"; a list sent as one
+string is split at commas, never at "and" ("mac and cheese" is one thing). Every change goes to
+every open tab and app (`shopping` on the stream). On the website it's under the familiar, like the
+timers; in the app, the chat menu's Shopping list. And `shop`, a phone hand-off like texts and
+directions: Amazon (its site for where they live), Target, Walmart, Kroger, Meijer or Costco, at a
+search - or Amazon's Buy again - in the store's app if it's installed, otherwise the browser. It
+never buys, signs in or sees a basket; the server builds the address from fixed patterns and the
+phone opens only those six stores' https addresses. Amazon has no sanctioned way for an assistant to
+order on someone's account, and blocks shopping agents - hence the hand-off. Verified against gemma
+(33/33 requests to the right tool and arguments, "reorder my coffee pods" to Buy again) and end to
+end: added and ticked by voice on the website, the app's list the same and ticked there with the
+website updating live, and "look for oat milk at Kroger" opening Kroger's search on the emulator.
+
 ### 1–3. ~~Header, account menu, admin page~~ — done (2026-10-03)
 
 The header has Chat, Studio and Settings (the current page underlined) and an account button whose

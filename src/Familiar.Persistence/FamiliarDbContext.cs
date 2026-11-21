@@ -6,6 +6,7 @@ using Familiar.Domain.Hooks;
 using Familiar.Domain.Memories;
 using Familiar.Domain.Notifications;
 using Familiar.Domain.Scheduling;
+using Familiar.Domain.Shopping;
 using Familiar.Domain.Tools;
 using Familiar.Persistence.Configurations;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
@@ -39,6 +40,8 @@ public sealed class FamiliarDbContext(DbContextOptions<FamiliarDbContext> option
     public DbSet<ServerSetting> ServerSettings => Set<ServerSetting>();
 
     public DbSet<Invite> Invites => Set<Invite>();
+
+    public DbSet<ShoppingItem> ShoppingItems => Set<ShoppingItem>();
 
     public DbSet<MemoryFact> Memories => Set<MemoryFact>();
 

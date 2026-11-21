@@ -150,6 +150,9 @@ data class ContactAddress(val name: String, val address: String, val label: Stri
 sealed interface HandOff {
     data class Text(val to: String, val number: String, val message: String) : HandOff
     data class Call(val to: String, val number: String) : HandOff
+
+    /** A store's app (or site) at [url], a search or Buy again; [title] says which ("Kroger: oat milk"). */
+    data class Shop(val url: String, val title: String) : HandOff
     /** [shownAs] is what a notification calls it: "Mum's", not her address. */
     data class Navigate(val destination: String, val mode: String, val shownAs: String = destination) : HandOff
 }

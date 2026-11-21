@@ -79,6 +79,10 @@
       "constant": "Jobs",
       "payload": "JobsEvent"
     },
+    "shopping": {
+      "constant": "Shopping",
+      "payload": "ShoppingEvent"
+    },
     "notify": {
       "constant": "Notify",
       "payload": "NotifyEvent"
@@ -2115,6 +2119,82 @@
       "required": [
         "text",
         "timeZone"
+      ]
+    },
+    "ShoppingEvent": {
+      "description": "The shopping list as it is now, to every open tab and app, whenever it changes.",
+      "type": "object",
+      "properties": {
+        "items": {
+          "description": "Still to get first, oldest first; then what's been got.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ShoppingItemView"
+          }
+        }
+      },
+      "required": [
+        "items"
+      ]
+    },
+    "ShoppingItemRequest": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "description": "What to get.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "text"
+      ]
+    },
+    "ShoppingItemView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "The item.",
+          "type": "string",
+          "format": "uuid"
+        },
+        "text": {
+          "description": "What to get.",
+          "type": "string"
+        },
+        "addedAt": {
+          "description": "When it went on the list.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "gotAt": {
+          "description": "When it was ticked off; null while it's still to get.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "addedAt",
+        "gotAt"
+      ]
+    },
+    "ShoppingTickRequest": {
+      "type": "object",
+      "properties": {
+        "got": {
+          "description": "Ticked off, or not.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "got"
       ]
     },
     "SoundEffect": {

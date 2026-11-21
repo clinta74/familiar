@@ -750,6 +750,37 @@ data class SendMessageRequest(
     val imageId: String? = null,
 )
 
+/** The shopping list as it is now, to every open tab and app, whenever it changes. */
+@Serializable
+data class ShoppingEvent(
+    /** Still to get first, oldest first; then what's been got. */
+    val items: List<ShoppingItemView>,
+)
+
+@Serializable
+data class ShoppingItemRequest(
+    /** What to get. */
+    val text: String? = null,
+)
+
+@Serializable
+data class ShoppingItemView(
+    /** The item. */
+    val id: String,
+    /** What to get. */
+    val text: String,
+    /** When it went on the list. */
+    val addedAt: String,
+    /** When it was ticked off; null while it's still to get. */
+    val gotAt: String? = null,
+)
+
+@Serializable
+data class ShoppingTickRequest(
+    /** Ticked off, or not. */
+    val got: Boolean,
+)
+
 /**
  * A sound effect, not a voice: made by the clients themselves (synthesised, so nothing to fetch),
  * the same whichever voice the familiar has. Vocal sounds (a giggle, a gasp) come later, in its
@@ -962,6 +993,7 @@ object EventTypes {
     const val TOOL_CONFIRMED = "tool.confirmed"
     const val TOOL_INVOKE = "tool.invoke"
     const val JOBS = "jobs"
+    const val SHOPPING = "shopping"
     const val NOTIFY = "notify"
     const val CLEARED = "cleared"
     const val RESYNC = "resync"

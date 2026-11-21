@@ -26,6 +26,9 @@ import app.familiar.shared.protocol.McpServerView
 import app.familiar.shared.protocol.McpSignInView
 import app.familiar.shared.protocol.McpToolsRequest
 import app.familiar.shared.protocol.MemoryRequest
+import app.familiar.shared.protocol.ShoppingItemRequest
+import app.familiar.shared.protocol.ShoppingItemView
+import app.familiar.shared.protocol.ShoppingTickRequest
 import app.familiar.shared.protocol.MemoryView
 import app.familiar.shared.protocol.NameRequest
 import app.familiar.shared.protocol.NewHookTokenView
@@ -228,6 +231,18 @@ class FamiliarApi(
     suspend fun forgetMemory(id: String) = delete("api/memories/$id")
 
     suspend fun forgetEverything() = delete("api/memories")
+
+    /** The shopping list; every change also comes back on the stream (`shopping`). */
+    suspend fun shopping(): List<ShoppingItemView> = call { http.get("api/shopping") }
+
+    suspend fun addShopping(text: String): List<ShoppingItemView> = postFor("api/shopping", ShoppingItemRequest(text))
+
+    suspend fun tickShopping(id: String, got: Boolean): ShoppingItemView = put("api/shopping/$id", ShoppingTickRequest(got))
+
+    suspend fun removeShopping(id: String) = delete("api/shopping/$id")
+
+    /** What's been got goes; the rest stays. */
+    suspend fun clearShopping() = delete("api/shopping")
 
     suspend fun calendars(): List<CalendarView> = call { http.get("api/calendars") }
 

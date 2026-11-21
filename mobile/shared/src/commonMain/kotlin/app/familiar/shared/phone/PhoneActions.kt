@@ -24,7 +24,10 @@ import kotlinx.serialization.json.putJsonArray
 class PhoneActions(private val phone: DevicePhone) {
     /** What this phone offers the server: sending texts itself only when the user has switched it on. */
     val capabilities: Set<String>
-        get() = setOf(Capabilities.PHONE_TEXT, Capabilities.PHONE_CALL, Capabilities.MAPS_NAVIGATE, Capabilities.LOCATION_READ, Capabilities.CONTACTS_READ) +
+        get() = setOf(
+            Capabilities.PHONE_TEXT, Capabilities.PHONE_CALL, Capabilities.MAPS_NAVIGATE, Capabilities.SHOP_OPEN,
+            Capabilities.LOCATION_READ, Capabilities.CONTACTS_READ,
+        ) +
             (if (phone.sendsTexts()) setOf(Capabilities.PHONE_TEXT_SEND) else emptySet())
 
     /** Carries out [tool]; a failure throws with what to tell the user. */
@@ -62,6 +65,16 @@ class PhoneActions(private val phone: DevicePhone) {
             Capabilities.PHONE_CALL -> {
                 val (name, number) = resolve(text("to") ?: fail("Say who to call."))
                 handedOff(name, phone.handOff(HandOff.Call(name, number)), "The dialler opened with the number in; they tap Call.", "the dialler ready to call")
+            }
+
+            // A store's search or Buy again, for the user to buy: only the stores the server knows, on https.
+            Capabilities.SHOP_OPEN -> {
+                val url = text("url")?.takeIf(::isStore) ?: fail("That isn't a store this can open.")
+                val title = text("title") ?: "the store"
+                buildJsonObject {
+                    put("opened", title)
+                    put("how", describe(phone.handOff(HandOff.Shop(url, title)), "$title opened on their phone - in the store's app if they have it, otherwise the browser. They look and buy; don't say which it opened in.", title))
+                }
             }
 
             Capabilities.MAPS_NAVIGATE -> {
@@ -183,6 +196,14 @@ class PhoneActions(private val phone: DevicePhone) {
     private fun fail(message: String): Nothing = throw IllegalStateException(message)
 
     internal companion object {
+        /** The stores shop may open: https, on one of Amazon's sites or one of the others. Nothing else. */
+        fun isStore(url: String): Boolean = STORE.matches(url)
+
+        private val STORE = Regex(
+            "^https://www\\.(amazon\\.(com|co\\.uk|ca|com\\.au|de|fr|it|es|nl|se|pl|ie|co\\.jp|in|com\\.mx|com\\.br)" +
+                "|target\\.com|walmart\\.com|kroger\\.com|meijer\\.com|costco\\.com)/[^\\s]*$",
+        )
+
         /** A phone number as said or typed: digits, maybe a +, spaces, dashes, brackets. */
         fun isNumber(text: String) = text.count(Char::isDigit) >= 3 && text.all { it.isDigit() || it in "+ -().#*" }
 

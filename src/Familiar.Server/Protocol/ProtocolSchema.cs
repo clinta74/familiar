@@ -47,6 +47,7 @@ public static class ProtocolCatalog
         (EventTypes.ToolConfirmed, typeof(ToolConfirmedEvent)),
         (EventTypes.ToolInvoke, typeof(ToolInvokeEvent)),
         (EventTypes.Jobs, typeof(JobsEvent)),
+        (EventTypes.Shopping, typeof(Shopping.ShoppingEvent)),
         (EventTypes.Notify, typeof(NotifyEvent)),
         (EventTypes.Cleared, null),
         (EventTypes.Resync, null),
@@ -100,6 +101,11 @@ public static class ProtocolCatalog
         // Memories.
         typeof(MemoryView),
         typeof(MemoryRequest),
+
+        // The shopping list.
+        typeof(Shopping.ShoppingItemView),
+        typeof(Shopping.ShoppingItemRequest),
+        typeof(Shopping.ShoppingTickRequest),
 
         // Timers, reminders and notifications.
         typeof(JobView),

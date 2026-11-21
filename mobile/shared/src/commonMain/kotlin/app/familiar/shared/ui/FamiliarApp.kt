@@ -103,6 +103,7 @@ fun FamiliarApp(
             val here = path.substringAfterLast('/')
             when (Route.valueOf(here.substringBefore(':'))) {
                 Route.Chat -> ChatScreen(session, actions, open, pictures)
+                Route.Shopping -> ShoppingScreen(session, back)
                 Route.Settings -> SettingsScreen(session, open, back)
                 Route.Familiar -> FamiliarSettingsScreen(session, back)
                 Route.Studio -> StudioScreen(session, files, back)

@@ -106,6 +106,8 @@ class AndroidPhone(context: Context, private val ask: suspend (Array<String>) ->
                 handOff.message,
             )
             is HandOff.Call -> Triple(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(handOff.number))), "Call ${handOff.to}", "Tap to open the dialler.")
+            // The store's own app when it's installed and claims its site's links; the browser if not.
+            is HandOff.Shop -> Triple(Intent(Intent.ACTION_VIEW, Uri.parse(handOff.url)), handOff.title, "Tap to open it.")
             is HandOff.Navigate -> Triple(
                 // The universal Maps link: Google Maps if it's there, the browser if not.
                 Intent(Intent.ACTION_VIEW, Uri.parse(

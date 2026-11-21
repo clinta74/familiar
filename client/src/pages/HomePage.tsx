@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AvatarState } from '../avatar/types';
 import { AvatarStage, type AvatarHandle } from '../components/AvatarStage';
 import { ChatPanel } from '../components/ChatPanel';
+import { ShoppingPanel } from '../components/ShoppingPanel';
 import { TimersPanel } from '../components/TimersPanel';
 import { familiarApi } from '../api/familiar';
 import { defaultAppearance, type Appearance } from '../avatar/appearance';
@@ -310,6 +311,7 @@ export function HomePage() {
             </button>
           )}
           <TimersPanel jobs={conversation.jobs} onCancel={conversation.cancelJob} />
+          <ShoppingPanel {...conversation.shoppingList} />
         </section>
         <ChatPanel
           familiarName={conversation.familiarName}

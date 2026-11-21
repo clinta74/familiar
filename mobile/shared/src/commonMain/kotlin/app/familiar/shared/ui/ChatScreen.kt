@@ -329,6 +329,10 @@ fun ChatScreen(session: FamiliarSession, actions: List<PlatformAction> = emptyLi
                 Box {
                     TextButton(onClick = { menu = true }) { Text("⋮") }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(text = { Text("Shopping list") }, onClick = {
+                            menu = false
+                            open(Route.Shopping)
+                        })
                         DropdownMenuItem(text = { Text("Settings") }, onClick = {
                             menu = false
                             open(Route.Settings)

@@ -1,5 +1,15 @@
 import { api, errorFrom } from '../api/client';
-import type { ConfirmRequest, ImageView, InterruptRequest, JobView, SendMessageRequest, ToolResultRequest } from '../protocol/generated';
+import type {
+  ConfirmRequest,
+  ImageView,
+  InterruptRequest,
+  JobView,
+  SendMessageRequest,
+  ShoppingItemRequest,
+  ShoppingItemView,
+  ShoppingTickRequest,
+  ToolResultRequest,
+} from '../protocol/generated';
 import type { MessageView } from './events';
 
 const timeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -51,6 +61,14 @@ export const conversationApi = {
 
   cancelJob: (id: string) => api<void>(`/api/jobs/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   jobs: () => api<JobView[]>('/api/jobs'),
+
+  /** The shopping list. Every change also comes back on the stream (`shopping`), to every tab. */
+  shopping: () => api<ShoppingItemView[]>('/api/shopping'),
+  addShopping: (text: string) => api<ShoppingItemView[]>('/api/shopping', { body: { text } satisfies ShoppingItemRequest }),
+  tickShopping: (id: string, got: boolean) =>
+    api<ShoppingItemView>(`/api/shopping/${encodeURIComponent(id)}`, { method: 'PUT', body: { got } satisfies ShoppingTickRequest }),
+  removeShopping: (id: string) => api<void>(`/api/shopping/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  clearShopping: (everything = false) => api<void>(`/api/shopping${everything ? '?everything=true' : ''}`, { method: 'DELETE' }),
 
   /** What this browser did when the server asked it to (`tool.invoke`): where it is. */
   toolResult: (result: ToolResultRequest) => api<void>('/api/conversation/tool-result', { body: result }),

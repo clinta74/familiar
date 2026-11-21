@@ -25,13 +25,16 @@ public static class DeviceCapabilities
     /// <summary>Open maps with directions.</summary>
     public const string Navigate = "maps.navigate";
 
+    /// <summary>Open a store's app at a search, or Amazon's Buy again, for the user to buy (the shop tool).</summary>
+    public const string Shop = "shop.open";
+
     /// <summary>Say roughly where the phone is: the town.</summary>
     public const string Location = "location.read";
 
     /// <summary>Look up one contact's number or address, to say it (BACKLOG item 25).</summary>
     public const string Contacts = "contacts.read";
 
-    public static readonly IReadOnlySet<string> Known = new HashSet<string>(StringComparer.Ordinal) { CalendarWrite, Text, SendText, Call, Navigate, Location, Contacts };
+    public static readonly IReadOnlySet<string> Known = new HashSet<string>(StringComparer.Ordinal) { CalendarWrite, Text, SendText, Call, Navigate, Shop, Location, Contacts };
 
     /// <summary>What a browser may offer: where it is (BACKLOG item 24), and nothing else.</summary>
     public static readonly IReadOnlySet<string> Browser = new HashSet<string>(StringComparer.Ordinal) { Location };

@@ -29,6 +29,9 @@ public static class EventTypes
     public const string ToolConfirm = "tool.confirm";
     public const string ToolConfirmed = "tool.confirmed";
     public const string Jobs = "jobs";
+
+    /// <summary>The shopping list changed: the whole of it now.</summary>
+    public const string Shopping = "shopping";
     public const string Notify = "notify";
     public const string ToolInvoke = "tool.invoke";
 }

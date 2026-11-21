@@ -14,6 +14,7 @@ import type {
   JobsEvent,
   MessageView,
   NotifyEvent,
+  ShoppingEvent,
   ReadyEvent,
   ReplyDeltaEvent,
   ReplyEndEvent,
@@ -67,6 +68,12 @@ export function useConversation(handlers: ConversationHandlers, options: { speak
         .catch(() => undefined);
 
     void loadHistory();
+    const loadShopping = () =>
+      conversationApi
+        .shopping()
+        .then((items) => !disposed && dispatch({ type: 'shopping', items }))
+        .catch(() => undefined);
+    void loadShopping();
 
     // The time zone, so a greeting knows what "this morning" means; and whether to speak it.
     const query = new URLSearchParams({
@@ -117,8 +124,12 @@ export function useConversation(handlers: ConversationHandlers, options: { speak
       dispatch({ type: 'cleared' });
       handlersRef.current.onCleared?.();
     });
-    on('resync', () => void loadHistory());
+    on('resync', () => {
+      void loadHistory();
+      void loadShopping();
+    });
     on<JobsEvent>('jobs', ({ jobs }) => dispatch({ type: 'jobs', jobs }));
+    on<ShoppingEvent>('shopping', ({ items }) => dispatch({ type: 'shopping', items }));
     on<NotifyEvent>('notify', (event) => handlersRef.current.onNotify?.(event));
     on<ToolStartedEvent>('tool.started', (event) => dispatch({ type: 'toolStarted', event }));
     on<ToolFinishedEvent>('tool.finished', (event) => dispatch({ type: 'toolFinished', event }));
@@ -179,5 +190,17 @@ export function useConversation(handlers: ConversationHandlers, options: { speak
     void conversationApi.confirm(callId, approve).catch(() => undefined);
   }, []);
 
-  return { ...state, send, sendSpoken, interrupt, startOver, cancelJob, answerConfirm };
+  // The shopping list: each change comes back on the stream (to every tab); a failure is shown in the chat.
+  const shoppingAction = useCallback((action: () => Promise<unknown>) => {
+    action().catch((e: unknown) => dispatch({ type: 'error', message: e instanceof Error ? e.message : 'The shopping list didn’t change.' }));
+  }, []);
+  const shopping = {
+    items: state.shopping,
+    add: (text: string) => shoppingAction(() => conversationApi.addShopping(text)),
+    tick: (id: string, got: boolean) => shoppingAction(() => conversationApi.tickShopping(id, got)),
+    remove: (id: string) => shoppingAction(() => conversationApi.removeShopping(id)),
+    clearGot: () => shoppingAction(() => conversationApi.clearShopping()),
+  };
+
+  return { ...state, send, sendSpoken, interrupt, startOver, cancelJob, answerConfirm, shoppingList: shopping };
 }

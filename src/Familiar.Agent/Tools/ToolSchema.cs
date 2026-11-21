@@ -34,6 +34,14 @@ public static class ToolSchema
 
     public static JsonObject Boolean(string description) => new() { ["type"] = "boolean", ["description"] = description };
 
+    /// <summary>A list of short strings ("milk", "AA batteries").</summary>
+    public static JsonObject StringList(string description) => new()
+    {
+        ["type"] = "array",
+        ["description"] = description,
+        ["items"] = new JsonObject { ["type"] = "string" },
+    };
+
     public static JsonObject Enum(string description, params string[] values) => new()
     {
         ["type"] = "string",
@@ -74,6 +82,25 @@ public static class ToolArgs
         JsonValue v when v.GetValueKind() == JsonValueKind.String && bool.TryParse(v.GetValue<string>(), out var parsed) => parsed,
         _ => null,
     };
+
+    /// <summary>
+    /// A list of short strings, however the model sends it: a list, one string, or one string with
+    /// commas ("milk, eggs, bread"). Not split on "and": "mac and cheese" is one thing. Blank ones dropped.
+    /// </summary>
+    public static IReadOnlyList<string> Strings(JsonObject arguments, string name)
+    {
+        IEnumerable<string> said = arguments[name] switch
+        {
+            JsonArray list => list.Select(item => item is JsonValue value && value.TryGetValue<string>(out var text) ? text : item?.ToString() ?? ""),
+            JsonValue value when value.TryGetValue<string>(out var text) => [text],
+            _ => [],
+        };
+
+        return [.. said
+            .SelectMany(text => text.Split([',', ';', '\n'], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            .Select(text => text.Trim().TrimEnd('.'))
+            .Where(text => text.Length > 0)];
+    }
 
     /// <summary>A short user-facing label: trimmed, single-line, at most <paramref name="max"/> characters.</summary>
     public static string? Label(JsonObject arguments, string name, int max = 200)

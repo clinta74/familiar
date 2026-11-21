@@ -113,6 +113,34 @@ class PhoneActionsTests {
     }
 
     @Test
+    fun a_store_opens_at_its_search_for_the_user_to_buy() = runTest {
+        val phone = FakePhone()
+        val result = PhoneActions(phone).perform("shop.open", args("url" to "https://www.kroger.com/search?query=oat%20milk", "title" to "Kroger: oat milk"))
+        assertEquals(HandOff.Shop("https://www.kroger.com/search?query=oat%20milk", "Kroger: oat milk"), phone.handedOff.single())
+        assertEquals("Kroger: oat milk", result["opened"]!!.jsonPrimitive.content)
+        assertTrue("shop.open" in PhoneActions(phone).capabilities)
+    }
+
+    @Test
+    fun only_the_known_stores_are_opened() = runTest {
+        for (url in listOf(
+            "https://www.amazon.co.uk/s?k=tea", "https://www.target.com/s?searchTerm=tea", "https://www.walmart.com/search?q=tea",
+            "https://www.meijer.com/shopping/search.html?text=tea", "https://www.costco.com/s?keyword=tea", "https://www.amazon.com/gp/buyagain",
+        )) {
+            assertTrue(PhoneActions.isStore(url), url)
+        }
+        for (url in listOf(
+            "http://www.amazon.com/s?k=tea", "https://www.amazon.co.evil.com/s", "https://evil.com/www.amazon.com/", "https://www.amazon.com.evil.net/",
+            "intent://www.amazon.com/#Intent;end", "https://www.kroger.com.example/", "javascript:alert(1)",
+        )) {
+            assertFalse(PhoneActions.isStore(url), url)
+        }
+        val phone = FakePhone()
+        assertFailsWith<IllegalStateException> { PhoneActions(phone).perform("shop.open", args("url" to "https://evil.example/s", "title" to "x")) }
+        assertTrue(phone.handedOff.isEmpty())
+    }
+
+    @Test
     fun an_exact_name_wins_over_names_that_start_the_same() = runTest {
         val phone = FakePhone()
         PhoneActions(phone).perform("phone.call", args("to" to "mum"))

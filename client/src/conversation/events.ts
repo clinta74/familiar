@@ -24,6 +24,8 @@ export type {
   LinkView,
   ReplyStartEvent,
   ReplyTruncatedEvent,
+  ShoppingEvent,
+  ShoppingItemView,
   SpokenWord,
   StateEvent,
   ToolConfirmedEvent,

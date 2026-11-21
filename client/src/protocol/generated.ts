@@ -636,6 +636,33 @@ export interface SendMessageRequest {
   imageId?: string | null;
 }
 
+/** The shopping list as it is now, to every open tab and app, whenever it changes. */
+export interface ShoppingEvent {
+  /** Still to get first, oldest first; then what's been got. */
+  items: ShoppingItemView[];
+}
+
+export interface ShoppingItemRequest {
+  /** What to get. */
+  text: string | null;
+}
+
+export interface ShoppingItemView {
+  /** The item. */
+  id: string;
+  /** What to get. */
+  text: string;
+  /** When it went on the list. */
+  addedAt: string;
+  /** When it was ticked off; null while it's still to get. */
+  gotAt: string | null;
+}
+
+export interface ShoppingTickRequest {
+  /** Ticked off, or not. */
+  got: boolean;
+}
+
 /**
  * A sound effect, not a voice: made by the clients themselves (synthesised, so nothing to fetch),
  * the same whichever voice the familiar has. Vocal sounds (a giggle, a gasp) come later, in its
@@ -818,6 +845,7 @@ export interface EventPayloads {
   'tool.confirmed': ToolConfirmedEvent;
   'tool.invoke': ToolInvokeEvent;
   'jobs': JobsEvent;
+  'shopping': ShoppingEvent;
   'notify': NotifyEvent;
   'cleared': null;
   'resync': null;
@@ -846,6 +874,7 @@ export const EventTypes = {
   ToolConfirmed: 'tool.confirmed',
   ToolInvoke: 'tool.invoke',
   Jobs: 'jobs',
+  Shopping: 'shopping',
   Notify: 'notify',
   Cleared: 'cleared',
   Resync: 'resync',

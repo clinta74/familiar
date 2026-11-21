@@ -289,6 +289,8 @@ public static class ToolRegistration
         services.AddSingleton<ITool, Calendars.CreateEventTool>();
         services.AddSingleton<ITool, Memories.RememberTool>();
         services.AddSingleton<ITool, Memories.ForgetTool>();
+        services.AddSingleton<Shopping.ShoppingList>();
+        services.AddSingleton<ITool, Shopping.ShoppingListTool>();
 
         // Look-ups (BACKLOG item 15): fixed outside services, and nowhere else.
         services.AddMemoryCache();
@@ -318,6 +320,7 @@ public static class ToolRegistration
         services.AddSingleton<ITool, Devices.SendTextTool>();
         services.AddSingleton<ITool, Devices.CallTool>();
         services.AddSingleton<ITool, Devices.NavigateTool>();
+        services.AddSingleton<ITool, Devices.ShopTool>();
         services.AddSingleton<ITool, Devices.WhereAmITool>();
         services.AddSingleton<ITool, Devices.ContactDetailsTool>();
 
